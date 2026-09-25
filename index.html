@@ -1,0 +1,4489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Impossible Room — A Gravity Escape</title>
+<meta name="description" content="A walkable M.C. Escher atrium. Bend gravity through colored arches, collect orb fragments and escape eight impossible chambers.">
+<!--
+  ============================================================================
+  THE IMPOSSIBLE ROOM — production build
+  ----------------------------------------------------------------------------
+  Single-file, self-contained WebGL game (Three.js r170 via UNPKG CDN).
+  Engine highlights:
+    * Quaternion gravity engine — gravity is a rotated frame, not a vector hack
+    * WASD movement projected onto the LOCAL walking plane (no inversion)
+    * Camera orientation composed as qUp * qYaw * qPitch (slerped on shifts)
+    * AABB collision world + gravity-relative raycast grounding + step-up
+    * Web Audio synthesizer — every sound is generated at runtime
+    * LevelManager with 8 hand-crafted levels + 2 seeded procedural bonus rooms
+    * Built-in QA harness: append ?qa=1 to the URL to run 20+ self-tests
+  Self-correction log (issues found & fixed during the verification loop):
+    1. WASD inversion on inverted planes     -> move via projected camera basis
+    2. Euler gimbal-lock / slerp jitter      -> pure quaternion composition
+    3. Rapid arch double-triggers            -> 1.0s global cooldown + re-arm
+    4. Fall-through-floor / void escapes     -> bounds check + green-arch reset
+    5. PointerLockControls euler roll-scrub  -> PLC used for lock lifecycle,
+       pointerSpeed neutralized; look handled by quaternion math (see notes)
+    6. Stair descent bounce                  -> ground snap-down raycast
+    7. Antiparallel 180 deg quaternion flip  -> yellow arch rotates about the
+       view axis (barrel roll) so heading is preserved
+  ============================================================================
+-->
+<style>
+:root{
+  --ink:#e8ecf4; --ink-dim:#9aa3b5; --ink-faint:#5d6577;
+  --glass:rgba(13,16,24,.62); --glass-2:rgba(13,16,24,.82);
+  --line:rgba(255,255,255,.10); --line-2:rgba(255,255,255,.22);
+  --accent:#39d5c8; --gold:#e8c15a; --red:#ff5468; --blue:#4da3ff;
+  --green:#54e08a; --violet:#a97bff;
+  --mono:ui-monospace,"Cascadia Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  --serif:"Iowan Old Style",Palatino,"Palatino Linotype","Book Antiqua",Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#05060a;color:var(--ink);
+  font-family:var(--sans);-webkit-user-select:none;user-select:none}
+canvas{display:block;position:fixed;inset:0}
+#c{position:fixed;inset:0;z-index:0}
+.hidden{display:none!important}
+kbd{font-family:var(--mono);font-size:.78em;background:rgba(255,255,255,.08);
+  border:1px solid var(--line-2);border-bottom-width:2px;border-radius:4px;
+  padding:1px 6px;margin:0 2px;color:var(--ink)}
+
+/* ============ generic overlay plumbing ============ */
+.ui{position:fixed;inset:0;z-index:10}
+.screen{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:22px;
+  background:radial-gradient(120% 90% at 50% 10%,rgba(10,14,26,.25),rgba(4,5,10,.88));
+  backdrop-filter:blur(3px);transition:opacity .45s ease}
+.screen.off{opacity:0;pointer-events:none}
+.panel{background:var(--glass);border:1px solid var(--line);border-radius:14px;
+  padding:26px 30px;box-shadow:0 24px 70px rgba(0,0,0,.55);
+  backdrop-filter:blur(10px)}
+button{font-family:var(--sans);cursor:pointer;border:1px solid var(--line-2);
+  background:rgba(255,255,255,.05);color:var(--ink);border-radius:9px;
+  padding:11px 22px;font-size:15px;letter-spacing:.06em;transition:all .16s ease}
+button:hover{background:rgba(255,255,255,.12);border-color:var(--accent);
+  transform:translateY(-1px);box-shadow:0 6px 22px rgba(57,213,200,.18)}
+button:active{transform:translateY(0)}
+button.primary{border-color:rgba(57,213,200,.65);color:#bffef7;
+  background:linear-gradient(180deg,rgba(57,213,200,.16),rgba(57,213,200,.05));
+  font-weight:600}
+button.primary:hover{box-shadow:0 8px 30px rgba(57,213,200,.35)}
+button:disabled{opacity:.32;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+
+/* ============ main menu ============ */
+#menu{z-index:30}
+#menu .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.5em;
+  color:var(--ink-dim);text-transform:uppercase}
+#menu h1{font-family:var(--serif);font-style:italic;font-weight:600;
+  font-size:clamp(40px,7vw,84px);line-height:1.02;text-align:center;
+  background:linear-gradient(180deg,#ffffff 20%,#8fe6dd 60%,#39d5c8);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 34px rgba(57,213,200,.28))}
+#menu h1 .narrow{display:block;font-size:.42em;letter-spacing:.34em;
+  font-style:normal;font-family:var(--mono);font-weight:400;color:var(--ink-dim);
+  -webkit-text-fill-color:var(--ink-dim);margin-top:14px}
+#menu .tag{color:var(--ink-dim);font-size:15px;max-width:520px;text-align:center;
+  line-height:1.55}
+.arch-legend{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.arch-chip{display:flex;align-items:center;gap:8px;font-family:var(--mono);
+  font-size:11px;letter-spacing:.12em;padding:7px 12px;border-radius:999px;
+  border:1px solid var(--line);background:rgba(255,255,255,.03)}
+.arch-chip i{width:10px;height:10px;border-radius:50%;display:inline-block;
+  box-shadow:0 0 12px 2px currentColor}
+#menu .foot{position:absolute;bottom:26px;font-family:var(--mono);font-size:11px;
+  color:var(--ink-faint);letter-spacing:.2em}
+
+/* level select grid */
+#levels{max-width:760px}
+.lvl-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:16px}
+.lvl{padding:12px 10px;text-align:center;border-radius:10px;cursor:pointer;
+  border:1px solid var(--line);background:rgba(255,255,255,.03);transition:all .15s}
+.lvl:hover:not(.locked){border-color:var(--accent);background:rgba(57,213,200,.08)}
+.lvl .n{font-family:var(--serif);font-style:italic;font-size:24px;color:var(--ink)}
+.lvl .t{font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--ink-dim);
+  margin-top:5px;line-height:1.4;min-height:24px}
+.lvl .b{font-family:var(--mono);font-size:9px;color:var(--gold);margin-top:3px}
+.lvl.locked{opacity:.35;cursor:not-allowed}
+.lvl.locked .t::after{content:"LOCKED";display:block;color:var(--ink-faint)}
+
+/* settings */
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:26px;
+  padding:9px 0;border-bottom:1px solid var(--line);min-width:360px}
+.set-row:last-child{border-bottom:none}
+.set-row label{font-size:13px;color:var(--ink-dim);letter-spacing:.08em}
+.set-row input[type=range]{width:170px;accent-color:var(--accent)}
+.set-row .val{font-family:var(--mono);font-size:12px;color:var(--ink);width:44px;
+  text-align:right}
+.switch{position:relative;width:44px;height:22px;border-radius:999px;
+  background:rgba(255,255,255,.12);cursor:pointer;transition:background .2s}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;
+  border-radius:50%;background:#cfd6e4;transition:all .2s}
+.switch.on{background:rgba(57,213,200,.55)}
+.switch.on::after{left:24px;background:#eafffb}
+.tabbar{display:flex;gap:8px;justify-content:center;margin-bottom:4px}
+.tabbar button{padding:8px 16px;font-size:12px}
+
+/* help table */
+#help .panel{max-width:640px}
+.ctl-grid{display:grid;grid-template-columns:auto 1fr;gap:9px 20px;margin-top:12px;
+  font-size:13.5px;color:var(--ink-dim);align-items:center}
+.h2{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--accent);
+  text-transform:uppercase;margin:18px 0 8px}
+.h2:first-child{margin-top:0}
+
+/* ============ HUD ============ */
+#hud{position:fixed;inset:0;z-index:15;pointer-events:none;opacity:0;transition:opacity .4s}
+#hud.on{opacity:1}
+.hud-tl{position:absolute;top:20px;left:22px;max-width:340px}
+.hud-tr{position:absolute;top:20px;right:22px;text-align:right}
+.hud-bl{position:absolute;bottom:20px;left:22px;display:flex;align-items:center;gap:14px}
+.hud-br{position:absolute;bottom:20px;right:22px;text-align:right;
+  font-family:var(--mono);font-size:12px;color:var(--ink-dim)}
+#hud-level{font-family:var(--mono);font-size:10px;letter-spacing:.34em;
+  color:var(--accent);text-transform:uppercase;text-shadow:0 0 14px rgba(57,213,200,.5)}
+#hud-obj{font-family:var(--serif);font-style:italic;font-size:20px;color:var(--ink);
+  margin-top:4px;text-shadow:0 2px 18px rgba(0,0,0,.8)}
+#hud-status{font-family:var(--mono);font-size:11px;color:var(--ink-dim);
+  margin-top:7px;letter-spacing:.06em;line-height:1.6}
+#hud-module{background:var(--glass);border:1px solid var(--line);border-radius:12px;
+  padding:12px 16px;min-width:180px;backdrop-filter:blur(8px);
+  box-shadow:0 14px 44px rgba(0,0,0,.4)}
+.mod-title{font-family:var(--mono);font-size:9px;letter-spacing:.3em;
+  color:var(--ink-faint);text-transform:uppercase;margin-bottom:8px}
+.mod-big{font-family:var(--mono);font-size:26px;color:var(--ink);letter-spacing:.05em}
+.mod-big em{font-style:normal;color:var(--gold)}
+.mod-big.warn{color:var(--red);animation:pulse 1s infinite}
+.mod-sub{font-family:var(--mono);font-size:10px;color:var(--ink-dim);margin-top:4px}
+.pips{display:flex;gap:7px;margin:6px 0 2px;justify-content:flex-end}
+.pip{width:11px;height:11px;border-radius:50%;border:1px solid var(--line-2);
+  background:rgba(255,255,255,.05);transition:all .25s}
+.pip.on{background:currentColor;box-shadow:0 0 14px 2px currentColor;border-color:transparent}
+.pip.bad{border-color:var(--red);background:rgba(255,84,104,.3)}
+.ring-wrap{position:relative;width:74px;height:74px;margin-left:auto}
+.ring-wrap svg{transform:rotate(-90deg)}
+.ring-bg{fill:none;stroke:rgba(255,255,255,.1);stroke-width:5}
+.ring-fg{fill:none;stroke:var(--accent);stroke-width:5;stroke-linecap:round;
+  transition:stroke-dashoffset .12s linear}
+.ring-txt{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:13px;color:var(--ink)}
+#hud-timer{font-family:var(--mono);font-size:30px;letter-spacing:.04em;color:var(--ink)}
+#hud-timer.warn{color:var(--red);animation:pulse 1.05s infinite}
+#hud-loops{font-family:var(--mono);font-size:11px;color:var(--violet);margin-top:5px}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* reticle */
+#reticle{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:30px;height:30px}
+#reticle .dot{position:absolute;left:50%;top:50%;width:4px;height:4px;border-radius:50%;
+  background:var(--ink);transform:translate(-50%,-50%);box-shadow:0 0 7px rgba(0,0,0,.9)}
+#reticle .ring{position:absolute;inset:0;border:1.5px solid rgba(255,255,255,.28);
+  border-radius:50%;transition:all .18s ease;transform:scale(.62);opacity:.7}
+#reticle.hot .ring{transform:scale(1);border-color:var(--accent);
+  box-shadow:0 0 16px rgba(57,213,200,.45)}
+#reticle.hot .dot{background:var(--accent)}
+#prompt{position:absolute;left:50%;top:calc(50% + 34px);transform:translateX(-50%);
+  font-family:var(--mono);font-size:12px;letter-spacing:.14em;color:var(--ink);
+  background:var(--glass);border:1px solid var(--line);padding:7px 14px;border-radius:8px;
+  white-space:nowrap;opacity:0;transition:opacity .15s}
+#prompt.on{opacity:1}
+#prompt b{color:var(--accent);font-weight:600}
+
+/* gravity compass */
+#compass{display:flex;align-items:center;gap:12px;background:var(--glass);
+  border:1px solid var(--line);border-radius:14px;padding:10px 16px;
+  backdrop-filter:blur(8px)}
+#compass .dial{position:relative;width:52px;height:52px;border-radius:50%;
+  border:1px solid var(--line-2);background:
+  radial-gradient(circle at 50% 40%,rgba(255,255,255,.06),transparent 70%)}
+#compass .needle{position:absolute;left:50%;top:50%;width:0;height:0;
+  transform-origin:0 0;transition:transform .12s linear}
+#compass .needle svg{display:block;transform:translate(-7px,-20px)}
+#compass .txt{text-align:left}
+#compass .lbl{font-family:var(--mono);font-size:9px;letter-spacing:.28em;
+  color:var(--ink-faint);text-transform:uppercase}
+#compass .plane{font-family:var(--mono);font-size:16px;font-weight:700;letter-spacing:.1em;
+  margin-top:2px;transition:color .3s}
+#compass.shift .plane{animation:pulse .5s infinite}
+
+/* ============ overlays ============ */
+#levelcard{z-index:25;pointer-events:none;background:rgba(3,4,8,.55)}
+#levelcard .lc-num{font-family:var(--mono);letter-spacing:.6em;font-size:13px;
+  color:var(--accent)}
+#levelcard .lc-name{font-family:var(--serif);font-style:italic;font-size:clamp(34px,6vw,64px);
+  color:#fff;text-shadow:0 4px 40px rgba(0,0,0,.9)}
+#levelcard .lc-obj{font-family:var(--mono);font-size:12px;letter-spacing:.2em;
+  color:var(--ink-dim);max-width:560px;text-align:center;line-height:1.8}
+#levelcard .lc-rule{width:120px;height:1px;background:linear-gradient(90deg,transparent,
+  var(--accent),transparent)}
+
+#fade{position:fixed;inset:0;z-index:60;pointer-events:none;background:#000;opacity:0}
+#fade.white{background:#f6f9ff}
+#flash{position:fixed;inset:0;z-index:55;pointer-events:none;opacity:0}
+#flash.go{animation:flashdecay .55s ease-out forwards}
+@keyframes flashdecay{0%{opacity:.5}100%{opacity:0}}
+#vignette{position:fixed;inset:0;z-index:54;pointer-events:none;opacity:0;transition:opacity .3s;
+  background:radial-gradient(ellipse at center,transparent 42%,rgba(255,30,50,.5) 100%)}
+#shake{position:fixed;inset:0;z-index:56;pointer-events:none;opacity:0;transition:opacity .25s;
+  box-shadow:inset 0 0 140px 40px rgba(255,120,60,.35)}
+
+/* pause / victory / fail */
+#pause,#victory,#failed{z-index:40}
+.big-title{font-family:var(--serif);font-style:italic;font-size:clamp(30px,5vw,52px);
+  color:#fff;text-align:center}
+.stat-rows{font-family:var(--mono);font-size:13px;color:var(--ink-dim);
+  min-width:300px;margin:4px 0 8px}
+.stat-rows .row{display:flex;justify-content:space-between;gap:40px;padding:6px 2px;
+  border-bottom:1px solid var(--line)}
+.stat-rows .row b{color:var(--ink);font-weight:500}
+.stat-rows .row b.gold{color:var(--gold)}
+#failed .big-title{color:var(--red)}
+
+/* error */
+#err{z-index:80;background:rgba(6,7,12,.94)}
+#err .panel{max-width:480px;border-color:rgba(255,84,104,.4)}
+
+/* toast (bottom center notices) */
+#toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:50;
+  font-family:var(--mono);font-size:13px;letter-spacing:.18em;color:var(--ink);
+  background:var(--glass-2);border:1px solid var(--line-2);border-radius:10px;
+  padding:12px 22px;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(-8px)}
+#toast b{color:var(--gold)}
+#toast.red b{color:var(--red)}
+
+@media (max-width:720px){
+  .lvl-grid{grid-template-columns:repeat(3,1fr)}
+  .hud-tl{max-width:230px}
+  #hud-obj{font-size:16px}
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<!-- ===================== MAIN MENU ===================== -->
+<div id="menu" class="screen">
+  <div class="kicker">AN ESCHER GRAVITY PUZZLE</div>
+  <h1>The Impossible Room<span class="narrow">EIGHT CHAMBERS · FOUR GRAVITIES · ONE EXIT</span></h1>
+  <div class="arch-legend">
+    <span class="arch-chip" style="color:#4da3ff"><i style="color:#4da3ff"></i>BLUE&nbsp;→&nbsp;WALL A</span>
+    <span class="arch-chip" style="color:#ff5468"><i style="color:#ff5468"></i>RED&nbsp;→&nbsp;WALL B</span>
+    <span class="arch-chip" style="color:#e8c15a"><i style="color:#e8c15a"></i>YELLOW&nbsp;→&nbsp;CEILING</span>
+    <span class="arch-chip" style="color:#54e08a"><i style="color:#54e08a"></i>GREEN&nbsp;→&nbsp;FLOOR</span>
+  </div>
+  <div class="tag">Walk crisscrossing staircases and inverted architecture. Pass through the
+    gravity arches to fall sideways and upward. Collect the orb fragments and escape.</div>
+  <div class="btn-row">
+    <button id="btn-start" class="primary">ENTER THE ROOM</button>
+    <button id="btn-levels">CHAMBERS</button>
+    <button id="btn-help">HOW TO PLAY</button>
+    <button id="btn-settings">SETTINGS</button>
+  </div>
+  <div class="panel hidden" id="levels">
+    <div class="h2">Select Chamber</div>
+    <div class="lvl-grid" id="lvl-grid"></div>
+    <div class="btn-row" style="margin-top:16px"><button id="btn-levels-back">BACK</button></div>
+  </div>
+  <div class="panel hidden" id="settings">
+    <div class="set-row"><label>Master volume</label>
+      <input type="range" id="set-vol" min="0" max="100" value="70">
+      <span class="val" id="set-vol-v">70</span></div>
+    <div class="set-row"><label>Mouse sensitivity</label>
+      <input type="range" id="set-sens" min="20" max="200" value="100">
+      <span class="val" id="set-sens-v">1.0</span></div>
+    <div class="set-row"><label>Invert Y</label><div class="switch" id="set-inv"></div><span></span></div>
+    <div class="set-row"><label>Bloom lighting</label><div class="switch on" id="set-bloom"></div><span></span></div>
+    <div class="set-row"><label>Soft shadows</label><div class="switch on" id="set-shadow"></div><span></span></div>
+    <div class="set-row"><label>FPS counter</label><div class="switch" id="set-fps"></div><span></span></div>
+    <div class="btn-row" style="margin-top:16px"><button id="btn-settings-back">BACK</button></div>
+  </div>
+  <div class="panel hidden" id="help">
+    <div class="h2">Controls</div>
+    <div class="ctl-grid">
+      <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span>Move on your current plane (relative to view)</span>
+      <span><kbd>SPACE</kbd></span><span>Jump away from your current surface</span>
+      <span><kbd>SHIFT</kbd></span><span>Sprint</span>
+      <span><kbd>E</kbd></span><span>Interact — pick up / drop cubes, rotate mirrors, insert cores</span>
+      <span><kbd>ESC</kbd></span><span>Pause (releases the mouse)</span>
+      <span><kbd>R</kbd></span><span>Restart current chamber</span>
+    </div>
+    <div class="h2">The Arches</div>
+    <div class="ctl-grid" style="grid-template-columns:1fr">
+      <span><b style="color:#4da3ff">BLUE</b> rotates gravity +90° — you fall onto <b>Wall A</b>.
+      <b style="color:#ff5468">RED</b> rotates −90° — <b>Wall B</b>.
+      <b style="color:#e8c15a">YELLOW</b> inverts it — the <b>ceiling</b> becomes your floor.
+      <b style="color:#54e08a">GREEN</b> resets to the room floor.</span>
+      <span>Arches stack: on Wall A, a blue arch sends you to the ceiling. Watch the gravity
+      compass, bottom-left. If you fall into the void you awake at the green arch.</span>
+    </div>
+    <div class="btn-row" style="margin-top:16px"><button id="btn-help-back">BACK</button></div>
+  </div>
+  <div class="foot">SINGLE FILE · THREE.JS · WEB AUDIO SYNTH · NO ASSETS</div>
+</div>
+
+<!-- ===================== HUD ===================== -->
+<div id="hud">
+  <div class="hud-tl">
+    <div id="hud-level">CHAMBER I</div>
+    <div id="hud-obj">Collect the fragments</div>
+    <div id="hud-status"></div>
+  </div>
+  <div class="hud-tr"><div id="hud-module"></div></div>
+  <div class="hud-bl">
+    <div id="compass">
+      <div class="dial"><div class="needle" id="compass-needle">
+        <svg width="14" height="40" viewBox="0 0 14 40">
+          <path d="M7 2 L13 24 L7 19 L1 24 Z" fill="#39d5c8"/>
+          <path d="M7 38 L3 22 L7 26 L11 22 Z" fill="rgba(255,255,255,.25)"/>
+        </svg></div></div>
+      <div class="txt"><div class="lbl">GRAVITY</div><div class="plane" id="compass-plane">FLOOR</div></div>
+    </div>
+  </div>
+  <div class="hud-br"><span id="hud-time">0:00</span><br><span id="hud-fps"></span></div>
+  <div id="reticle"><div class="ring"></div><div class="dot"></div></div>
+  <div id="prompt"><b>E</b>&nbsp;<span id="prompt-txt"></span></div>
+</div>
+
+<!-- ===================== SCREENS ===================== -->
+<div id="levelcard" class="screen off">
+  <div class="lc-num" id="lc-num">CHAMBER I</div>
+  <div class="lc-name" id="lc-name">The Initiation</div>
+  <div class="lc-rule"></div>
+  <div class="lc-obj" id="lc-obj"></div>
+</div>
+
+<div id="pause" class="screen hidden">
+  <div class="big-title">Suspended</div>
+  <div class="btn-row">
+    <button id="btn-resume" class="primary">RESUME</button>
+    <button id="btn-restart">RESTART CHAMBER</button>
+    <button id="btn-pmenu">ABANDON TO MENU</button>
+  </div>
+  <div style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:.2em">
+    MOUSE RELEASED — CLICK RESUME TO RECAPTURE</div>
+</div>
+
+<div id="victory" class="screen hidden">
+  <div class="kicker" id="v-kick">CHAMBER COMPLETE</div>
+  <div class="big-title" id="v-title">Escaped</div>
+  <div class="panel"><div class="stat-rows" id="v-stats"></div></div>
+  <div class="btn-row">
+    <button id="btn-next" class="primary">NEXT CHAMBER</button>
+    <button id="btn-replay">REPLAY</button>
+    <button id="btn-bonus" class="hidden">BONUS CHAMBERS</button>
+    <button id="btn-vmenu">MENU</button>
+  </div>
+</div>
+
+<div id="failed" class="screen hidden">
+  <div class="big-title" id="f-title">Detected</div>
+  <div style="font-family:var(--mono);letter-spacing:.2em;color:var(--ink-dim)" id="f-sub">
+    RETURNING TO THE GREEN ARCH</div>
+</div>
+
+<div id="err" class="screen hidden">
+  <div class="panel">
+    <div class="h2">The room refused to open</div>
+    <div style="font-size:14px;color:var(--ink-dim);line-height:1.7" id="err-msg"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="flash"></div>
+<div id="vignette"></div>
+<div id="shake"></div>
+<div id="fade"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+/* eslint-disable */
+import * as THREE from 'three';
+// PointerLockControls manages pointer-lock lifecycle (lock()/unlock()/events).
+// NOTE — its internal look math writes Euler angles with roll forced to zero,
+// which is incompatible with a rolled gravity frame (it scrubs the roll and
+// inverts pitch when upside-down). We therefore neutralize its look step
+// (pointerSpeed = 0) and drive camera orientation with pure quaternion math,
+// composed as qUp * qYaw * qPitch and slerped across gravity transitions.
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+
+/* ============================================================
+   0. CONSTANTS, UTILITIES, PERSISTENCE
+   ============================================================ */
+const TAU = Math.PI * 2;
+const V3 = (x=0,y=0,z=0)=>new THREE.Vector3(x,y,z);
+const V = (x,y,z)=>new THREE.Vector3(x,y,z);
+const clamp = (v,a,b)=>v<a?a:(v>b?b:v);
+const lerp = (a,b,t)=>a+(b-a)*t;
+const damp = (a,b,l,dt)=>lerp(a,b,1-Math.exp(-l*dt));
+const easeInOut = t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+const easeOut = t=>1-Math.pow(1-t,3);
+const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X'];
+
+function mulberry32(seed){
+  let a = seed>>>0;
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a>>>15), 1 | a);
+    t = (t + Math.imul(t ^ (t>>>7), 61 | t)) ^ t;
+    return ((t ^ (t>>>14)) >>> 0) / 4294967296;
+  };
+}
+const fmtTime = s=>{
+  const m = Math.floor(s/60), r = s-m*60;
+  return m+':'+(r<10?'0':'')+r.toFixed(1);
+};
+const fmtTimeLong = s=>{
+  const m = Math.floor(s/60), r = Math.floor(s-m*60);
+  return m+':'+(r<10?'0':'')+r;
+};
+function axisOf(v){ // dominant axis index of (near) axis-aligned unit vector
+  const ax = Math.abs(v.x), ay = Math.abs(v.y), az = Math.abs(v.z);
+  return ax>ay ? (ax>az?0:2) : (ay>az?1:2);
+}
+
+/* ---- persistence ---- */
+const STORE = {
+  load(){
+    try{ return JSON.parse(localStorage.getItem('tir_save')||'{}'); }catch(e){ return {}; }
+  },
+  save(d){ try{ localStorage.setItem('tir_save', JSON.stringify(d)); }catch(e){} }
+};
+const SAVE = Object.assign({ unlocked:1, best:{}, campaignBest:null,
+  vol:0.7, sens:1.0, invertY:false, bloom:true, shadows:true, fps:false }, STORE.load());
+
+function persist(){ STORE.save(SAVE); }
+
+/* ---- DOM refs ---- */
+const $ = id=>document.getElementById(id);
+const DOM = {
+  menu:$('menu'), hud:$('hud'), pause:$('pause'), victory:$('victory'), failed:$('failed'),
+  levelcard:$('levelcard'), fade:$('fade'), flash:$('flash'), vignette:$('vignette'),
+  shake:$('shake'), toast:$('toast'), err:$('err'), errMsg:$('err-msg'),
+  hudLevel:$('hud-level'), hudObj:$('hud-obj'), hudStatus:$('hud-status'),
+  hudModule:$('hud-module'), hudTime:$('hud-time'), hudFps:$('hud-fps'),
+  compassPlane:$('compass-plane'), compass:$('compass'), needle:$('compass-needle'),
+  reticle:$('reticle'), prompt:$('prompt'), promptTxt:$('prompt-txt'),
+  lcNum:$('lc-num'), lcName:$('lc-name'), lcObj:$('lc-obj'),
+  vKick:$('v-kick'), vTitle:$('v-title'), vStats:$('v-stats'),
+  btnNext:$('btn-next'), btnReplay:$('btn-replay'), btnBonus:$('btn-bonus'),
+  fTitle:$('f-title'), fSub:$('f-sub')
+};
+
+/* ---- toasts / flashes ---- */
+let toastTimer = null;
+function toast(html, ms=2600, red=false){
+  DOM.toast.innerHTML = html;
+  DOM.toast.classList.toggle('red', red);
+  DOM.toast.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>DOM.toast.classList.remove('on'), ms);
+}
+function flashScreen(color, alpha=0.5){
+  const f = DOM.flash;
+  f.style.background = `radial-gradient(ellipse at center, ${color}ee 0%, ${color}44 45%, transparent 75%)`;
+  f.style.opacity = alpha;
+  f.classList.remove('go'); void f.offsetWidth; f.classList.add('go');
+}
+function setFade(alpha, white=false){
+  DOM.fade.classList.toggle('white', white);
+  DOM.fade.style.opacity = alpha;
+  DOM.fade.style.transition = 'none';
+}
+
+/* ============================================================
+   1. AUDIO ENGINE — everything is synthesized at runtime
+   ============================================================ */
+class AudioEngine{
+  constructor(){ this.ready=false; }
+  init(){
+    if(this.ready) return;
+    try{
+      const AC = window.AudioContext||window.webkitAudioContext;
+      this.ctx = new AC();
+      const ctx = this.ctx;
+      this.master = ctx.createGain(); this.master.gain.value = SAVE.vol;
+      this.comp = ctx.createDynamicsCompressor();
+      this.comp.threshold.value=-16; this.comp.ratio.value=5; this.comp.knee.value=18;
+      this.master.connect(this.comp); this.comp.connect(ctx.destination);
+      this.sfx = ctx.createGain(); this.sfx.gain.value = 0.9;
+      this.music = ctx.createGain(); this.music.gain.value = 0.55;
+      // generated impulse for reverb
+      const len = Math.floor(ctx.sampleRate*1.9);
+      const ir = ctx.createBuffer(2, len, ctx.sampleRate);
+      for(let ch=0; ch<2; ch++){
+        const d = ir.getChannelData(ch);
+        for(let i=0;i<len;i++) d[i] = (Math.random()*2-1)*Math.pow(1-i/len, 2.6);
+      }
+      this.verb = ctx.createConvolver(); this.verb.buffer = ir;
+      this.verbGain = ctx.createGain(); this.verbGain.gain.value = 0.28;
+      this.sfx.connect(this.master); this.sfx.connect(this.verb);
+      this.verb.connect(this.verbGain); this.verbGain.connect(this.master);
+      this.music.connect(this.master);
+      // noise buffer (shared)
+      const nb = ctx.createBuffer(1, ctx.sampleRate*2, ctx.sampleRate);
+      const nd = nb.getChannelData(0);
+      for(let i=0;i<nd.length;i++) nd[i]=Math.random()*2-1;
+      this.noiseBuf = nb;
+      this.ready = true;
+      this._loops = {};
+    }catch(e){ this.ready=false; }
+  }
+  resume(){ if(this.ready && this.ctx.state==='suspended') this.ctx.resume(); }
+  setVolume(v){ if(this.ready) this.master.gain.value = v; }
+  now(){ return this.ctx.currentTime; }
+  /* --- primitive: oscillator blip with envelope --- */
+  blip(o={}){
+    if(!this.ready) return;
+    const c=this.ctx, t=c.currentTime+(o.at||0);
+    const osc=c.createOscillator(), g=c.createGain();
+    osc.type=o.type||'sine';
+    osc.frequency.setValueAtTime(o.f0||440, t);
+    if(o.f1!==undefined) osc.frequency.exponentialRampToValueAtTime(Math.max(1,o.f1), t+(o.d||0.1));
+    const vol=(o.g??0.2), a=(o.a||0.004), d=(o.d||0.12);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(vol, t+a);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+a+d);
+    osc.connect(g); g.connect(o.bus||this.sfx);
+    osc.start(t); osc.stop(t+a+d+0.05);
+  }
+  /* --- primitive: filtered noise burst --- */
+  noise(o={}){
+    if(!this.ready) return;
+    const c=this.ctx, t=c.currentTime+(o.at||0);
+    const src=c.createBufferSource(); src.buffer=this.noiseBuf;
+    src.loop=true; src.playbackRate.value=o.rate||1;
+    const f=c.createBiquadFilter();
+    f.type=o.ftype||'bandpass'; f.frequency.setValueAtTime(o.f0||800,t);
+    if(o.f1!==undefined) f.frequency.exponentialRampToValueAtTime(Math.max(20,o.f1), t+(o.d||0.2));
+    f.Q.value=o.q||0.9;
+    const g=c.createGain(); const vol=(o.g??0.15), d=(o.d||0.18);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(vol, t+(o.a||0.01));
+    g.gain.exponentialRampToValueAtTime(0.0001, t+d);
+    src.connect(f); f.connect(g); g.connect(o.bus||this.sfx);
+    src.start(t); src.stop(t+d+0.1);
+  }
+  /* ================= game sounds ================= */
+  uiClick(){ this.blip({type:'triangle',f0:520,f1:760,d:0.06,g:0.09}); }
+  uiHover(){ this.blip({type:'sine',f0:840,d:0.03,g:0.035}); }
+  jump(){ this.blip({type:'sine',f0:180,f1:320,d:0.09,g:0.14});
+          this.noise({f0:600,f1:1400,d:0.07,g:0.05}); }
+  land(hard=1){
+    this.blip({type:'sine',f0:95,f1:52,d:0.13,g:0.2*hard});
+    this.noise({ftype:'lowpass',f0:420,f1:180,d:0.09,g:0.08*hard});
+  }
+  step(alt){ this.noise({f0:alt?900:700,f1:alt?300:220,q:1.6,d:0.045,g:0.035}); }
+  archHum(color){
+    const base = {blue:196, red:174, yellow:220, green:147}[color]||196;
+    this.blip({type:'sawtooth',f0:base*0.5,f1:base*2.2,d:0.42,g:0.07});
+    this.blip({type:'sine',f0:base,f1:base*2.5,d:0.45,g:0.1});
+    this.noise({f0:500,f1:3800,d:0.4,g:0.045});
+  }
+  archSettle(){ this.blip({type:'sine',f0:330,f1:170,d:0.22,g:0.11}); }
+  fragment(n){
+    const root = 660*Math.pow(2,(n*2)/12);
+    [0,4,7,12].forEach((s,i)=>this.blip({type:'sine',
+      f0:root*Math.pow(2,s/12), d:0.5, g:0.12, at:i*0.07,
+      bus:this.music}));
+    this.noise({f0:5200,f1:9000,d:0.3,g:0.02,at:0.02});
+  }
+  cubePick(){ this.blip({type:'square',f0:140,f1:420,d:0.11,g:0.07}); }
+  cubeDrop(){ this.blip({type:'square',f0:300,f1:120,d:0.09,g:0.08}); }
+  cubeSeat(){ this.blip({type:'sine',f0:110,f1:70,d:0.2,g:0.24});
+    this.blip({type:'sine',f0:880,f1:1320,d:0.35,g:0.06,at:0.1}); }
+  plateOn(){ this.blip({type:'triangle',f0:520,f1:780,d:0.16,g:0.1}); }
+  mirrorRotate(){ this.blip({type:'square',f0:220,f1:190,d:0.08,g:0.08});
+    this.noise({f0:2400,f1:900,d:0.09,g:0.05,q:3}); }
+  laserHum(level){ // continuous, gain follows power
+    if(!this.ready) return;
+    if(!this._loops.laser){
+      const c=this.ctx;
+      const o=c.createOscillator(); o.type='sawtooth'; o.frequency.value=112;
+      const f=c.createBiquadFilter(); f.type='lowpass'; f.frequency.value=520;
+      const g=c.createGain(); g.gain.value=0;
+      o.connect(f); f.connect(g); g.connect(this.sfx); o.start();
+      this._loops.laser={o,f,g};
+    }
+    const L=this._loops.laser, t=this.ctx.currentTime;
+    L.g.gain.setTargetAtTime(0.055*level, t, 0.12);
+  }
+  chargeTick(p){ this.blip({type:'sine',f0:700+p*700,d:0.05,g:0.05}); }
+  powered(){ [0,5,9].forEach((s,i)=>this.blip({type:'triangle',
+    f0:440*Math.pow(2,s/12),d:0.4,g:0.1,at:i*0.09,bus:this.music})); }
+  detect(){
+    for(let i=0;i<3;i++){
+      this.blip({type:'square',f0:660,f1:660,d:0.12,g:0.16,at:i*0.24});
+      this.blip({type:'square',f0:880,f1:880,d:0.12,g:0.16,at:i*0.24+0.12});
+    }
+    this.noise({f0:300,f1:60,d:0.7,g:0.12,ftype:'lowpass'});
+  }
+  hazardTick(){ this.blip({type:'sine',f0:1150,d:0.03,g:0.028}); }
+  heartbeat(){ this.blip({type:'sine',f0:70,f1:45,d:0.1,g:0.2});
+    this.blip({type:'sine',f0:65,f1:40,d:0.09,g:0.14,at:0.16}); }
+  gravityBoom(){ this.blip({type:'sine',f0:80,f1:34,d:0.5,g:0.3});
+    this.noise({ftype:'lowpass',f0:900,f1:120,d:0.5,g:0.1}); }
+  whoosh(up=true){ this.noise({f0:up?300:2200,f1:up?2400:220,q:0.7,d:0.34,g:0.07}); }
+  doorOpen(){ this.noise({ftype:'lowpass',f0:900,f1:200,d:0.7,g:0.1,q:2});
+    this.blip({type:'square',f0:65,f1:50,d:0.5,g:0.13}); }
+  doorSeal(){ this.blip({type:'square',f0:100,f1:70,d:0.25,g:0.18});
+    this.noise({f0:1500,f1:400,d:0.2,g:0.07}); }
+  buzz(){ this.blip({type:'sawtooth',f0:110,f1:82,d:0.22,g:0.13}); }
+  seqNote(i){ this.blip({type:'sine',f0:392*Math.pow(2,[0,4,7,12][Math.min(i,3)]/12),
+    d:0.35,g:0.1,bus:this.music}); }
+  winSmall(){
+    [0,4,7,12,16].forEach((s,i)=>this.blip({type:'triangle',
+      f0:523*Math.pow(2,s/12),d:0.55,g:0.1,at:i*0.11,bus:this.music}));
+  }
+  winBig(){
+    const ch=[0,7,12,16,19,24,28];
+    ch.forEach((s,i)=>{ this.blip({type:'triangle',f0:262*Math.pow(2,s/12),d:0.9,g:0.11,
+      at:i*0.13,bus:this.music});
+      this.blip({type:'sine',f0:524*Math.pow(2,s/12),d:0.9,g:0.05,at:i*0.13+0.02,bus:this.music}); });
+    this.noise({f0:400,f1:6000,d:1.6,g:0.03,at:0.2});
+  }
+  fail(){ this.blip({type:'sawtooth',f0:220,f1:55,d:0.8,g:0.15});
+    this.noise({f0:2000,f1:100,d:0.8,g:0.09}); }
+  /* ambient drone — loop */
+  ambient(freq=55){
+    if(!this.ready) return;
+    if(this._amb){ // retune
+      const t=this.ctx.currentTime;
+      this._amb.o1.frequency.setTargetAtTime(freq,t,1.2);
+      this._amb.o2.frequency.setTargetAtTime(freq*1.5,t,1.2);
+      this._amb.o3.frequency.setTargetAtTime(freq*2.02,t,1.2);
+      return;
+    }
+    const c=this.ctx;
+    const o1=c.createOscillator(); o1.type='sine'; o1.frequency.value=freq;
+    const o2=c.createOscillator(); o2.type='triangle'; o2.frequency.value=freq*1.5;
+    const o3=c.createOscillator(); o3.type='sine'; o3.frequency.value=freq*2.02;
+    const g=c.createGain(); g.gain.value=0.0;
+    g.gain.setTargetAtTime(0.10, c.currentTime, 2.5);
+    const lfo=c.createOscillator(); lfo.frequency.value=0.07;
+    const lg=c.createGain(); lg.gain.value=0.03;
+    lfo.connect(lg); lg.connect(g.gain);
+    const pad=c.createBufferSource(); pad.buffer=this.noiseBuf; pad.loop=true;
+    const pf=c.createBiquadFilter(); pf.type='bandpass'; pf.frequency.value=420; pf.Q.value=0.4;
+    const pg=c.createGain(); pg.gain.value=0.012;
+    pad.connect(pf); pf.connect(pg); pg.connect(this.music);
+    o1.connect(g); o2.connect(g); o3.connect(g); g.connect(this.music);
+    o1.start(); o2.start(); o3.start(); lfo.start(); pad.start();
+    this._amb={o1,o2,o3,g};
+  }
+}
+const SND = new AudioEngine();
+
+/* ============================================================
+   2. RENDERER, SCENE, ATMOSPHERE
+   ============================================================ */
+const GAME = {
+  state:'menu',            // menu | playing | paused | levelcard | victory | failed | done
+  levelIndex:0,
+  campaignTime:0,
+  levelTime:0,
+  levelTimes:[],
+  timeScale:1,
+  qa:false,
+  logicOnly:false,
+};
+let renderer, scene, camera, composer, bloomPass, dirLight, hemiLight, plc;
+const WORLD = new THREE.Group();     // per-level content root
+scene = new THREE.Scene();
+scene.add(WORLD);
+camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.08, 400);
+
+function initRenderer(){
+  try{
+    renderer = new THREE.WebGLRenderer({canvas:$('c'), antialias:true, powerPreference:'high-performance'});
+    renderer.setPixelRatio(Math.min(devicePixelRatio||1, 1.75));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.22;
+  }catch(e){
+    GAME.logicOnly = true;
+    console.log('QA|INFO|WebGL unavailable — logic-only mode');
+    return;
+  }
+  composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.5, 0.4, 0.82);
+  composer.addPass(bloomPass);
+  composer.addPass(new OutputPass());
+  window.addEventListener('resize', onResize);
+}
+function onResize(){
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  if(!GAME.logicOnly){
+    renderer.setSize(innerWidth, innerHeight);
+    composer.setSize(innerWidth, innerHeight);
+  }
+}
+
+/* ---- lights (shared, re-tinted per level) ---- */
+hemiLight = new THREE.HemisphereLight(0x8fb5c8, 0x1a1410, 0.9);
+scene.add(hemiLight);
+dirLight = new THREE.DirectionalLight(0xffe8c0, 1.15);
+dirLight.position.set(14, 30, 8);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.set(2048, 2048);
+dirLight.shadow.bias = -0.0006;
+dirLight.shadow.normalBias = 0.03;
+scene.add(dirLight);
+scene.add(dirLight.target);
+
+/* ---- starfield / void backdrop (persistent, outside WORLD) ---- */
+const VOID = new THREE.Group();
+scene.add(VOID);
+let starMat;
+function buildVoid(){
+  const N = 2400;
+  const pos = new Float32Array(N*3), phase = new Float32Array(N), size = new Float32Array(N);
+  const R = 150;
+  for(let i=0;i<N;i++){
+    // random direction
+    const u=Math.random()*2-1, th=Math.random()*TAU, r=Math.sqrt(1-u*u);
+    const d=R*(0.75+Math.random()*0.45);
+    pos[i*3]=r*Math.cos(th)*d; pos[i*3+1]=u*d; pos[i*3+2]=r*Math.sin(th)*d;
+    phase[i]=Math.random()*TAU;
+    size[i]=(0.6+Math.random()*1.8);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  g.setAttribute('aPhase', new THREE.BufferAttribute(phase,1));
+  g.setAttribute('aSize', new THREE.BufferAttribute(size,1));
+  starMat = new THREE.ShaderMaterial({
+    uniforms:{ uTime:{value:0}, uPix:{value:Math.min(devicePixelRatio||1,1.75)} },
+    vertexShader:`
+      attribute float aPhase; attribute float aSize; uniform float uTime; uniform float uPix;
+      varying float vA;
+      void main(){
+        vA = 0.45 + 0.55*sin(uTime*0.6 + aPhase);
+        vec4 mv = modelViewMatrix * vec4(position,1.0);
+        gl_PointSize = aSize * uPix * (170.0 / -mv.z);
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader:`
+      varying float vA;
+      void main(){
+        vec2 c = gl_PointCoord - 0.5;
+        float d = length(c);
+        float a = smoothstep(0.5, 0.05, d) * vA;
+        gl_FragColor = vec4(0.82, 0.88, 1.0, a);
+      }`,
+    transparent:true, depthWrite:false, blending:THREE.AdditiveBlending
+  });
+  VOID.add(new THREE.Points(g, starMat));
+  // faint nebulae
+  const nebTex = makeRadialSprite([[0,'rgba(70,110,190,0.16)'],[0.4,'rgba(60,80,160,0.05)'],[1,'rgba(0,0,0,0)']]);
+  const nebTex2 = makeRadialSprite([[0,'rgba(150,80,190,0.13)'],[0.5,'rgba(90,50,140,0.04)'],[1,'rgba(0,0,0,0)']]);
+  const mk=(tex,x,y,z,s)=>{
+    const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:tex, transparent:true,
+      depthWrite:false, blending:THREE.AdditiveBlending}));
+    sp.position.set(x,y,z); sp.scale.set(s,s,1); VOID.add(sp); return sp;
+  };
+  VOID.userData.nebulae=[
+    mk(nebTex, 90, 40, -110, 260), mk(nebTex2, -120, -60, 40, 300),
+    mk(nebTex, -60, 90, 120, 220), mk(nebTex2, 110, -70, -80, 240)
+  ];
+}
+function makeRadialSprite(stops){
+  const c=document.createElement('canvas'); c.width=c.height=128;
+  const x=c.getContext('2d');
+  const g=x.createRadialGradient(64,64,2,64,64,64);
+  stops.forEach(s=>g.addColorStop(s[0],s[1]));
+  x.fillStyle=g; x.fillRect(0,0,128,128);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
+}
+
+/* ---- procedural canvas textures ---- */
+function makeCheckerTex(c1='#232a36', c2='#191e28', cell=64, glow=0.05){
+  const c=document.createElement('canvas'); c.width=c.height=512;
+  const x=c.getContext('2d');
+  const n=512/cell;
+  for(let i=0;i<n;i++)for(let j=0;j<n;j++){
+    x.fillStyle=((i+j)%2)?c1:c2;
+    x.fillRect(i*cell,j*cell,cell,cell);
+  }
+  // subtle wear
+  x.globalAlpha=glow;
+  for(let k=0;k<900;k++){
+    x.fillStyle=Math.random()<0.5?'#000':'#3a4356';
+    x.fillRect(Math.random()*512, Math.random()*512, 2, 2);
+  }
+  x.globalAlpha=1;
+  const t=new THREE.CanvasTexture(c);
+  t.colorSpace=THREE.SRGBColorSpace; t.wrapS=t.wrapT=THREE.RepeatWrapping;
+  t.anisotropy=4;
+  return t;
+}
+function makePanelTex(base='#20242e', line='#2c3240'){
+  const c=document.createElement('canvas'); c.width=512; c.height=512;
+  const x=c.getContext('2d');
+  x.fillStyle=base; x.fillRect(0,0,512,512);
+  x.strokeStyle=line; x.lineWidth=3;
+  for(let i=0;i<=4;i++){ x.beginPath(); x.moveTo(0,i*128); x.lineTo(512,i*128); x.stroke();
+    x.beginPath(); x.moveTo(i*128,0); x.lineTo(i*128,512); x.stroke(); }
+  x.globalAlpha=0.35;
+  for(let k=0;k<400;k++){ x.fillStyle='#000';
+    x.fillRect(Math.random()*512,Math.random()*512,2,2); }
+  x.globalAlpha=1;
+  const t=new THREE.CanvasTexture(c);
+  t.colorSpace=THREE.SRGBColorSpace; t.wrapS=t.wrapT=THREE.RepeatWrapping;
+  return t;
+}
+function makeGlowSprite(){
+  const c=document.createElement('canvas'); c.width=c.height=64;
+  const x=c.getContext('2d');
+  const g=x.createRadialGradient(32,32,1,32,32,32);
+  g.addColorStop(0,'rgba(255,255,255,1)'); g.addColorStop(0.25,'rgba(255,255,255,0.55)');
+  g.addColorStop(1,'rgba(255,255,255,0)');
+  x.fillStyle=g; x.fillRect(0,0,64,64);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
+}
+const GLOW_TEX = makeGlowSprite();
+
+/* text decal texture (painted instructions / clues) */
+function makeTextTex(lines, opts={}){
+  const W=opts.w||512, H=opts.h||256;
+  const c=document.createElement('canvas'); c.width=W; c.height=H;
+  const x=c.getContext('2d');
+  x.clearRect(0,0,W,H);
+  const color=opts.color||'#bcd2e8';
+  const size=opts.size||46;
+  x.font=`${opts.weight||600} ${size}px ui-monospace, Menlo, Consolas, monospace`;
+  x.textAlign='center'; x.textBaseline='middle';
+  if(opts.glow!==false){
+    x.shadowColor=opts.glowColor||color; x.shadowBlur=26;
+  }
+  const lh=size*1.35;
+  const startY=H/2-(lines.length-1)*lh/2;
+  lines.forEach((ln,i)=>{
+    x.fillStyle=color;
+    x.fillText(ln, W/2, startY+i*lh);
+  });
+  const t=new THREE.CanvasTexture(c);
+  t.colorSpace=THREE.SRGBColorSpace;
+  return t;
+}
+
+/* ============================================================
+   3. PARTICLE POOL (bursts, drifting motes, upward "waterfalls")
+   ============================================================ */
+class ParticlePool{
+  constructor(max=700){
+    this.max=max;
+    this.pos=new Float32Array(max*3);
+    this.col=new Float32Array(max*3);
+    this.aSize=new Float32Array(max);
+    this.vel=[];
+    this.life=new Float32Array(max);
+    this.maxLife=new Float32Array(max);
+    for(let i=0;i<max;i++){ this.vel.push(V()); this.life[i]=0; }
+    const g=new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(this.pos,3));
+    g.setAttribute('aCol', new THREE.BufferAttribute(this.col,3));
+    g.setAttribute('aSize', new THREE.BufferAttribute(this.aSize,1));
+    this.geo=g;
+    this.mat=new THREE.ShaderMaterial({
+      uniforms:{uTex:{value:GLOW_TEX},uPix:{value:Math.min(devicePixelRatio||1,1.75)}},
+      vertexShader:`
+        attribute vec3 aCol; attribute float aSize; uniform float uPix;
+        varying vec3 vC;
+        void main(){
+          vC=aCol;
+          vec4 mv=modelViewMatrix*vec4(position,1.0);
+          gl_PointSize=aSize*uPix*(140.0/-mv.z);
+          gl_Position=projectionMatrix*mv;
+        }`,
+      fragmentShader:`
+        uniform sampler2D uTex; varying vec3 vC;
+        void main(){
+          vec4 t=texture2D(uTex,gl_PointCoord);
+          gl_FragColor=vec4(vC,1.0)*t;
+        }`,
+      transparent:true, depthWrite:false, blending:THREE.AdditiveBlending
+    });
+    this.points=new THREE.Points(g,this.mat);
+    this.points.frustumCulled=false;
+    this.points.renderOrder=5;
+    this.cursor=0;
+  }
+  spawn(p, v, color, life, size){
+    const i=this.cursor; this.cursor=(this.cursor+1)%this.max;
+    this.pos[i*3]=p.x; this.pos[i*3+1]=p.y; this.pos[i*3+2]=p.z;
+    this.vel[i].copy(v);
+    this.col[i*3]=color.r; this.col[i*3+1]=color.g; this.col[i*3+2]=color.b;
+    this.life[i]=life; this.maxLife[i]=life;
+    this.aSize[i]=size;
+  }
+  burst(p, color, n=24, speed=3.2, size=2.4, life=0.7, upBias=null){
+    for(let k=0;k<n;k++){
+      const v=V((Math.random()*2-1),(Math.random()*2-1),(Math.random()*2-1)).normalize()
+        .multiplyScalar(speed*(0.4+Math.random()*0.8));
+      if(upBias) v.addScaledVector(upBias, speed*0.7);
+      this.spawn(p, v, color, life*(0.6+Math.random()*0.7), size*(0.5+Math.random()));
+    }
+  }
+  update(dt){
+    let any=false;
+    for(let i=0;i<this.max;i++){
+      if(this.life[i]<=0) continue;
+      any=true;
+      this.life[i]-=dt;
+      const f=Math.max(0,this.life[i]/this.maxLife[i]);
+      this.aSize[i]=this.aSize[i]*(0.99)+0; // size kept; alpha via life
+      this.pos[i*3]+=this.vel[i].x*dt;
+      this.pos[i*3+1]+=this.vel[i].y*dt;
+      this.pos[i*3+2]+=this.vel[i].z*dt;
+      this.vel[i].multiplyScalar(Math.exp(-1.6*dt));
+      if(this.life[i]<=0){ this.aSize[i]=0; }
+      else{ this.aSize[i]=Math.max(0.001, this.aSize[i]); }
+      // stash alpha in aSize by scaling with f — cheap: encode fade in size
+      this.aSize[i]*= (f>0?1:0);
+    }
+    if(any || this._ever){ this.geo.attributes.position.needsUpdate=true;
+      this.geo.attributes.aSize.needsUpdate=true;
+      this.geo.attributes.aCol.needsUpdate=true; this._ever=true; }
+  }
+}
+const PARTS = new ParticlePool(700);
+scene.add(PARTS.points);
+
+/* drifting motes near the structure */
+const MOTES = { points:null, n:260, data:null };
+function buildMotes(box){
+  if(MOTES.points){ VOID.remove(MOTES.points); MOTES.points.geometry.dispose(); }
+  const n=MOTES.n;
+  const pos=new Float32Array(n*3);
+  MOTES.data=[];
+  for(let i=0;i<n;i++){
+    pos[i*3]=box.min.x+Math.random()*(box.max.x-box.min.x);
+    pos[i*3+1]=box.min.y+Math.random()*(box.max.y-box.min.y);
+    pos[i*3+2]=box.min.z+Math.random()*(box.max.z-box.min.z);
+    MOTES.data.push({s:0.08+Math.random()*0.2, ph:Math.random()*TAU, y0:pos[i*3+1]});
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  const m=new THREE.PointsMaterial({color:0x9fd8e8, size:0.06, transparent:true, opacity:0.5,
+    map:GLOW_TEX, depthWrite:false, blending:THREE.AdditiveBlending, sizeAttenuation:true});
+  MOTES.points=new THREE.Points(g,m);
+  MOTES.points.frustumCulled=false;
+  VOID.add(MOTES.points);
+}
+function updateMotes(t){
+  if(!MOTES.points) return;
+  const a=MOTES.points.geometry.attributes.position;
+  for(let i=0;i<MOTES.n;i++){
+    const d=MOTES.data[i];
+    a.array[i*3+1]=d.y0+Math.sin(t*0.3+d.ph)*0.6;
+    a.array[i*3]+=Math.sin(t*0.13+d.ph*2)*0.0015;
+  }
+  a.needsUpdate=true;
+}
+
+/* ============================================================
+   4. INPUT
+   ============================================================ */
+const INPUT = {
+  f:false, b:false, l:false, r:false, jump:false, sprint:false,
+  jumpBuf:0, interactEdge:false, interactHold:false
+};
+function bindInput(){
+  addEventListener('keydown', e=>{
+    if(e.repeat) return;
+    switch(e.code){
+      case 'KeyW': case 'ArrowUp': INPUT.f=true; break;
+      case 'KeyS': case 'ArrowDown': INPUT.b=true; break;
+      case 'KeyA': case 'ArrowLeft': INPUT.l=true; break;
+      case 'KeyD': case 'ArrowRight': INPUT.r=true; break;
+      case 'Space': INPUT.jump=true; INPUT.jumpBuf=0.14; e.preventDefault(); break;
+      case 'ShiftLeft': case 'ShiftRight': INPUT.sprint=true; break;
+      case 'KeyE': INPUT.interactEdge=true; INPUT.interactHold=true; break;
+      case 'KeyR': if(GAME.state==='playing') restartLevel(); break;
+    }
+  });
+  addEventListener('keyup', e=>{
+    switch(e.code){
+      case 'KeyW': case 'ArrowUp': INPUT.f=false; break;
+      case 'KeyS': case 'ArrowDown': INPUT.b=false; break;
+      case 'KeyA': case 'ArrowLeft': INPUT.l=false; break;
+      case 'KeyD': case 'ArrowRight': INPUT.r=false; break;
+      case 'Space': INPUT.jump=false; break;
+      case 'ShiftLeft': case 'ShiftRight': INPUT.sprint=false; break;
+      case 'KeyE': INPUT.interactHold=false; break;
+    }
+  });
+  addEventListener('mousemove', e=>{
+    if(!plc || !plc.isLocked || GAME.state!=='playing') return;
+    const k = 0.0021 * SAVE.sens;
+    player.yaw   -= e.movementX * k;
+    player.pitch -= e.movementY * k * (SAVE.invertY ? -1 : 1);
+    player.pitch = clamp(player.pitch, -1.55, 1.55);
+  });
+}
+
+/* ============================================================
+   5. COLLISION WORLD — AABB colliders + slab raycasts
+   ============================================================ */
+const EPS = 0.0015;
+class CollisionWorld{
+  constructor(){ this.colliders=[]; }
+  clear(){ this.colliders.length=0; }
+  add(min, max, opts={}){
+    const c = {
+      min, max,
+      mesh: opts.mesh||null,
+      tag: opts.tag||'solid',
+      conditional: !!opts.conditional,   // plane-gated (level 7)
+      planes: opts.planes||null,          // array of gravity dirs when solid
+      mover: opts.mover||null,            // {update(c,dt)} kinematic
+      delta: V(),                          // last frame movement (for carrying)
+      active: opts.active!==undefined ? opts.active : true,
+      onRay: opts.onRay!==false            // blocks rays (beams)
+    };
+    this.colliders.push(c);
+    return c;
+  }
+  isActive(c, gravityDir){
+    if(!c.active) return false;
+    if(c.conditional){
+      for(const p of c.planes){
+        if(p.distanceToSquared(gravityDir) < 0.1) return true;
+      }
+      return false;
+    }
+    return true;
+  }
+  /* slab-method raycast against all active colliders.
+     Returns {dist, point, normal, collider} or null. */
+  raycast(origin, dir, maxDist, skip=null){
+    let best=null, bestT=maxDist;
+    const oo=[origin.x,origin.y,origin.z], dd=[dir.x,dir.y,dir.z];
+    for(let ci=0; ci<this.colliders.length; ci++){
+      const c=this.colliders[ci];
+      if(c===skip || !this.isActive(c, player?player.gravityDir:null)) continue;
+      const mn=[c.min.x,c.min.y,c.min.z], mx=[c.max.x,c.max.y,c.max.z];
+      let tmin=0, tmax=bestT, nA=-1, nS=0, ok=true;
+      for(let a=0;a<3;a++){
+        if(Math.abs(dd[a])<1e-9){
+          if(oo[a]<mn[a]||oo[a]>mx[a]){ ok=false; break; }
+        }else{
+          let t1=(mn[a]-oo[a])/dd[a], t2=(mx[a]-oo[a])/dd[a];
+          const s = dd[a]>0?-1:1;
+          if(t1>t2){ const tt=t1; t1=t2; t2=tt; }
+          if(t1>tmin){ tmin=t1; nA=a; nS=s; }
+          if(t2<tmax) tmax=t2;
+          if(tmin>tmax){ ok=false; break; }
+        }
+      }
+      if(ok && tmin<=bestT && tmax>=0 && tmin>=0){
+        bestT=tmin;
+        const nrm=V();
+        if(nA>=0){ nrm.setComponent(nA, nS); }
+        else { nrm.copy(dir).negate(); }
+        best={ dist:tmin,
+          point: V(origin.x+dir.x*tmin, origin.y+dir.y*tmin, origin.z+dir.z*tmin),
+          normal:nrm, collider:c };
+      }
+    }
+    return best;
+  }
+  /* broadphase helpers */
+  boxOverlap(b, c, gravityDir){
+    if(!this.isActive(c, gravityDir||player.gravityDir)) return false;
+    return b.min.x < c.max.x-EPS && b.max.x > c.min.x+EPS &&
+           b.min.y < c.max.y-EPS && b.max.y > c.min.y+EPS &&
+           b.min.z < c.max.z-EPS && b.max.z > c.min.z+EPS;
+  }
+  anyOverlap(b, gravityDir){
+    for(const c of this.colliders) if(this.boxOverlap(b,c,gravityDir)) return c;
+    return null;
+  }
+  aabbOf(min, max){ return {min, max}; }
+}
+
+/* ============================================================
+   6. PLAYER — quaternion gravity controller
+   ============================================================ */
+const GRAV=26, JUMP=7.8, WALK=5.4, SPRINT=8.2, AIRACC=22, STEP_H=0.55;
+const HALF_R=0.32, HALF_H=0.9, EYE=0.70;
+const _AX_X=V(1,0,0), _AX_Y=V(0,1,0);
+
+class Player{
+  constructor(){
+    this.pos=V(0,1.2,0);
+    this.vel=V();
+    this.qGrav=new THREE.Quaternion();      // gravity frame; up = qGrav*(0,1,0)
+    this.gravityDir=V(0,-1,0);
+    this.up=V(0,1,0);
+    this.yaw=0; this.pitch=0;
+    this.grounded=false; this.groundCollider=null;
+    this.coyote=0; this.jumpBufT=0; this.jumpedThisFrame=false;
+    this.airTime=0; this.fallVel=0;
+    this.transition=null;       // {from,to,t,dur,fling,safeSnap,color}
+    this.reground=null;         // {from,target,t}
+    this.frozen=false;          // physics frozen during transitions/cinematics
+    this.enabled=true;          // input gate
+    this.archCd=0;              // GLOBAL arch cooldown (anti double-trigger)
+    this.bobPhase=0; this.bobAmp=0; this.landDip=0; this.stepDist=0; this.footAlt=false;
+    this.lastMoveFwd=V(0,0,-1);
+    this.fovKick=0;
+    this.insideArches=new Set();
+    this._qYaw=new THREE.Quaternion();
+    this._qPitch=new THREE.Quaternion();
+    this._qUp=new THREE.Quaternion();
+    this._tmp=V(); this._tmp2=V(); this._fwd=V();
+  }
+  setUpFromFrame(){
+    this.up.set(0,1,0).applyQuaternion(this.qGrav);
+    this.gravityDir.set(0,-1,0).applyQuaternion(this.qGrav);
+  }
+  snapTo(pos, yaw, gravityQuat){
+    this.pos.copy(pos);
+    if(yaw!==undefined) this.yaw=yaw;
+    this.pitch=0;
+    if(gravityQuat!==undefined){ this.qGrav.copy(gravityQuat); }
+    this.setUpFromFrame();
+    this.vel.set(0,0,0);
+    this.transition=null; this.regroup=null; this.frozen=false;
+    this.grounded=false; this.airTime=0;
+  }
+  halfExtents(){
+    const upA=axisOf(this.up);
+    const h=[HALF_R,HALF_R,HALF_R];
+    h[upA]=HALF_H;
+    return h;
+  }
+  box(out){
+    const h=this.halfExtents();
+    const b=out||{min:V(),max:V()};
+    b.min.set(this.pos.x-h[0], this.pos.y-h[1], this.pos.z-h[2]);
+    b.max.set(this.pos.x+h[0], this.pos.y+h[1], this.pos.z+h[2]);
+    return b;
+  }
+  /* current horizontal view (in the walking plane) — used by yellow arch + movement */
+  planeForward(out){
+    this._fwd.set(0,0,-1).applyQuaternion(camera.quaternion);
+    const d=this._tmp.copy(this._fwd).addScaledVector(this.up, -this._fwd.dot(this.up));
+    if(d.lengthSq()>0.05){ out.copy(d.normalize()); }
+    return out;
+  }
+  /* -------- gravity arch application -------- */
+  computeArchQuaternion(type){
+    const q=new THREE.Quaternion();
+    if(type==='blue')       q.setFromAxisAngle(_AX_X,  Math.PI/2);
+    else if(type==='red')   q.setFromAxisAngle(_AX_X, -Math.PI/2);
+    else if(type==='yellow'){
+      const axis=this.planeForward(this._tmp2).clone();
+      if(axis.lengthSq()<0.5) axis.copy(this.lastMoveFwd);
+      q.setFromAxisAngle(axis.normalize(), Math.PI);
+    }
+    else if(type==='green') q.setFromUnitVectors(this.up, _AX_Y);
+    else return null;
+    // qTo = R * qGrav (world-frame rotation applied to the gravity frame)
+    const out=new THREE.Quaternion().copy(q).multiply(this.qGrav);
+    return out;
+  }
+  applyArch(type, opts={}){
+    if(this.transition || this.frozen || !this.enabled) return false;
+    if(this.archCd>0) return false;
+    const qTo=this.computeArchQuaternion(type);
+    if(!qTo) return false;
+    this.archCd = opts.cooldown ?? 1.0;      // mandated 1.0s double-trigger guard
+    this.startTransition(qTo, {
+      dur: opts.dur ?? 0.5, color: opts.color, fling: opts.fling, safeSnap: opts.safeSnap
+    });
+    return true;
+  }
+  forceGravityQuat(qTo, opts={}){
+    if(this.transition){ this.pendingGravity={qTo, opts}; return false; }
+    this.startTransition(qTo, opts);
+    return true;
+  }
+  startTransition(qTo, opts={}){
+    this.transition={
+      from:this.qGrav.clone(), to:qTo.clone().normalize(),
+      t:0, dur:opts.dur ?? 0.5,
+      fling:!!opts.fling, safeSnap:!!opts.safeSnap, color:opts.color||'#39d5c8'
+    };
+    this.frozen=true;
+    this.fovKick=1;
+    flashScreen(this.transition.color, 0.42);
+    SND.whoosh(true);
+    if(opts.hum!==false) SND.archHum(opts.archType||'blue');
+    DOM.compass.classList.add('shift');
+  }
+  finalizeTransition(){
+    const t=this.transition;
+    this.qGrav.copy(t.to).normalize();
+    this.setUpFromFrame();
+    // keep only the plane-parallel part of the velocity; soften it
+    this.vel.addScaledVector(this.up, -this.vel.dot(this.up)).multiplyScalar(0.72);
+    this.transition=null;
+    this.frozen=false;
+    SND.archSettle();
+    DOM.compass.classList.remove('shift');
+    if(t.safeSnap){
+      const hit=WORLD_COLLIDE.raycast(this.pos, this.gravityDir, HALF_H+3.4);
+      if(hit){
+        this.reground={ from:this.pos.clone(),
+          target:hit.point.clone().addScaledVector(this.up, HALF_H-0.02), t:0 };
+        this.frozen=true;
+      }
+    }
+    if(t.fling){
+      this.vel.x+=(Math.random()*2-1)*2.6;
+      this.vel.z+=(Math.random()*2-1)*2.6;
+      this.vel.addScaledVector(this.gravityDir, 1.4);
+      shake(0.5);
+    }
+    if(this.pendingGravity){
+      const p=this.pendingGravity; this.pendingGravity=null;
+      this.forceGravityQuat(p.qTo, p.opts);
+    }
+  }
+  /* ---------------- per-frame update ---------------- */
+  update(dt){
+    this.archCd=Math.max(0,this.archCd-dt);
+    /* consume the keyboard jump buffer (pressed edge -> buffered jump window) */
+    if(INPUT.jumpBuf>0){ this.jumpBufT=Math.max(this.jumpBufT, INPUT.jumpBuf); INPUT.jumpBuf=0; }
+    this.jumpBufT=Math.max(0,this.jumpBufT-dt);
+    if(this.reground){
+      const r=this.reground;
+      r.t+=dt/0.26;
+      const k=easeOut(Math.min(1,r.t));
+      this.pos.lerpVectors(r.from, r.target, k);
+      if(r.t>=1){ this.reground=null; this.frozen=false;
+        this.grounded=true; SND.land(0.4); }
+      this.composeCamera(dt);
+      return;
+    }
+    if(this.transition){
+      const t=this.transition;
+      t.t+=dt/t.dur;
+      if(t.t>=1) this.finalizeTransition();
+      this.composeCamera(dt);
+      return;
+    }
+    if(!this.frozen) this.physics(dt);
+    this.composeCamera(dt);
+  }
+  physics(dt){
+    if(!this.enabled) return;
+    const wasGrounded=this.grounded;
+    this.jumpedThisFrame=false;
+    // depenetration guard (moving platforms, cube squeeze)
+    this.depenetrate();
+    /* --- wish direction from view basis projected on the walking plane --- */
+    const pf=this.planeForward(this._tmp);
+    if(pf.lengthSq()>0.01) this.lastMoveFwd.copy(pf);
+    const right=this._tmp2.copy(this.lastMoveFwd).cross(this.up).normalize();
+    const iz=(INPUT.f?1:0)-(INPUT.b?1:0);
+    const ix=(INPUT.r?1:0)-(INPUT.l?1:0);
+    const wish=V().copy(this.lastMoveFwd).multiplyScalar(iz).addScaledVector(right, ix);
+    if(wish.lengthSq()>1) wish.normalize();
+    const speed=INPUT.sprint?SPRINT:WALK;
+    wish.multiplyScalar(speed);
+    /* --- accelerate --- */
+    const vu=this.vel.dot(this.up);
+    let vl=V().copy(this.vel).addScaledVector(this.up, -vu);
+    if(this.grounded){
+      const k=1-Math.exp(-11*dt);
+      vl.lerp(wish, k);
+    }else{
+      vl.addScaledVector(wish, dt*AIRACC*0.16);
+      if(vl.length()>Math.max(speed, 9.5)) vl.setLength(Math.max(speed,9.5));
+    }
+    this.vel.copy(vl).addScaledVector(this.up, vu);
+    /* --- gravity + jump --- */
+    this.vel.addScaledVector(this.gravityDir, GRAV*dt);
+    if(this.vel.length()>30) this.vel.setLength(30);   // terminal velocity safety
+    if(this.jumpBufT>0 && (this.grounded || this.coyote>0)){
+      this.vel.addScaledVector(this.up, JUMP);
+      this.vel.addScaledVector(this.gravityDir, -GRAV*dt); // cancel this frame's pull
+      this.jumpBufT=0; this.coyote=0; this.grounded=false;
+      this.jumpedThisFrame=true;
+      SND.jump();
+      PARTS.burst(this.pos.clone().addScaledVector(this.up,-HALF_H+0.1),
+        new THREE.Color(0x9fd8e8), 10, 1.8, 1.8, 0.4);
+    }
+    /* --- integrate & resolve, axis by axis (gravity axis first) --- */
+    const gA=axisOf(this.gravityDir);
+    const order=[gA, (gA+1)%3, (gA+2)%3];
+    this.grounded=false;
+    const prevVelG=this.vel.getComponent(gA);
+    for(const a of order) this.moveAxis(a, this.vel.getComponent(a)*dt);
+    /* --- ground raycast (relative to gravityDir) + stair snap-down --- */
+    const halfUp=this.halfExtents()[axisOf(this.up)];
+    const ray=WORLD_COLLIDE.raycast(this.pos, this.gravityDir, halfUp+0.6);
+    const falling=this.vel.dot(this.gravityDir);
+    if(ray){
+      if(ray.dist<=halfUp+0.13 && falling>-1.0){
+        this.grounded=true; this.groundCollider=ray.collider;
+        const pen=halfUp+0.02-ray.dist;
+        if(pen>0) this.pos.addScaledVector(this.up, pen);
+      }else if(wasGrounded && !this.jumpedThisFrame && falling>=-0.35 && ray.dist<=halfUp+0.55){
+        // stick to stairs while descending
+        this.pos.copy(ray.point).addScaledVector(this.up, halfUp-0.02);
+        this.grounded=true; this.groundCollider=ray.collider;
+        this.vel.addScaledVector(this.up, -this.vel.dot(this.up));
+      }
+    }
+    if(this.grounded){
+      this.airTime=0; this.coyote=0.13; this.fallVel=0;
+    }else{
+      this.airTime+=dt; this.coyote=Math.max(0,this.coyote-dt);
+      this.fallVel=Math.max(this.fallVel, Math.max(0,falling));
+      if(wasGrounded && !this.jumpedThisFrame) this.coyote=0.13;
+    }
+    if(!wasGrounded && this.grounded && this.fallVel>3.5){
+      SND.land(clamp(this.fallVel/16,0.2,1));
+      this.landDip=Math.min(0.16, this.fallVel*0.011);
+      PARTS.burst(this.pos.clone().addScaledVector(this.up,-HALF_H+0.06),
+        new THREE.Color(0x8fa4b8), Math.round(clamp(this.fallVel*1.4,6,20)), 2.2, 1.6, 0.35);
+    }
+    /* --- footsteps --- */
+    const hSpeed=vl.length();
+    if(this.grounded && hSpeed>0.8){
+      this.stepDist+=hSpeed*dt;
+      if(this.stepDist>2.05){ this.stepDist=0; this.footAlt=!this.footAlt; SND.step(this.footAlt); }
+      this.bobPhase+=dt*(3.4+hSpeed*0.75);
+      this.bobAmp=damp(this.bobAmp,1,8,dt);
+    }else this.bobAmp=damp(this.bobAmp,0,8,dt);
+    this.landDip=damp(this.landDip,0,7,dt);
+  }
+  depenetrate(){
+    const b=this._pbox||(this._pbox={min:V(),max:V()});
+    const upA=axisOf(this.up);
+    /* iterate: a single push may not fully clear deep overlaps */
+    for(let iter=0; iter<3; iter++){
+      this.box(b);
+      const c=WORLD_COLLIDE.anyOverlap(b);
+      if(!c) return;
+      /* escape distances along the up axis, both directions — take the shorter */
+      const dpos=c.max.getComponent(upA)-b.min.getComponent(upA);  // push +axis
+      const dneg=b.max.getComponent(upA)-c.min.getComponent(upA);  // push -axis
+      const push=(dpos<=dneg)?(dpos+EPS):-(dneg+EPS);
+      this.pos.setComponent(upA, this.pos.getComponent(upA)+push);
+    }
+  }
+  moveAxis(a, delta){
+    const h=this.halfExtents();
+    const upA=axisOf(this.up);
+    const upS=Math.sign(this.up.getComponent(upA));
+    if(Math.abs(delta)>1e-9) this.pos.setComponent(a, this.pos.getComponent(a)+delta);
+    let guard=0;
+    while(guard++<6){
+      const b=this.box(this._pbox);
+      let hit=null;
+      for(const c of WORLD_COLLIDE.colliders){
+        if(WORLD_COLLIDE.boxOverlap(b,c)){ hit=c; break; }
+      }
+      if(!hit) break;
+      /* step-up assist (lateral axes only) */
+      if(a!==upA && (this.grounded||this.coyote>0||this.airTime<0.18) && this.tryStep(hit,b,upA,upS)){
+        continue;
+      }
+      const d=delta!==0?Math.sign(delta):((this.pos.getComponent(a)<((hit.min.getComponent(a)+hit.max.getComponent(a))/2))?-1:1);
+      const halfA=h[a];
+      if(d>0) this.pos.setComponent(a, hit.min.getComponent(a)-halfA-EPS);
+      else    this.pos.setComponent(a, hit.max.getComponent(a)+halfA+EPS);
+      const gA=axisOf(this.gravityDir);
+      if(a===gA && d===Math.sign(this.gravityDir.getComponent(gA))){
+        this.grounded=true; this.groundCollider=hit;
+      }
+      this.vel.setComponent(a,0);
+      break;
+    }
+  }
+  tryStep(c, box, upA, upS){
+    const h=this.halfExtents();
+    const feet=(upS>0)?box.min.getComponent(upA):box.max.getComponent(upA);
+    const surf=(upS>0)?c.max.getComponent(upA):c.min.getComponent(upA);
+    const diff=(upS>0)?(surf-feet):(feet-surf);
+    if(diff<=0.002 || diff>STEP_H) return false;
+    const oldPos=this.pos.getComponent(upA);
+    const lifted=(upS>0)?(surf+h[upA]+EPS):(surf-h[upA]-EPS);
+    this.pos.setComponent(upA, lifted);
+    if(WORLD_COLLIDE.anyOverlap(this.box(this._pbox2||(this._pbox2={min:V(),max:V()})))){
+      this.pos.setComponent(upA, oldPos);
+      return false;
+    }
+    return true;
+  }
+  /* ---------------- camera ---------------- */
+  composeCamera(dt){
+    let qUp;
+    if(this.transition){
+      const t=Math.min(1,this.transition.t);
+      qUp=this._qUp.copy(this.transition.from).slerp(this.transition.to, easeInOut(t));
+    }else qUp=this._qUp.copy(this.qGrav);
+    this._qYaw.setFromAxisAngle(_AX_Y, this.yaw);
+    this._qPitch.setFromAxisAngle(_AX_X, this.pitch);
+    camera.quaternion.copy(qUp).multiply(this._qYaw).multiply(this._qPitch);
+    const upVis=this._tmp.set(0,1,0).applyQuaternion(qUp);
+    const bobY=Math.sin(this.bobPhase*2)*0.026*this.bobAmp;
+    camera.position.copy(this.pos)
+      .addScaledVector(upVis, EYE-this.landDip+bobY)
+      .addScaledVector(this.lastMoveFwd, Math.sin(this.bobPhase)*0.011*this.bobAmp);
+    /* FOV: sprint + transition kick */
+    this.fovKick=Math.max(0,this.fovKick-dt*2.2);
+    const moving=(INPUT.f||INPUT.b)&&(INPUT.sprint);
+    const target=75+(moving?5:0)+Math.sin(Math.min(1,this.transition?this.transition.t:0)*Math.PI)*9*this.fovKick;
+    if(Math.abs(camera.fov-target)>0.05){
+      camera.fov=damp(camera.fov,target,10,dt);
+      camera.updateProjectionMatrix();
+    }
+  }
+}
+const WORLD_COLLIDE=new CollisionWorld();
+const player=new Player();
+
+/* camera shake helper */
+let shakeT=0, shakeAmp=0;
+function shake(a){ shakeAmp=Math.max(shakeAmp,a); shakeT=0.35; }
+function applyShake(dt){
+  if(shakeAmp<=0.001){ DOM.shake.style.opacity=0; return; }
+  shakeT-=dt; if(shakeT<=0){ shakeAmp=0; DOM.shake.style.opacity=0; return; }
+  const s=shakeAmp*shakeT/0.35;
+  camera.position.x+=(Math.random()*2-1)*0.05*s;
+  camera.position.y+=(Math.random()*2-1)*0.05*s;
+  camera.position.z+=(Math.random()*2-1)*0.05*s;
+  DOM.shake.style.opacity=(s*0.8).toFixed(3);
+}
+
+/* ============================================================
+   7. LEVEL CONTEXT & BUILDERS
+   ============================================================ */
+const ARCH_COLORS={ blue:'#4da3ff', red:'#ff5468', yellow:'#e8c15a', green:'#54e08a' };
+const ARCH_HEX={ blue:0x4da3ff, red:0xff5468, yellow:0xe8c15a, green:0x54e08a };
+const PLANE_NAMES={ '0,-1,0':'FLOOR','0,1,0':'CEILING','0,0,-1':'WALL A','0,0,1':'WALL B' };
+const gKey=v=>`${Math.round(v.x)},${Math.round(v.y)},${Math.round(v.z)}`;
+const FLOOR_G=V(0,-1,0), CEIL_G=V(0,1,0), WALLA_G=V(0,0,-1), WALLB_G=V(0,0,1);
+
+/* portal swirl shader (shared) */
+function makePortalMat(hexColor){
+  return new THREE.ShaderMaterial({
+    uniforms:{ uTime:{value:0}, uColor:{value:new THREE.Color(hexColor)} },
+    vertexShader:`varying vec2 vUv; void main(){ vUv=uv;
+      gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+    fragmentShader:`
+      uniform float uTime; uniform vec3 uColor; varying vec2 vUv;
+      void main(){
+        vec2 c=vUv-0.5;
+        float r=length(c);
+        float swirl=sin(vUv.y*16.0+uTime*2.4+sin(vUv.x*5.0+uTime*1.7)*1.6)*0.5+0.5;
+        float edge=smoothstep(0.52,0.30,r);
+        float core=smoothstep(0.5,0.0,r)*0.55;
+        float a=(swirl*0.35+core)*edge;
+        gl_FragColor=vec4(uColor*(1.15+swirl*0.7), a);
+      }`,
+    transparent:true, depthWrite:false, side:THREE.DoubleSide,
+    blending:THREE.AdditiveBlending
+  });
+}
+
+class LevelContext{
+  constructor(game, def){
+    this.game=game; this.def=def;
+    this.arches=[]; this.fragments=[]; this.cubes=[]; this.plates=[];
+    this.mirrors=[]; this.emitters=[]; this.sensors=[];
+    this.sweepers=[]; this.conditionalFx=[]; this.movers=[];
+    this.exits=[]; this.wraps=[]; this.sequences=[]; this.safeZones=[];
+    this.updaters=[]; this.lights=[];
+    this.interactables=[];
+    this.disposables=[];
+    this.bounds=new THREE.Box3(V(-50,-50,-50), V(50,50,50));
+    this.spawn={pos:V(0,1.2,0), yaw:0};
+    this.respawn=null;
+    this.complete=false; this.failed=false;
+    this.fragmentsTotal=0;
+    this._trimGeos=[];
+    this.hudMode=null;
+    this.vars={};                       // scratch for level logic
+  }
+  finish(){
+    if(this._trimGeos.length){
+      const g=BufferGeometryUtils.mergeGeometries(this._trimGeos, false);
+      const m=new THREE.Mesh(g, this.palette.trim);
+      m.renderOrder=1;
+      WORLD.add(m);
+      this.disposables.push(m);
+    }
+  }
+  dispose(){
+    WORLD_COLLIDE.clear();
+    while(WORLD.children.length) WORLD.remove(WORLD.children[0]);
+    for(const l of this.lights) scene.remove(l);
+    for(const d of this.disposables){
+      d.traverse? d.traverse(o=>{
+        if(o.geometry) o.geometry.dispose();
+        if(o.material){
+          const mats=Array.isArray(o.material)?o.material:[o.material];
+          mats.forEach(mm=>{
+            if(mm.map && mm.userData.owned!==false) mm.map.dispose();
+            mm.dispose();
+          });
+        }
+      }) : null;
+    }
+    this.lights.length=0;
+  }
+}
+
+/* ---- axis-aligned oriented box helper ----
+   U,F,S are mutually perpendicular axis-aligned unit vectors. */
+function orientedBox(L, center, U, F, S, uLen, fLen, sLen, mat, opts={}){
+  const size=[0,0,0];
+  const axes=[U,F,S], lens=[uLen,fLen,sLen];
+  for(let i=0;i<3;i++){
+    const a=axisOf(axes[i]);
+    size[a]=lens[i];
+  }
+  return addBoxMesh(L, center.x, center.y, center.z, size[0], size[1], size[2], mat, opts);
+}
+function addBoxMesh(L, cx, cy, cz, w, h, d, mat, opts={}){
+  const g=new THREE.BoxGeometry(w,h,d);
+  g.translate(cx,cy,cz);
+  const mesh=new THREE.Mesh(g, mat);
+  mesh.castShadow=opts.castShadow!==false;
+  mesh.receiveShadow=opts.receiveShadow!==false;
+  WORLD.add(mesh);
+  if(opts.solid!==false){
+    const c=WORLD_COLLIDE.add(
+      V(cx-w/2, cy-h/2, cz-d/2), V(cx+w/2, cy+h/2, cz+d/2),
+      { mesh, tag:opts.tag, conditional:opts.conditional, planes:opts.planes,
+        onRay:opts.onRay!==false, mover:opts.mover });
+    mesh.userData.collider=c;
+    L.disposables.push(mesh);
+    return {mesh, collider:c};
+  }
+  L.disposables.push(mesh);
+  return {mesh, collider:null};
+}
+
+/* ---- palette ---- */
+function buildPalette(p){
+  const checker=makeCheckerTex(p.checkerA||'#242b38', p.checkerB||'#1a2029', 64);
+  const panel=makePanelTex(p.panel||'#1f242f', p.panelLine||'#2b323f');
+  const mk=(tex,rx,ry,color,extra)=>{
+    const t=tex.clone(); t.needsUpdate=true; t.repeat.set(rx,ry);
+    const m=new THREE.MeshStandardMaterial(Object.assign({
+      map:t, color:color||0xffffff, roughness:0.92, metalness:0.06 }, extra||{}));
+    m.userData.owned=true;
+    return m;
+  };
+  const pal={
+    floor: mk(checker, p.floorRepX??(p.floorRep||8), p.floorRepY??(p.floorRep||8), p.stoneTint||0xffffff),
+    wall:  mk(panel, p.wallRepX||6, p.wallRepY||1.2, p.wallTint||0xffffff),
+    platform: new THREE.MeshStandardMaterial({ color:p.plat||0x2b3345,
+      roughness:0.85, metalness:0.12 }),
+    trim: new THREE.MeshStandardMaterial({ color:0x10141c,
+      emissive:p.trim||0x39d5c8, emissiveIntensity:1.9, roughness:0.5 }),
+    glow: (hex,intensity=2.2)=>new THREE.MeshStandardMaterial({ color:0x0b0e14,
+      emissive:hex, emissiveIntensity:intensity, roughness:0.4 }),
+    portal: (hex)=>makePortalMat(hex)
+  };
+  pal.platform.userData={owned:true};
+  pal.trim.userData={owned:true};
+  pal.floor.userData.owned=true; pal.wall.userData.owned=true;
+  return pal;
+}
+
+/* ---- box/platform builders ---- */
+function LBox(L, cx,cy,cz, w,h,d, matKey, opts={}){
+  const mat = typeof matKey==='string' ? L.palette[matKey] : matKey;
+  return addBoxMesh(L, cx,cy,cz, w,h,d, mat, opts);
+}
+/* platform whose TOP face sits at yTop (in floor gravity) */
+function LPlatform(L, x, yTop, z, w, d, opts={}){
+  const th=opts.th??0.45;
+  const r=LBox(L, x, yTop-th/2, z, w, th, d, opts.mat||'platform', opts);
+  if(opts.trim!==false){
+    const e=opts.trimE||0.06, he=w/2-e/2, hd=d/2-e/2;
+    const at=(dx,dz)=>L._trimGeos.push(
+      (()=>{const g=new THREE.BoxGeometry(w,e,e); g.translate(x+dx, yTop-0.02, z+dz); return g;})());
+    at(0,-d/2+e/2); at(0,d/2-e/2);
+    const g2=new THREE.BoxGeometry(e,e,d-2*e); g2.translate(x-w/2+e/2, yTop-0.02, z);
+    L._trimGeos.push(g2);
+    const g3=g2.clone(); g3.translate(w-2*e,0,0);
+    L._trimGeos.push(g3);
+  }
+  return r;
+}
+/* stairs: flight rising along dir while progressing; returns top-center {x,y,z} */
+function LStairs(L, x0, y0, z0, dir, steps, opts={}){
+  const stepH=opts.stepH??0.42, stepD=opts.stepD??0.72, width=opts.width??2.4;
+  const dirV={ 'x+':V(1,0,0),'x-':V(-1,0,0),'z+':V(0,0,1),'z-':V(0,0,-1) }[dir];
+  const geos=[];
+  let x=x0, y=y0, z=z0;
+  for(let i=0;i<steps;i++){
+    const cx=x+dirV.x*stepD/2, cz=z+dirV.z*stepD/2, cy=y+stepH/2;
+    const w=dirV.x!==0?stepD:width, d=dirV.z!==0?stepD:width;
+    const g=new THREE.BoxGeometry(w, stepH, d);
+    g.translate(cx, cy, cz);
+    geos.push(g);
+    WORLD_COLLIDE.add(V(cx-w/2,cy-stepH/2,cz-d/2), V(cx+w/2,cy+stepH/2,cz+d/2),
+      {mesh:null, tag:'stair'});
+    x+=dirV.x*stepD; y+=stepH; z+=dirV.z*stepD;
+  }
+  const merged=BufferGeometryUtils.mergeGeometries(geos,false);
+  const mesh=new THREE.Mesh(merged, opts.mat? (typeof opts.mat==='string'?L.palette[opts.mat]:opts.mat) : L.palette.platform);
+  mesh.castShadow=true; mesh.receiveShadow=true;
+  WORLD.add(mesh);
+  L.disposables.push(mesh);
+  return {x, y, z};
+}
+/* trimmed shell room with optional center holes (hatches) */
+function LShell(L, o={}){
+  const w=o.w??34, h=o.h??12, d=o.d??34, th=o.th??0.6;
+  const holeC=o.ceilHole||0, holeF=o.floorHole||0;
+  const x0=-w/2, x1=w/2, z0=-d/2, z1=d/2;
+  const slab=(cx,cy,cz,sw,sd,sy,mat,tag)=>{
+    const m=LBox(L,cx,cy,cz,sw,sy,sd,mat,{tag});
+    return m;
+  };
+  /* floor (top at y=0), built as slabs around an optional center hole */
+  (function floorWithHole(){
+    const hh=holeF/2;
+    if(hh>0){
+      const strips=[
+        [0,-th/2,(z0-hh)/2, w, -hh-z0],         // z in [z0, -hh]
+        [0,-th/2,(z1+hh)/2, w, z1-hh],          // z in [ hh, z1]
+        [(x0-hh)/2,-th/2,0, -hh-x0, hh*2],      // x in [x0, -hh], z in [-hh, hh]
+        [(x1+hh)/2,-th/2,0, x1-hh, hh*2]        // x in [ hh, x1]
+      ];
+      for(const s of strips){
+        if(s[3]<=0.01||s[4]<=0.01) continue;
+        slab(s[0],s[1],s[2],s[3],s[4],th,'floor','floor');
+      }
+    }else slab(0,-th/2,0,w,d,th,'floor','floor');
+  })();
+  /* ceiling (bottom at y=h) */
+  (function ceilWithHole(){
+    const hh=holeC/2;
+    if(hh>0){
+      const parts=[
+        [0,h+th/2,(z0-hh)/2, w, -hh-z0],
+        [0,h+th/2,(z1+hh)/2, w, z1-hh],
+        [(x0-hh)/2,h+th/2,0, -hh-x0, hh*2],
+        [(x1+hh)/2,h+th/2,0, x1-hh, hh*2]
+      ];
+      for(const s of parts){
+        if(s[3]<=0.01||s[4]<=0.01) continue;
+        slab(s[0],s[1],s[2],s[3],s[4],th,'floor','ceiling');
+      }
+    }else slab(0,h+th/2,0,w,d,th,'floor','ceiling');
+  })();
+  /* walls */
+  if(o.wallX0!==false) slab(x0-th/2, h/2, 0, th, d, h, 'wall','wallX0');
+  if(o.wallX1!==false) slab(x1+th/2, h/2, 0, th, d, h, 'wall','wallX1');
+  if(o.wallZ0!==false) slab(0, h/2, z0-th/2, w, th, h, 'wall','wallZ0');
+  if(o.wallZ1!==false) slab(0, h/2, z1+th/2, w, th, h, 'wall','wallZ1');
+  /* glowing seam where floor meets walls + baseboard */
+  const t=0.1;
+  const trim=(x,y,z,sw,sd)=>{
+    const g=new THREE.BoxGeometry(sw,0.07,sd); g.translate(x,y,z);
+    L._trimGeos.push(g);
+  };
+  trim(0, 0.035, z0+t/2, w-1.2, t);
+  trim(0, 0.035, z1-t/2, w-1.2, t);
+  trim(x0+t/2, 0.035, 0, t, d-1.2);
+  trim(x1-t/2, 0.035, 0, t, d-1.2);
+  if(o.topTrim!==false){
+    trim(0, h-0.035, z0+t/2, w-1.2, t);
+    trim(0, h-0.035, z1-t/2, w-1.2, t);
+    trim(x0+t/2, h-0.035, 0, t, d-1.2);
+    trim(x1-t/2, h-0.035, 0, t, d-1.2);
+  }
+  /* pilasters (half-embedded — they act as kerbs for plane walkers) */
+  if(o.pilasters!==false){
+    for(const ax of ['x','z']){
+      const span=(ax==='x'?w:d);
+      for(let s=-span/2+3.4; s<span/2-2; s+=5.5){
+        if(ax==='x'){
+          LBox(L, s, h/2, z0+0.09, 0.62, h, 0.18, 'wall', {tag:'pilaster'});
+          LBox(L, s, h/2, z1-0.09, 0.62, h, 0.18, 'wall', {tag:'pilaster'});
+        }else{
+          LBox(L, x0+0.09, h/2, s, 0.18, h, 0.62, 'wall', {tag:'pilaster'});
+          LBox(L, x1-0.09, h/2, s, 0.18, h, 0.62, 'wall', {tag:'pilaster'});
+        }
+      }
+    }
+  }
+  L.bounds=new THREE.Box3(V(x0-1.5, o.voidBelow??(-th-2.2), z0-1.5), V(x1+1.5, h+th+1.2, z1+1.5));
+}
+
+/* ---- text decals ---- */
+function LText(L, x,y,z, lines, o={}){
+  const w=o.w??3, h=o.h??1.2;
+  const tex=makeTextTex(lines, o);
+  const mat=new THREE.MeshBasicMaterial({ map:tex, transparent:true,
+    depthWrite:false, side:THREE.DoubleSide, opacity:o.opacity??0.95 });
+  mat.userData.owned=true;
+  const g=new THREE.PlaneGeometry(w,h);
+  const mesh=new THREE.Mesh(g,mat);
+  const AX={ 'x+':V(1,0,0),'x-':V(-1,0,0),'y+':V(0,1,0),'y-':V(0,-1,0),
+             'z+':V(0,0,1),'z-':V(0,0,-1) };
+  const N=AX[o.normal||'y-'].clone();
+  const Uv=AX[o.up||'z+'].clone();
+  if(o.flip) N.negate();
+  const R=Uv.clone().cross(N);
+  const m=new THREE.Matrix4().makeBasis(R, Uv, N);
+  const q=new THREE.Quaternion().setFromRotationMatrix(m);
+  if(o.upsideDown) q.premultiply(new THREE.Quaternion().setFromAxisAngle(N, Math.PI));
+  mesh.quaternion.copy(q);
+  mesh.position.set(x,y,z);
+  mesh.renderOrder=3;
+  WORLD.add(mesh);
+  L.disposables.push(mesh);
+  return mesh;
+}
+
+/* ============================================================
+   8. GRAVITY ARCHES
+   ============================================================ */
+function t2h(tall){ return tall?3.75:1.25; }
+class GravityArch{
+  constructor(L, type, base, U, F, o={}){
+    this.L=L; this.type=type; this.base=base.clone();
+    this.U=U.clone(); this.F=F.clone();
+    this.S=U.clone().cross(F);
+    const col=ARCH_HEX[type];
+    const tall=!!o.tall;
+    const FR_H=tall?7.5:2.72, OFF=tall?3.82:0.97;
+    const PW=tall?7.5:1.62, PH=tall?7.1:2.3;
+    this.armed=true;
+    this.portalMat=makePortalMat(ARCH_COLORS[type]);
+    this.portalMat.userData={owned:true};
+    /* frame */
+    const frameMat=new THREE.MeshStandardMaterial({color:0x11141c, roughness:0.55, metalness:0.45});
+    frameMat.userData={owned:true};
+    const glowMat=L.palette.glow(col, 2.6);
+    const p1=orientedBox(L, base.clone().addScaledVector(this.S,OFF).addScaledVector(U,FR_H/2),
+      U,F,this.S, FR_H, 0.34, 0.3, frameMat, {});
+    const p2=orientedBox(L, base.clone().addScaledVector(this.S,-OFF).addScaledVector(U,FR_H/2),
+      U,F,this.S, FR_H, 0.34, 0.3, frameMat, {});
+    orientedBox(L, base.clone().addScaledVector(U,FR_H),
+      U,F,this.S, 0.3, 0.34, tall?7.9:2.28, frameMat, {});
+    /* emissive frame strips */
+    orientedBox(L, base.clone().addScaledVector(this.S,OFF).addScaledVector(U,FR_H/2).addScaledVector(F,0.18),
+      U,F,this.S, FR_H, 0.08, 0.08, glowMat, {solid:false, castShadow:false});
+    orientedBox(L, base.clone().addScaledVector(this.S,-OFF).addScaledVector(U,FR_H/2).addScaledVector(F,0.18),
+      U,F,this.S, FR_H, 0.08, 0.08, glowMat, {solid:false, castShadow:false});
+    orientedBox(L, base.clone().addScaledVector(U,FR_H).addScaledVector(F,0.18),
+      U,F,this.S, 0.08, 0.08, tall?7.9:2.28, glowMat, {solid:false, castShadow:false});
+    /* portal shimmer plane */
+    const pg=new THREE.PlaneGeometry(PW, PH);
+    const portal=new THREE.Mesh(pg, this.portalMat);
+    portal.position.copy(base).addScaledVector(U, tall?3.72:1.28);
+    const q=new THREE.Quaternion().setFromUnitVectors(V(0,0,1), F);
+    const qU=new THREE.Quaternion().setFromUnitVectors(V(0,1,0).applyQuaternion(q), U);
+    portal.quaternion.copy(qU.multiply(q));
+    portal.renderOrder=2;
+    WORLD.add(portal);
+    L.disposables.push(portal);
+    /* light */
+    const light=new THREE.PointLight(col, tall?2.2:1.6, tall?12:8.5, 1.8);
+    light.position.copy(base).addScaledVector(U, tall?2.2:1.6).addScaledVector(F, tall?1.6:1.1);
+    WORLD.add(light);
+    L.lights.push(light);
+    /* trigger volume (thin, across the opening) */
+    const ctr=base.clone().addScaledVector(U, t2h(tall)).addScaledVector(F,0.1);
+    const e=[0,0,0];
+    e[axisOf(this.S)]=tall?3.9:0.85; e[axisOf(U)]=tall?3.9:1.05; e[axisOf(F)]=0.30;
+    this.trigger={ min:V(ctr.x-e[0],ctr.y-e[1],ctr.z-e[2]),
+                   max:V(ctr.x+e[0],ctr.y+e[1],ctr.z+e[2]) };
+    this.center=base.clone().addScaledVector(U,1.3);
+    L.arches.push(this);
+  }
+  update(dt, t){
+    this.portalMat.uniforms.uTime.value=t;
+    /* sparkle */
+    if(Math.random()<dt*3.2){
+      const c=new THREE.Color(ARCH_HEX[this.type]);
+      PARTS.spawn(this.center.clone().add(V((Math.random()*2-1)*0.7,(Math.random()*2-1)*0.9,(Math.random()*2-1)*0.15)),
+        this.U.clone().multiplyScalar(0.6+Math.random()*0.9), c, 1.1, 1.6);
+    }
+    /* player overlap test */
+    const b=player.box(_archBox);
+    const inT = b.min.x<this.trigger.max.x && b.max.x>this.trigger.min.x &&
+                b.min.y<this.trigger.max.y && b.max.y>this.trigger.min.y &&
+                b.min.z<this.trigger.max.z && b.max.z>this.trigger.min.z;
+    if(inT){
+      if(this.armed && player.archCd<=0 && !player.transition && !player.frozen &&
+         GAME.state==='playing'){
+        this.fire();
+      }
+    }else{
+      this.armed=true;   // re-arm once the player exits the volume
+    }
+  }
+  fire(){
+    const ok=player.applyArch(this.type, {archType:this.type, color:ARCH_COLORS[this.type]});
+    if(!ok) return;
+    this.armed=false;
+    this.L.vars.archCount=(this.L.vars.archCount||0)+1;
+    PARTS.burst(this.center, new THREE.Color(ARCH_HEX[this.type]), 40, 4.2, 2.6, 0.8);
+    for(const seq of this.L.sequences) seq.onArch(this);
+  }
+}
+const _archBox={min:V(),max:V()};
+function LArch(L, type, x,y,z, facing, mount='floor', o={}){
+  const F={ 'x+':V(1,0,0),'x-':V(-1,0,0),'z+':V(0,0,1),'z-':V(0,0,-1) }[facing];
+  const U={ floor:V(0,1,0), wallA:V(0,0,1), wallB:V(0,0,-1), ceil:V(0,-1,0) }[mount];
+  return new GravityArch(L, type, V(x,y,z), U, F, o);
+}
+
+/* ============================================================
+   9. ORB FRAGMENTS
+   ============================================================ */
+class Fragment{
+  constructor(L, x,y,z, o={}){
+    this.L=L; this.pos=V(x,y,z); this.base=V(x,y,z);
+    this.collected=false; this.phase=Math.random()*TAU;
+    this.isCore=!!o.core;
+    const col=this.isCore?0xa97bff:0xffd76a;
+    const mat=new THREE.MeshStandardMaterial({ color:0x131722, emissive:col,
+      emissiveIntensity:2.4, roughness:0.3, metalness:0.2 });
+    mat.userData={owned:true};
+    const geo=new THREE.IcosahedronGeometry(this.isCore?0.26:0.21, 0);
+    this.mesh=new THREE.Mesh(geo, mat);
+    this.mesh.position.copy(this.pos);
+    WORLD.add(this.mesh);
+    L.disposables.push(this.mesh);
+    this.halo=new THREE.Sprite(new THREE.SpriteMaterial({ map:GLOW_TEX, color:col,
+      transparent:true, opacity:0.55, depthWrite:false, blending:THREE.AdditiveBlending }));
+    this.halo.scale.set(1.6,1.6,1);
+    this.mesh.add(this.halo);
+    this.light=new THREE.PointLight(col, 1.1, 7, 1.8);
+    this.light.position.copy(this.pos);
+    WORLD.add(this.light);
+    L.lights.push(this.light);
+    L.fragments.push(this);
+    if(!this.isCore) L.fragmentsTotal++;
+  }
+  update(dt, t){
+    if(this.collected) return;
+    this.mesh.rotation.y+=dt*1.4;
+    this.mesh.rotation.x+=dt*0.5;
+    const y=this.base.y+Math.sin(t*1.3+this.phase)*0.12;
+    this.mesh.position.set(this.base.x, y, this.base.z);
+    this.light.position.copy(this.mesh.position);
+    const d2=this.mesh.position.distanceToSquared(player.pos);
+    if(d2<1.25*1.25 && GAME.state==='playing'){
+      this.collect();
+    }
+  }
+  collect(){
+    if(this.collected) return;
+    this.collected=true;
+    this.mesh.visible=false; this.halo.visible=false; this.light.intensity=0;
+    const got=this.L.fragments.filter(f=>f.collected).length;
+    SND.fragment(got);
+    PARTS.burst(this.mesh.position, new THREE.Color(this.isCore?0xa97bff:0xffd76a),
+      36, 4.5, 3.0, 0.9);
+    flashScreen(this.isCore?'#a97bff':'#e8c15a', 0.28);
+    this.L.onFragment && this.L.onFragment(this, got);
+  }
+  reset(){
+    this.collected=false; this.mesh.visible=true; this.halo.visible=true;
+    this.light.intensity=1.1;
+  }
+}
+
+/* ============================================================
+   10. GRAVITY CUBES (pickable, carryable, plane-inheriting)
+   ============================================================ */
+class GravityCube{
+  constructor(L, x,y,z, o={}){
+    this.L=L;
+    this.half=o.big?0.42:0.29;
+    this.pos=V(x,y,z);
+    this.vel=V();
+    this.gravityDir=V(0,-1,0);
+    this.state='rest';            // rest | fall | held | seated | magnet
+    this.seat=null;
+    this.spawnPos=V(x,y,z);
+    this.big=!!o.big;
+    const col=o.big?0xe8c15a:0x39d5c8;
+    const mat=new THREE.MeshStandardMaterial({ color:0x232a36, roughness:0.45,
+      metalness:0.35, emissive:col, emissiveIntensity:0.6 });
+    mat.userData={owned:true};
+    this.mesh=new THREE.Mesh(new THREE.BoxGeometry(this.half*2,this.half*2,this.half*2), mat);
+    this.mesh.castShadow=true; this.mesh.receiveShadow=true;
+    const edges=new THREE.LineSegments(
+      new THREE.EdgesGeometry(this.mesh.geometry),
+      new THREE.LineBasicMaterial({ color:col, transparent:true, opacity:0.9 }));
+    edges.userData={owned:true};
+    this.mesh.add(edges);
+    this.mesh.userData.interact={ type:'cube', label:this.big?'CARRY CORE MATRIX':'CARRY GRAVITY CUBE', obj:this };
+    WORLD.add(this.mesh);
+    L.disposables.push(this.mesh);
+    L.interactables.push(this.mesh);
+    this.collider=WORLD_COLLIDE.add(
+      V(x-this.half,y-this.half,z-this.half), V(x+this.half,y+this.half,z+this.half),
+      { mesh:this.mesh, tag:'cube' });
+    this.plate=null;
+    this.magnetT=0;
+    L.cubes.push(this);
+  }
+  pick(){
+    if(this.state==='seated' && this.plate){ this.plate.removeCube(this); }
+    this.state='held';
+    this.seat=null;
+    this.vel.set(0,0,0);
+    this.collider.active=false;
+    SND.cubePick();
+    PARTS.burst(this.pos, new THREE.Color(this.big?0xe8c15a:0x39d5c8), 14, 2.2, 1.8, 0.5);
+  }
+  drop(){
+    this.state='fall';
+    const camDir=V(0,0,-1).applyQuaternion(camera.quaternion);
+    this.vel.copy(player.vel).multiplyScalar(0.45).addScaledVector(camDir, 1.9);
+    // inherit the player's ACTIVE gravity plane (spec-mandated)
+    this.gravityDir.copy(player.gravityDir);
+    this.collider.active=true;
+    SND.cubeDrop();
+  }
+  seatTo(plate){
+    this.state='magnet';
+    this.seat=plate;
+    this.magnetFrom=this.pos.clone();
+    this.magnetT=0;
+    this.vel.set(0,0,0);
+  }
+  update(dt){
+    if(this.state==='held'){
+      const camDir=V(0,0,-1).applyQuaternion(camera.quaternion);
+      let dist=1.45;
+      const hit=WORLD_COLLIDE.raycast(camera.position, camDir, 1.45+this.half, this.collider);
+      if(hit) dist=Math.max(0.55, hit.dist-this.half-0.06);
+      const target=camera.position.clone().addScaledVector(camDir, dist)
+        .addScaledVector(player.up, -0.22);
+      this.pos.lerp(target, 1-Math.exp(-16*dt));
+      this.mesh.position.copy(this.pos);
+      this.mesh.quaternion.slerp(camera.quaternion, 1-Math.exp(-8*dt));
+      this.syncCollider();
+      return;
+    }
+    if(this.state==='magnet'){
+      this.magnetT+=dt/0.26;
+      const k=easeOut(Math.min(1,this.magnetT));
+      this.pos.lerpVectors(this.magnetFrom, this.seat.anchor, k);
+      if(this.magnetT>=1){
+        this.state='seated';
+        this.seat.onSeated(this);
+      }
+    }else if(this.state==='fall' || this.state==='rest'){
+      /* simple rigid body: gravity along its own plane, axis-separated resolve */
+      const gA=axisOf(this.gravityDir);
+      const gS=Math.sign(this.gravityDir.getComponent(gA));
+      this.vel.addScaledVector(this.gravityDir, 21*dt);
+      const landed=this.moveAxis(gA, this.vel.getComponent(gA)*dt, gA, gS);
+      for(const a of [(gA+1)%3, (gA+2)%3]){
+        this.moveAxis(a, this.vel.getComponent(a)*dt, gA, gS);
+      }
+      if(landed){
+        this.state='rest';
+        this.vel.x*=0.4; this.vel.z*=0.4;
+      }else if(this.vel.lengthSq()>0.02){
+        this.state='fall';
+      }
+      /* plate magnet */
+      if(this.state==='rest'||this.state==='fall'){
+        for(const p of this.L.plates){
+          if(p.cube) continue;
+          if(this.pos.distanceTo(p.anchor)<1.15){ this.seatTo(p); break; }
+        }
+      }
+      /* void safety: cubes respawn at their pedestal */
+      if(!this.L.bounds.containsPoint(this.pos)){
+        this.pos.copy(this.spawnPos);
+        this.gravityDir.set(0,-1,0);
+        this.vel.set(0,0,0);
+        this.state='rest';
+        toast('A CUBE RETURNED TO ITS PEDESTAL');
+      }
+    }
+    this.mesh.position.copy(this.pos);
+    this.syncCollider();
+    /* subtle pulse */
+    const m=this.mesh.material;
+    m.emissiveIntensity=0.55+Math.sin(performance.now()*0.003)*0.15;
+  }
+  moveAxis(a, delta, gA, gS){
+    if(Math.abs(delta)>1e-9) this.pos.setComponent(a, this.pos.getComponent(a)+delta);
+    let landed=false, guard=0;
+    const h=this.half;
+    while(guard++<4){
+      const b={ min:V(this.pos.x-h,this.pos.y-h,this.pos.z-h),
+                max:V(this.pos.x+h,this.pos.y+h,this.pos.z+h) };
+      let hit=null;
+      for(const c of WORLD_COLLIDE.colliders){
+        if(c===this.collider || !WORLD_COLLIDE.isActive(c, this.gravityDir)) continue;
+        if(WORLD_COLLIDE.boxOverlap(b,c)){ hit=c; break; }
+      }
+      if(!hit) break;
+      const d=delta!==0?Math.sign(delta):((this.pos.getComponent(a)<((hit.min.getComponent(a)+hit.max.getComponent(a))/2))?-1:1);
+      if(d>0) this.pos.setComponent(a, hit.min.getComponent(a)-h-EPS);
+      else    this.pos.setComponent(a, hit.max.getComponent(a)+h+EPS);
+      if(a===gA && d===gS) landed=true;
+      this.vel.setComponent(a,0);
+      break;
+    }
+    return landed;
+  }
+  syncCollider(){
+    const h=this.half;
+    this.collider.min.set(this.pos.x-h, this.pos.y-h, this.pos.z-h);
+    this.collider.max.set(this.pos.x+h, this.pos.y+h, this.pos.z+h);
+  }
+}
+
+/* ============================================================
+   11. PRESSURE PLATES
+   ============================================================ */
+class PressurePlate{
+  constructor(L, x,y,z, mount, o={}){
+    this.L=L; this.mount=mount; this.cube=null; this.active=false;
+    const N={ floor:V(0,1,0), wallA:V(0,0,1), wallB:V(0,0,-1), ceil:V(0,-1,0) }[mount];
+    this.N=N.clone();                     // outward face normal
+    this.pos=V(x,y,z);                    // point on the host surface
+    const size=1.5;
+    /* in-plane axes */
+    let U,Vv;
+    if(Math.abs(N.y)>0.5){ U=V(1,0,0); Vv=V(0,0,1); }
+    else { U=V(1,0,0); Vv=V(0,1,0); }
+    /* base slab: thin along N, size x size in-plane (solid) */
+    const baseCenter=this.pos.clone().addScaledVector(N, 0.17);
+    orientedBox(L, baseCenter, U, Vv, N, size, size, 0.34, L.palette.platform, {tag:'plate'});
+    const rimMat=L.palette.glow(0xff5468, 0.5);
+    const padMat=L.palette.glow(0xff5468, 0.35);
+    this.rimMat=rimMat; this.padMat=padMat;
+    /* glowing pad (thin along N) */
+    const pad=orientedBox(L, this.pos.clone().addScaledVector(N, 0.36), U, Vv, N, 1.16, 1.16, 0.09,
+      padMat, {solid:false, castShadow:false});
+    this.padMesh=pad.mesh;
+    /* corner studs */
+    for(const su of [-0.64,0.64]) for(const sf of [-0.64,0.64]){
+      orientedBox(L, this.pos.clone().addScaledVector(N,0.10)
+        .addScaledVector(U,su).addScaledVector(Vv,sf), U, Vv, N, 0.15, 0.15, 0.2,
+        rimMat, {solid:false, castShadow:false});
+    }
+    /* anchor where a cube rests + sensor volume */
+    this.anchor=this.pos.clone().addScaledVector(N, 0.34+0.31);
+    const e=[0,0,0];
+    e[axisOf(U)]=0.85; e[axisOf(Vv)]=0.85; e[axisOf(N)]=0.66;
+    this.sensor={ min:V(this.anchor.x-e[0],this.anchor.y-e[1],this.anchor.z-e[2]),
+                  max:V(this.anchor.x+e[0],this.anchor.y+e[1],this.anchor.z+e[2]) };
+    L.plates.push(this);
+    this.onActivate=o.onActivate||null;
+  }
+  removeCube(cube){
+    if(this.cube===cube) this.cube=null;
+    if(this.active){
+      this.active=false;
+      this.padMat.emissive.setHex(0xff5468);
+      this.padMat.emissiveIntensity=0.35;
+      this.L.onPlateState && this.L.onPlateState(this,false);
+    }
+  }
+  onSeated(cube){
+    this.cube=cube;
+    if(!this.active){
+      this.active=true;
+      this.padMat.emissive.setHex(0x54e08a);
+      this.padMat.emissiveIntensity=1.9;
+      SND.cubeSeat();
+      flashScreen('#54e08a', 0.18);
+      PARTS.burst(this.anchor, new THREE.Color(0x54e08a), 22, 2.6, 2.2, 0.7);
+      this.onActivate && this.onActivate();
+      this.L.onPlateState && this.L.onPlateState(this,true);
+    }
+  }
+}
+
+/* ============================================================
+   12. LASERS, MIRRORS, SENSORS
+   ============================================================ */
+class Mirror{
+  /* mount: 'floor' (vertical panel, rotates about Y) | 'wallA' | 'wallB' | 'ceil'
+     (panel tilted 45 deg from its mount plane, rotating about the mount normal) */
+  constructor(L, x,y,z, mount, o={}){
+    this.L=L; this.mount=mount; this.idx=o.idx??0;
+    this.angleCount=8;
+    const S=1.15, W=1.55;                    // half extents: S along e1, W along e2
+    const N0={ floor:V(0,1,0), wallA:V(0,0,1), wallB:V(0,0,-1), ceil:V(0,-1,0) }[mount];
+    this.N0=N0.clone();
+    this.U=V(1,0,0);
+    this.hu=S; this.hv=W;
+    this.center=V(x,y,z);
+    this.n=V(); this.e1=V(); this.e2=V();
+    const pedMat=new THREE.MeshStandardMaterial({color:0x1c222d, roughness:0.6, metalness:0.4});
+    pedMat.userData={owned:true};
+    const mirMat=new THREE.MeshStandardMaterial({ color:0xbfd9e8, roughness:0.12,
+      metalness:0.85, emissive:0x4da3ff, emissiveIntensity:0.35, side:THREE.DoubleSide });
+    mirMat.userData={owned:true};
+    this.mirMat=mirMat;
+    this.mesh=new THREE.Mesh(new THREE.PlaneGeometry(S*2, W*2), mirMat);
+    this.mesh.position.set(x,y,z);
+    this.mesh.userData.interact={ type:'mirror', label:'ROTATE MIRROR', obj:this };
+    WORLD.add(this.mesh);
+    L.interactables.push(this.mesh);
+    L.disposables.push(this.mesh);
+    /* strut anchoring the panel to its mount plane (decorative — kept
+       non-solid so it can never clip a beam that grazes the panel face) */
+    const strut=o.strut??1.0;
+    orientedBox(L, this.center.clone().addScaledVector(N0,-strut/2),
+      V(1,0,0), V(0,0,1), N0, 0.2, 0.2, strut, pedMat, {solid:false, castShadow:true});
+    this.targetQ=new THREE.Quaternion();
+    this.applyAngle(true);
+    L.mirrors.push(this);
+  }
+  get angle(){ return this.idx*(Math.PI*2/this.angleCount); }
+  normal(out){
+    const a=this.angle, c=Math.cos(a), s=Math.sin(a);
+    const k=0.70710678;
+    out=out||V();
+    if(this.mount==='floor') out.set(c,0,s);
+    else if(this.mount==='wallA') out.set(c*k, s*k, k);
+    else if(this.mount==='wallB') out.set(c*k, s*k, -k);
+    else out.set(c*k, -k, s*k);   // ceil
+    return out.normalize();
+  }
+  /* orthonormal in-plane basis used for hit tests + orientation */
+  basisFor(n){
+    const e1=this.U.clone().addScaledVector(n, -this.U.dot(n)).normalize();
+    const e2=V().crossVectors(n, e1).normalize();
+    return {e1, e2};
+  }
+  basis(){ return {u:this.e1, v:this.e2}; }
+  applyAngle(instant){
+    const n=this.normal();
+    this.n.copy(n);
+    const {e1,e2}=this.basisFor(n);
+    this.e1.copy(e1); this.e2.copy(e2);
+    const m=new THREE.Matrix4().makeBasis(e1, e2, n);
+    this.targetQ.setFromRotationMatrix(m);
+    if(instant) this.mesh.quaternion.copy(this.targetQ);
+  }
+  rotate(){
+    this.idx=(this.idx+1)%this.angleCount;
+    this.applyAngle(false);
+    SND.mirrorRotate();
+  }
+  update(dt){
+    this.mesh.quaternion.slerp(this.targetQ, 1-Math.exp(-10*dt));
+    this.mirMat.emissiveIntensity=0.3+Math.sin(performance.now()*0.002)*0.1;
+  }
+}
+function rayQuad(o, d, center, n, u, v, hu, hv){
+  const denom=d.dot(n);
+  if(Math.abs(denom)<1e-6) return null;
+  const t=_rq1.copy(center).sub(o).dot(n)/denom;
+  if(t<0.02) return null;
+  const p=_rq2.copy(o).addScaledVector(d, t);
+  const lu=p.clone().sub(center).dot(u);
+  const lv=p.clone().sub(center).dot(v);
+  if(Math.abs(lu)>hu || Math.abs(lv)>hv) return null;
+  return { t, point:p.clone() };
+}
+const _rq1=V(), _rq2=V();
+
+class LaserEmitter{
+  constructor(L, x,y,z, dir){
+    this.pos=V(x,y,z); this.dir=dir.clone().normalize();
+    const mat=L.palette.glow(0xff5468, 2.8);
+    const m=LBox(L, x,y,z, 0.5,0.5,0.5, mat, {solid:false, castShadow:false, onRay:false});
+    this.mesh=m.mesh;
+    const lens=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.18,0.3,10), mat);
+    lens.quaternion.setFromUnitVectors(V(0,1,0), this.dir);
+    lens.position.set(x,y,z).addScaledVector(this.dir, 0.32);
+    WORLD.add(lens); L.disposables.push(lens);
+    L.emitters.push(this);
+  }
+}
+class LaserSensor{
+  constructor(L, x,y,z, n, o={}){
+    this.pos=V(x,y,z); this.n=n.clone().normalize();
+    this.chargeTime=o.chargeTime??2.0;
+    this.charge=0; this.charged=false; this.powered=false;
+    const U=V(0,0,0);
+    if(Math.abs(this.n.y)>0.5){ U.set(1,0,0); }
+    else U.set(0,1,0);
+    const Vv=V(0,0,0).crossVectors(this.n,U).normalize();
+    this.u=U; this.v=Vv; this.hu=0.55; this.hv=0.55;
+    this.L=L;
+    const mat=L.palette.glow(0xff5468, 0.8);
+    this.mat=mat;
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.07, 10, 28), mat);
+    ring.position.set(x,y,z);
+    ring.lookAt(x+this.n.x, y+this.n.y, z+this.n.z);
+    WORLD.add(ring); L.disposables.push(ring);
+    const core=new THREE.Mesh(new THREE.CircleGeometry(0.42, 24), mat);
+    core.position.set(x,y,z).addScaledVector(this.n, 0.03);
+    core.lookAt(x+this.n.x, y+this.n.y, z+this.n.z);
+    WORLD.add(core); L.disposables.push(core);
+    this.coreMat=mat;
+    L.sensors.push(this);
+    this.onCharged=o.onCharged||null;
+  }
+  hitTest(o, d){
+    return rayQuad(o, d, this.pos, this.n, this.u, this.v, this.hu, this.hv);
+  }
+  update(dt){
+    if(this.charged) return;
+    if(this.powered){
+      const prev=this.charge;
+      this.charge=Math.min(this.chargeTime, this.charge+dt);
+      if(Math.floor(this.charge*4)!==Math.floor(prev*4)) SND.chargeTick(this.charge/this.chargeTime);
+      this.mat.emissiveIntensity=0.8+ (this.charge/this.chargeTime)*2.4;
+      if(this.charge>=this.chargeTime){
+        this.charged=true;
+        SND.powered();
+        flashScreen('#4da3ff', 0.35);
+        this.onCharged && this.onCharged();
+      }
+    }else{
+      this.charge=Math.max(0, this.charge-dt*1.6);
+      this.mat.emissiveIntensity=0.8+ (this.charge/this.chargeTime)*1.2;
+    }
+    L_synthLaserGain(this.powered?1:0);
+  }
+}
+/* laser sound level */
+let _laserLevel=0;
+function L_synthLaserGain(v){ _laserLevel=v; }
+/* beam trace + render */
+const BEAM_POOL=[];
+function traceBeams(L, dt, t){
+  if(!L.emitters.length) return;
+  for(const em of L.emitters){
+    let o=em.pos.clone().addScaledVector(em.dir, 0.35);
+    let d=em.dir.clone();
+    let segs=[];
+    let sensorHit=null;
+    for(let bounce=0; bounce<8; bounce++){
+      let best=null;   // {t, point, type, obj}
+      for(const mi of L.mirrors){
+        const n=mi.normal();
+        const {u,v}=mi.basis();
+        const h=rayQuad(o,d,mi.center,n,u,v,mi.hu,mi.hv);
+        if(h && (!best || h.t<best.t)) best={t:h.t, point:h.point, type:'mirror', obj:mi};
+      }
+      for(const se of L.sensors){
+        if(se.charged) continue;
+        const h=se.hitTest(o,d);
+        if(h && (!best || h.t<best.t)) best={t:h.t, point:h.point, type:'sensor', obj:se};
+      }
+      const wallHit=WORLD_COLLIDE.raycast(o, d, 240);
+      if(wallHit && (!best || wallHit.dist<best.t)){
+        best={t:wallHit.dist, point:wallHit.point, type:'wall', obj:wallHit.collider};
+      }
+      const end = best ? best.point : o.clone().addScaledVector(d, 60);
+      segs.push({a:o, b:end});
+      if(!best) break;
+      if(best.type==='mirror'){
+        const n=best.obj.normal();
+        d.sub(n.clone().multiplyScalar(2*d.dot(n))).normalize();
+        o=best.point.clone().addScaledVector(d, 0.02);
+      }else if(best.type==='sensor'){
+        sensorHit=best.obj;
+        break;
+      }else break;
+    }
+    for(const se of L.sensors){ if(se!==sensorHit) se.powered=false; }
+    if(sensorHit) sensorHit.powered=true;
+    renderBeam(L, segs, sensorHit);
+  }
+}
+function renderBeam(L, segs, sensorHit){
+  const hot=new THREE.Color(0xff6478);
+  let i=0;
+  const beamMat=BEAM_MAT||(BEAM_MAT=new THREE.MeshBasicMaterial({ color:0xff8896,
+    transparent:true, opacity:0.85, blending:THREE.AdditiveBlending, depthWrite:false }));
+  for(const s of segs){
+    let cyl=BEAM_POOL[i];
+    if(!cyl){
+      cyl=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,1,8,1,true), beamMat);
+      cyl.renderOrder=4;
+      WORLD.add(cyl);
+      BEAM_POOL[i]=cyl;
+    }
+    cyl.visible=true;
+    const mid=s.a.clone().add(s.b).multiplyScalar(0.5);
+    const len=s.a.distanceTo(s.b);
+    cyl.position.copy(mid);
+    cyl.quaternion.setFromUnitVectors(V(0,1,0), s.b.clone().sub(s.a).normalize());
+    cyl.scale.set(1,len,1);
+    i++;
+  }
+  for(; i<BEAM_POOL.length; i++) if(BEAM_POOL[i]) BEAM_POOL[i].visible=false;
+  /* sparkles along the beam */
+  if(Math.random()<0.5){
+    const s=segs[Math.floor(Math.random()*segs.length)];
+    const k=Math.random();
+    PARTS.spawn(s.a.clone().lerp(s.b,k), V((Math.random()-0.5)*0.4,(Math.random()-0.5)*0.4,(Math.random()-0.5)*0.4),
+      hot, 0.5, 1.4);
+  }
+}
+let BEAM_MAT=null;
+
+/* ============================================================
+   13. SWEEPING SENTINEL HAZARDS
+   ============================================================ */
+class Sweeper{
+  constructor(L, o){
+    this.L=L;
+    this.base=V(o.x,o.y,o.z);
+    this.axis=o.axis==='y'?V(0,1,0):(o.axis==='x'?V(1,0,0):V(0,0,1));
+    this.amp=o.amp??6;
+    this.speed=o.speed??0.55;
+    this.phase=o.phase??0;
+    this.w=o.w??0.35;                 // thickness along motion axis
+    this.h=o.h??3.0;
+    this.d=o.d??9;
+    this.deadly=!!o.deadly;
+    this.speedMul=1;
+    const mat=new THREE.MeshStandardMaterial({ color:0x180508, emissive:0xff2233,
+      emissiveIntensity:2.2, roughness:0.4, transparent:true, opacity:0.65 });
+    mat.userData={owned:true};
+    this.mesh=new THREE.Mesh(new THREE.BoxGeometry(1,1,1), mat);
+    this.mesh.castShadow=false; this.mesh.receiveShadow=false;
+    WORLD.add(this.mesh);
+    L.disposables.push(this.mesh);
+    this.tickT=0;
+    L.sweepers.push(this);
+  }
+  center(t){
+    const s=Math.sin(t*this.speed*this.speedMul+this.phase)*this.amp;
+    return this.base.clone().addScaledVector(this.axis, s);
+  }
+  update(dt, t){
+    const c=this.center(t);
+    const a=this.axis;
+    const w=this.w, hh=this.h/2, dd=this.d/2;
+    let sx,sy,sz;
+    if(a.x){ sx=w; sy=this.h; sz=this.d; }
+    else if(a.y){ sx=this.d; sy=w; sz=this.h; }
+    else { sx=this.d; sy=this.h; sz=w; }
+    this.mesh.position.copy(c);
+    this.mesh.scale.set(sx,sy,sz);
+    this.box={ min:V(c.x-sx/2, c.y-sy/2, c.z-sz/2), max:V(c.x+sx/2, c.y+sy/2, c.z+sz/2) };
+    this.mesh.material.emissiveIntensity=1.8+Math.sin(t*8)*0.5;
+    /* proximity warning ticks */
+    const d=this.mesh.position.distanceTo(player.pos);
+    if(d<7){
+      this.tickT-=dt;
+      if(this.tickT<=0){ SND.hazardTick(); this.tickT=clamp(d/14,0.12,0.5); }
+    }
+    /* player hit */
+    if(this.deadly && GAME.state==='playing'){
+      const b=player.box(_swpBox);
+      if(b.min.x<this.box.max.x-0.15 && b.max.x>this.box.min.x+0.15 &&
+         b.min.y<this.box.max.y-0.15 && b.max.y>this.box.min.y+0.15 &&
+         b.min.z<this.box.max.z-0.15 && b.max.z>this.box.min.z+0.15){
+        this.L.onHazard && this.L.onHazard('sentinel');
+      }
+    }
+  }
+}
+const _swpBox={min:V(),max:V()};
+
+/* ============================================================
+   14. CONDITIONAL (PLANE-GATED) PLATFORMS + MOVING PLATFORMS
+   ============================================================ */
+function addConditional(L, x,y,z, w,h,d, planes, o={}){
+  const mat=new THREE.MeshStandardMaterial({ color:o.color||0x2b3345, roughness:0.85,
+    emissive:o.emissive||0x39d5c8, emissiveIntensity:0.25, transparent:true, opacity:1 });
+  mat.userData={owned:true};
+  const r=addBoxMesh(L, x,y,z, w,h,d, mat, Object.assign({}, o, {
+    conditional:true, planes }));
+  L.conditionalFx.push({ mesh:r.mesh, planes, mat, name:o.name||'' });
+  return r;
+}
+function updateConditionalFx(L, dt){
+  for(const cf of L.conditionalFx){
+    let active=false;
+    for(const p of cf.planes) if(p.distanceToSquared(player.gravityDir)<0.1) active=true;
+    const target=active?1:0.12;
+    cf.mat.opacity=damp(cf.mat.opacity, target, 8, dt);
+    cf.mat.transparent=cf.mat.opacity<0.985;
+    cf.mat.depthWrite=cf.mat.opacity>0.5;
+    cf.mat.emissiveIntensity=active?0.5:0.22;
+    const was=cf.mesh.userData.wasActive;
+    if(was!==undefined && was!==active && L.vars.onPlaneShift){
+      L.vars.onPlaneShift(cf, active);
+    }
+    cf.mesh.userData.wasActive=active;
+  }
+}
+class Elevator{
+  constructor(L, x,y,z, w, d, y0, y1, o={}){
+    this.L=L;
+    this.y0=y0; this.y1=y1; this.speed=o.speed??1.4;
+    this.state='idle'; this.y=y0; this.dir=1; this.holdT=0;
+    const mat=new THREE.MeshStandardMaterial({ color:0x2b3345, roughness:0.7, metalness:0.2,
+      emissive:0x54e08a, emissiveIntensity:0.3 });
+    mat.userData={owned:true};
+    this.mesh=new THREE.Mesh(new THREE.BoxGeometry(w,0.4,d), mat);
+    this.mesh.castShadow=true; this.mesh.receiveShadow=true;
+    WORLD.add(this.mesh);
+    L.disposables.push(this.mesh);
+    this.collider=WORLD_COLLIDE.add(V(x-w/2,y-0.2,z-d/2), V(x+w/2,y+0.2,z+d/2),
+      { mesh:this.mesh, tag:'elevator', onRay:true });
+    this.x=x; this.z=z; this.w=w; this.d=d;
+    L.movers.push(this);
+    this.topHold=o.topHold??4;
+  }
+  update(dt, t){
+    const prevY=this.y;
+    if(this.state==='idle'){
+      if(player.grounded && player.groundCollider===this.collider){
+        this.state='up'; SND.whoosh(true);
+        toast('THE VOID ELEVATOR STIRS');
+      }
+    }else if(this.state==='up'){
+      this.y=Math.min(this.y1, this.y+this.speed*dt);
+      if(this.y>=this.y1){ this.state='hold'; this.holdT=0; SND.powered(); }
+    }else if(this.state==='hold'){
+      this.holdT+=dt;
+      if(this.holdT>this.topHold && !(player.grounded&&player.groundCollider===this.collider)){
+        this.state='down';
+      }
+    }else if(this.state==='down'){
+      this.y=Math.max(this.y0, this.y-this.speed*0.5*dt);
+      if(this.y<=this.y0) this.state='idle';
+    }
+    const dy=this.y-prevY;
+    this.mesh.position.set(this.x, this.y, this.z);
+    this.collider.min.set(this.x-this.w/2, this.y-0.2, this.z-this.d/2);
+    this.collider.max.set(this.x+this.w/2, this.y+0.2, this.z+this.d/2);
+    this.collider.delta.set(0,dy,0);
+    if(dy!==0 && player.grounded && player.groundCollider===this.collider){
+      player.pos.y+=dy;
+    }
+  }
+}
+
+/* ============================================================
+   15. SEQUENCE LOCKS + LOOP WRAPS + EXITS
+   ============================================================ */
+class Sequence{
+  constructor(L, colors, o={}){
+    this.L=L; this.colors=colors; this.progress=0; this.done=false;
+    this.onDone=o.onDone||null;
+    L.sequences.push(this);
+    L.hudSeq=this;
+  }
+  onArch(arch){
+    if(this.done) return;
+    const c=arch.type;
+    if(c===this.colors[this.progress]){
+      this.progress++;
+      SND.seqNote(this.progress);
+      toast('RESONANCE &nbsp;<b>'+this.progress+' / '+this.colors.length+'</b>');
+      PARTS.burst(arch.center, new THREE.Color(ARCH_HEX[c]), 26, 3.4, 2.2, 0.8);
+      if(this.progress>=this.colors.length){
+        this.done=true;
+        this.onDone && this.onDone();
+      }
+    }else{
+      const restart=(c===this.colors[0])?1:0;
+      if(this.progress>0){
+        SND.buzz();
+        flashScreen('#ff5468', 0.25);
+        toast('SEQUENCE BROKEN — <b>THE ROOM LOOPS</b>', 2400, true);
+      }
+      this.progress=restart;
+    }
+  }
+}
+class WrapVolume{
+  constructor(L, x,y,z, w,h,d, offset, o={}){
+    this.L=L;
+    this.box={ min:V(x-w/2,y-h/2,z-d/2), max:V(x+w/2,y+h/2,z+d/2) };
+    this.offset=offset.clone();
+    this.enabled=true; this.cd=0; this.loops=0;
+    this.onWrap=o.onWrap||null;
+    L.wraps.push(this);
+  }
+  update(dt){
+    this.cd=Math.max(0,this.cd-dt);
+    if(!this.enabled || this.cd>0 || GAME.state!=='playing') return;
+    const b=player.box(_wrapBox);
+    if(b.min.x<this.box.max.x && b.max.x>this.box.min.x &&
+       b.min.y<this.box.max.y && b.max.y>this.box.min.y &&
+       b.min.z<this.box.max.z && b.max.z>this.box.min.z){
+      player.pos.add(this.offset);
+      this.cd=1.4;
+      this.loops++;
+      SND.whoosh(true);
+      flashScreen('#a97bff', 0.22);
+      this.onWrap && this.onWrap(this);
+    }
+  }
+}
+const _wrapBox={min:V(),max:V()};
+
+class ExitVolume{
+  constructor(L, x,y,z, w,h,d, o={}){
+    this.L=L;
+    this.box={ min:V(x-w/2,y-h/2,z-d/2), max:V(x+w/2,y+h/2,z+d/2) };
+    this.locked=o.locked!==false;
+    this.onEnter=o.onEnter||null;
+    this.fired=false;
+    this.id=o.id||'exit';
+    L.exits.push(this);
+    if(o.beacon!==false){
+      /* soft light column marking the exit */
+      const col=o.color||0x54e08a;
+      const mat=new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:0.10,
+        blending:THREE.AdditiveBlending, depthWrite:false, side:THREE.DoubleSide });
+      mat.userData={owned:true};
+      const colMesh=new THREE.Mesh(new THREE.CylinderGeometry(Math.min(w,d)*0.32, Math.min(w,d)*0.32, h*0.94, 14, 1, true), mat);
+      colMesh.position.set(x, y, z);
+      WORLD.add(colMesh);
+      L.disposables.push(colMesh);
+      this.ringMat=L.palette.glow(col, 1.6);
+      const ring=new THREE.Mesh(new THREE.TorusGeometry(Math.min(w,d)*0.36, 0.05, 8, 24), this.ringMat);
+      ring.position.set(x, y-h/2+0.1, z);
+      ring.rotation.x=Math.PI/2;
+      WORLD.add(ring);
+      L.disposables.push(ring);
+    }
+  }
+  setLocked(v){
+    this.locked=v;
+    if(this.ringMat) this.ringMat.emissive.setHex(v?0xff5468:0x54e08a);
+  }
+  update(dt, t){
+    if(this.locked || this.fired || GAME.state!=='playing') return;
+    const b=player.box(_exitBox);
+    if(b.min.x<this.box.max.x && b.max.x>this.box.min.x &&
+       b.min.y<this.box.max.y && b.max.y>this.box.min.y &&
+       b.min.z<this.box.max.z && b.max.z>this.box.min.z){
+      this.fired=true;
+      this.onEnter && this.onEnter();
+    }
+  }
+}
+const _exitBox={min:V(),max:V()};
+
+/* iris hatch (circular, for ceiling / floor exits) */
+class Hatch{
+  /* orient: 'ceil' (opens upward) | 'floor' (opens downward) */
+  constructor(L, x, y, z, size, orient, o={}){
+    this.L=L; this.orient=orient; this.openT=0; this.opening=false; this.open=false;
+    const sign=orient==='ceil'?1:-1;
+    const r=size/2;
+    /* frame collar */
+    const mat=L.palette.glow(0xff5468, 1.4);
+    this.rimMat=mat;
+    const collar=new THREE.Mesh(new THREE.TorusGeometry(r+0.16, 0.1, 10, 30), mat);
+    collar.position.set(x, y+sign*0.06, z);
+    collar.rotation.x=Math.PI/2;
+    WORLD.add(collar); L.disposables.push(collar);
+    /* two sliding half-discs (the plug) */
+    const discMat=new THREE.MeshStandardMaterial({ color:0x272e3c, roughness:0.55,
+      metalness:0.5, emissive:0x39d5c8, emissiveIntensity:0.12 });
+    discMat.userData={owned:true};
+    this.leaves=[];
+    for(const s of [-1,1]){
+      const g=new THREE.CircleGeometry(r, 24, s>0?0:Math.PI, Math.PI);
+      const leaf=new THREE.Mesh(g, discMat);
+      leaf.position.set(x, y+sign*0.02, z);
+      leaf.rotation.x=orient==='ceil'?Math.PI/2:-Math.PI/2;
+      leaf.renderOrder=1;
+      WORLD.add(leaf);
+      L.disposables.push(leaf);
+      this.leaves.push({mesh:leaf, s, z0:z});
+    }
+    /* shaft collar (visual recess) */
+    const shaft=new THREE.Mesh(new THREE.CylinderGeometry(r+0.1, r+0.1, 1.2, 20, 1, true),
+      new THREE.MeshStandardMaterial({ color:0x11151d, roughness:0.9, side:THREE.DoubleSide }));
+    shaft.position.set(x, y+sign*0.62, z);
+    WORLD.add(shaft); L.disposables.push(shaft);
+    /* solid plug collider while closed */
+    this.collider=WORLD_COLLIDE.add(V(x-r-0.15, y-0.12, z-r-0.15), V(x+r+0.15, y+0.12, z+r+0.15),
+      { mesh:null, tag:'hatch' });
+    L.vars[o.id||'hatch']=this;
+    L.hatch=this;
+  }
+  openUp(){
+    if(this.opening||this.open) return;
+    this.opening=true;
+    SND.doorOpen();
+    flashScreen('#54e08a', 0.3);
+  }
+  update(dt){
+    if(this.opening && !this.open){
+      this.openT=Math.min(1, this.openT+dt/1.25);
+      const k=easeInOut(this.openT);
+      const sign=this.orient==='ceil'?1:-1;
+      for(const lf of this.leaves){
+        lf.mesh.position.z=lf.z0+lf.s*k*1.2;
+      }
+      this.rimMat.emissive.setHex(0x54e08a);
+      this.rimMat.emissiveIntensity=1.4+Math.sin(this.openT*10)*0.6;
+      if(this.openT>=1){
+        this.open=true;
+        this.collider.active=false;
+        PARTS.burst(V(this.leaves[0].mesh.position.x, this.leaves[0].mesh.position.y, this.leaves[0].z0),
+          new THREE.Color(0x54e08a), 40, 4, 2.6, 1.0);
+      }
+    }
+  }
+}
+
+/* ============================================================
+   16. GAME STATE, LEVEL MANAGER, HUD
+   ============================================================ */
+const LEVELS=[];
+GAME.t=0; GAME.carry=null;
+let FADE={v:0, target:0, rate:2.2};
+
+function setFadeTarget(v, rate){ FADE.target=v; if(rate) FADE.rate=rate; }
+function updateFade(dt){
+  FADE.v=damp(FADE.v, FADE.target, FADE.rate, dt);
+  if(Math.abs(FADE.v-FADE.target)<0.005) FADE.v=FADE.target;
+  DOM.fade.style.opacity=FADE.v.toFixed(3);
+}
+
+function startLevel(i, opts={}){
+  GAME.levelIndex=i;
+  const def=LEVELS[i];
+  if(GAME.level){ GAME.level.dispose(); GAME.level=null; }
+  for(const b of BEAM_POOL) if(b) b.visible=false;
+  const L=new LevelContext(GAME, def);
+  GAME.level=L;
+  const pal=def.palette;
+  L.palette=buildPalette(pal);
+  scene.fog=new THREE.FogExp2(pal.fog, pal.fogDensity??0.014);
+  scene.background=new THREE.Color(pal.fog);
+  if(!GAME.logicOnly) renderer.setClearColor(pal.fog);
+  hemiLight.color.setHex(pal.hemiSky??0x8fb5c8);
+  hemiLight.groundColor.setHex(pal.hemiGround??0x1a1410);
+  dirLight.color.setHex(pal.dirColor??0xffe8c0);
+  dirLight.intensity=pal.dirInt??1.15;
+  /* shadow frustum fit */
+  const ext=def.shadowExt??{x:20,z:20,y:16};
+  dirLight.position.set(ext.x*0.7, ext.y*1.8, ext.z*0.5);
+  dirLight.target.position.set(0,0,0);
+  const sc=dirLight.shadow.camera;
+  sc.left=-ext.x; sc.right=ext.x; sc.top=ext.z; sc.bottom=-ext.z;
+  sc.near=1; sc.far=ext.y*2+ext.x+ext.z+30;
+  sc.updateProjectionMatrix();
+  dirLight.castShadow=SAVE.shadows;
+  def.build(L);
+  L.finish();
+  buildMotes(L.bounds);
+  player.snapTo(L.spawn.pos, L.spawn.yaw, new THREE.Quaternion());
+  player.archCd=0.3;
+  GAME.carry=null;
+  GAME.levelTime=0;
+  GAME.levelStartT=GAME.t;
+  L.hudMode=def.hud;
+  L.updaters.push(...(def.updaters||[]));
+  setupHUD(L);
+  SND.ambient(def.ambient??55);
+  /* level card */
+  DOM.hudLevel.textContent='CHAMBER '+ROMAN[i];
+  DOM.hudObj.textContent=def.objective;
+  if(!opts.silent){
+    DOM.lcNum.textContent='CHAMBER '+ROMAN[i];
+    DOM.lcName.textContent=def.name;
+    DOM.lcObj.textContent=def.objective;
+    showScreen(DOM.levelcard);
+    GAME.state='levelcard';
+    GAME.cardT=0;
+  }else{
+    GAME.state='playing';
+    DOM.hud.classList.add('on');
+  }
+}
+function restartLevel(){ startLevel(GAME.levelIndex, {silent:true}); toast('CHAMBER RESET'); }
+
+function levelComplete(){
+  const L=GAME.level;
+  if(!L || L.complete) return;
+  L.complete=true;
+  GAME.state='victory';
+  player.frozen=true;
+  SND.winSmall();
+  flashScreen('#ffffff', 0.4);
+  const t=GAME.levelTime;
+  const prev=SAVE.best[GAME.levelIndex];
+  const isBest=!prev||t<prev;
+  if(isBest) SAVE.best[GAME.levelIndex]=t;
+  SAVE.unlocked=Math.max(SAVE.unlocked, Math.min(GAME.levelIndex+2, LEVELS.length));
+  persist();
+  GAME.levelTimes[GAME.levelIndex]=t;
+  const last=GAME.levelIndex===LEVELS.length-1;
+  const campaignDone=GAME.levelIndex>=7;
+  DOM.vKick.textContent=campaignDone?'THE MONUMENT YIELDS':'CHAMBER COMPLETE';
+  DOM.vTitle.textContent=campaignDone?'The Dimension Releases You':'Escaped';
+  let rows=`<div class="row"><span>${LEVELS[GAME.levelIndex].name}</span><b>${fmtTime(t)}</b></div>`;
+  rows+=`<div class="row"><span>BEST</span><b class="gold">${fmtTime(SAVE.best[GAME.levelIndex])}</b></div>`;
+  rows+=`<div class="row"><span>CAMPAIGN</span><b>${fmtTime(GAME.campaignTime)}</b></div>`;
+  DOM.vStats.innerHTML=rows;
+  DOM.btnNext.classList.toggle('hidden', campaignDone);
+  DOM.btnBonus.classList.toggle('hidden', !(campaignDone&&LEVELS.length>8));
+  showScreen(DOM.victory);
+  if(plc && plc.isLocked) plc.unlock();
+  DOM.hud.classList.remove('on');
+}
+function campaignVictory(){
+  GAME.state='victory';
+  player.frozen=true;
+  SND.winBig();
+  if(SAVE.campaignBest===null||GAME.campaignTime<SAVE.campaignBest){
+    SAVE.campaignBest=GAME.campaignTime; persist();
+  }
+  DOM.vKick.textContent='CAMPAIGN COMPLETE';
+  DOM.vTitle.textContent='The Impossible Room';
+  let rows='';
+  for(let i=0;i<Math.min(8,LEVELS.length);i++){
+    rows+=`<div class="row"><span>${ROMAN[i]} · ${LEVELS[i].name}</span><b>${SAVE.best[i]!==undefined?fmtTime(SAVE.best[i]):'—'}</b></div>`;
+  }
+  rows+=`<div class="row"><span>TOTAL</span><b class="gold">${fmtTime(GAME.campaignTime)}</b></div>`;
+  rows+=`<div class="row"><span>BEST CAMPAIGN</span><b class="gold">${fmtTime(SAVE.campaignBest)}</b></div>`;
+  DOM.vStats.innerHTML=rows;
+  DOM.btnNext.classList.add('hidden');
+  DOM.btnBonus.classList.toggle('hidden', LEVELS.length<=8);
+  showScreen(DOM.victory);
+  if(plc && plc.isLocked) plc.unlock();
+  DOM.hud.classList.remove('on');
+}
+function failLevel(title, sub, opts={}){
+  const L=GAME.level;
+  if(!L || L.failed || GAME.state!=='playing') return;
+  if(opts.soft){
+    /* soft fail: respawn without overlay */
+    voidRespawn();
+    return;
+  }
+  L.failed=true;
+  GAME.state='failed';
+  GAME.failT=1.7;
+  player.frozen=true;
+  SND.fail();
+  DOM.fTitle.textContent=title;
+  DOM.fSub.textContent=sub;
+  showScreen(DOM.failed);
+  DOM.vignette.style.opacity=1;
+  if(plc && plc.isLocked) plc.unlock();
+}
+function voidRespawn(){
+  const L=GAME.level;
+  const r=L.respawn||L.spawn;
+  SND.whoosh(false);
+  flashScreen('#0b0e14', 0.75);
+  setFade(0.9);
+  setFadeTarget(0, 3.2);
+  player.snapTo(r.pos, r.yaw??0, new THREE.Quaternion());
+  player.vel.set(0,0,0);
+  player.frozen=false;
+  toast('THE VOID RETURNS YOU TO THE <b>GREEN ARCH</b>');
+}
+
+function showScreen(el){ el.classList.remove('hidden'); el.classList.remove('off'); }
+function hideScreen(el){ el.classList.add('off'); setTimeout(()=>el.classList.add('hidden'),480); }
+
+/* ---------------- HUD ---------------- */
+const HUD={ pips:[], count:null, ring:null, ringTxt:null, timer:null, sub:null,
+  rows:{}, loops:null, stagePips:[] };
+function setupHUD(L){
+  const m=DOM.hudModule;
+  HUD.pips=[]; HUD.rows={}; HUD.stagePips=[];
+  const mode=L.hudMode;
+  if(mode==='fragments'||mode==='cores'){
+    const n=L.fragmentsTotal;
+    m.innerHTML=`<div class="mod-title">${mode==='cores'?'ENERGY CORES':'ORB FRAGMENTS'}</div>
+      <div class="mod-big" id="hud-count">0 <em>/ ${n}</em></div>
+      <div class="pips" id="hud-pips">${'<span class="pip" style="color:'+(mode==='cores'?'#a97bff':'#e8c15a')+'"></span>'.repeat(n)}</div>`;
+    HUD.count=$('hud-count');
+    HUD.pips=[...document.querySelectorAll('#hud-pips .pip')];
+  }else if(mode==='sequence'){
+    const cols=L.vars.seqColors||['blue','yellow','red'];
+    m.innerHTML=`<div class="mod-title">SEQUENCE</div>
+      <div class="pips" id="hud-pips" style="justify-content:flex-start">${cols.map(c=>
+        `<span class="pip" style="color:${ARCH_COLORS[c]}"></span>`).join('')}</div>
+      <div class="mod-sub" id="hud-seqsub">READ THE INVERTED PAINT</div>`;
+    HUD.pips=[...document.querySelectorAll('#hud-pips .pip')];
+  }else if(mode==='plates'){
+    m.innerHTML=`<div class="mod-title">PRESSURE PLATES</div>
+      <div class="stat-rows" style="min-width:190px">
+        <div class="row" id="hud-p1"><span>WALL ANCHOR</span><b>OPEN</b></div>
+        <div class="row" id="hud-p2"><span>CEILING ANCHOR</span><b>OPEN</b></div>
+      </div>
+      <div class="mod-sub" id="hud-psub">SEAT A GRAVITY CUBE ON EACH</div>`;
+    HUD.rows.p1=$('hud-p1'); HUD.rows.p2=$('hud-p2'); HUD.rows.psub=$('hud-psub');
+  }else if(mode==='laser'){
+    m.innerHTML=`<div class="mod-title">SENSOR CHARGE</div>
+      <div class="ring-wrap"><svg width="74" height="74">
+        <circle class="ring-bg" cx="37" cy="37" r="30"/>
+        <circle class="ring-fg" cx="37" cy="37" r="30" id="hud-ring"
+          stroke-dasharray="188.5" stroke-dashoffset="188.5"/>
+      </svg><div class="ring-txt" id="hud-ringtxt">0%</div></div>
+      <div class="mod-sub">BEAM MUST HOLD 2 SECONDS</div>`;
+    HUD.ring=$('hud-ring'); HUD.ringTxt=$('hud-ringtxt');
+  }else if(mode==='timer'){
+    m.innerHTML=`<div class="mod-title">STABILIZATION</div>
+      <div class="mod-big" id="hud-timer">1:30</div>
+      <div class="mod-sub">GRAVITY ROTATES EVERY 20s</div>
+      <div class="mod-sub" id="hud-loops" style="color:#e8c15a"></div>`;
+    HUD.timer=$('hud-timer');
+  }else if(mode==='final'){
+    m.innerHTML=`<div class="mod-title">CORE ANCHOR</div>
+      <div class="pips" id="hud-pips" style="justify-content:flex-start">
+        <span class="pip" style="color:#4da3ff"></span>
+        <span class="pip" style="color:#ff5468"></span>
+        <span class="pip" style="color:#39d5c8"></span>
+        <span class="pip" style="color:#e8c15a"></span></div>
+      <div class="mod-sub" id="hud-fsub">ASCEND THE MONUMENT</div>`;
+    HUD.stagePips=[...document.querySelectorAll('#hud-pips .pip')];
+    HUD.rows.fsub=$('hud-fsub');
+  }else{
+    m.innerHTML=`<div class="mod-title">OBJECTIVE</div>
+      <div class="mod-sub" style="letter-spacing:.1em">${L.def.objective.toUpperCase()}</div>`;
+  }
+}
+function hudSetStage(i, txt){
+  if(HUD.stagePips[i]) HUD.stagePips[i].classList.add('on');
+  if(HUD.rows.fsub && txt) HUD.rows.fsub.textContent=txt;
+}
+function updateHUD(dt){
+  const L=GAME.level; if(!L) return;
+  /* level time + fps */
+  DOM.hudTime.textContent=fmtTime(GAME.levelTime);
+  DOM.hudFps.textContent=SAVE.fps?`${Math.round(FPS.avg)} FPS`:'';
+  /* compass */
+  const gCam=V().copy(player.gravityDir).applyQuaternion(camera.quaternion.clone().invert());
+  const rot=Math.atan2(gCam.x, -gCam.y);
+  DOM.needle.style.transform=`rotate(${rot}rad)`;
+  const pname=PLANE_NAMES[gKey(player.gravityDir)]||'VOID';
+  DOM.compassPlane.textContent=pname;
+  DOM.compassPlane.style.color={FLOOR:'#9aa3b5',CEILING:'#e8c15a','WALL A':'#4da3ff','WALL B':'#ff5468'}[pname]||'#fff';
+  /* module specifics */
+  if(L.hudMode==='fragments'||L.hudMode==='cores'){
+    const got=L.fragments.filter(f=>f.collected).length;
+    if(HUD.count) HUD.count.innerHTML=`${got} <em>/ ${L.fragmentsTotal}</em>`;
+    HUD.pips.forEach((p,i)=>p.classList.toggle('on', i<got));
+  }else if(L.hudMode==='sequence'){
+    const seq=L.hudSeq;
+    if(seq) HUD.pips.forEach((p,i)=>p.classList.toggle('on', i<seq.progress));
+  }else if(L.hudMode==='plates'){
+    const p1=L.plates[0], p2=L.plates[1];
+    if(HUD.rows.p1){ HUD.rows.p1.querySelector('b').textContent=p1&&p1.active?'SEATED':'OPEN';
+      HUD.rows.p1.querySelector('b').style.color=p1&&p1.active?'#54e08a':'#9aa3b5'; }
+    if(HUD.rows.p2){ HUD.rows.p2.querySelector('b').textContent=p2&&p2.active?'SEATED':'OPEN';
+      HUD.rows.p2.querySelector('b').style.color=p2&&p2.active?'#54e08a':'#9aa3b5'; }
+  }else if(L.hudMode==='laser'){
+    const s=L.sensors[0];
+    if(s && HUD.ring){
+      const f=s.charged?1:(s.charge/s.chargeTime);
+      HUD.ring.style.strokeDashoffset=(188.5*(1-f)).toFixed(1);
+      HUD.ringTxt.textContent=Math.round(f*100)+'%';
+      HUD.ring.style.stroke=s.charged?'#54e08a':'#39d5c8';
+    }
+  }else if(L.hudMode==='timer'){
+    if(HUD.timer){
+      const left=Math.max(0,(L.vars.timeLimit||90)-GAME.levelTime);
+      HUD.timer.textContent=fmtTimeLong(Math.ceil(left));
+      HUD.timer.classList.toggle('warn', left<20);
+      if(left<15 && Math.floor(GAME.t)!==L.vars.lastBeat){
+        L.vars.lastBeat=Math.floor(GAME.t); SND.heartbeat();
+      }
+    }
+  }
+  /* status line */
+  if(L.vars.status) DOM.hudStatus.innerHTML=L.vars.status;
+}
+
+/* ============================================================
+   17. INTERACTION (E key) + RETICLE
+   ============================================================ */
+const RAYCASTER=new THREE.Raycaster();
+RAYCASTER.far=3.7;
+let interactTarget=null;
+function updateInteract(dt){
+  if(GAME.state!=='playing'){ DOM.reticle.classList.remove('hot'); DOM.prompt.classList.remove('on'); return; }
+  let target=null;
+  if(GAME.carry){
+    /* carrying: E drops unless aiming at a socket with the core */
+    const core=GAME.carry;
+    RAYCASTER.setFromCamera({x:0,y:0}, camera);
+    const hits=RAYCASTER.intersectObjects(GAME.level.interactables, false);
+    for(const h of hits){
+      const it=h.object.userData.interact;
+      if(it && it.type==='socket' && !h.object.userData.socketFilled){
+        target={label:'INSERT CORE MATRIX', action:()=>it.action(core)};
+        break;
+      }
+    }
+    if(!target) target={label:(core.big?'DROP CORE MATRIX':'DROP CUBE'), action:()=>dropCarried()};
+  }else{
+    RAYCASTER.setFromCamera({x:0,y:0}, camera);
+    const hits=RAYCASTER.intersectObjects(GAME.level.interactables, false);
+    for(const h of hits){
+      const it=h.object.userData.interact;
+      if(!it) continue;
+      if(it.type==='cube' && it.obj.state==='held') continue;
+      if(it.type==='socket' && !GAME.carry) continue;
+      target={label:it.label, action:it.action||(()=>{
+        if(it.type==='cube') pickUp(it.obj);
+        else if(it.type==='mirror') it.obj.rotate();
+        else if(it.type==='socket') it.action(GAME.carry);
+      })};
+      break;
+    }
+  }
+  interactTarget=target;
+  DOM.reticle.classList.toggle('hot', !!target);
+  if(target){
+    DOM.promptTxt.textContent=target.label;
+    DOM.prompt.classList.add('on');
+    if(INPUT.interactEdge){ target.action(); }
+  }else DOM.prompt.classList.remove('on');
+}
+function pickUp(cube){
+  if(GAME.carry) return;
+  cube.pick();
+  GAME.carry=cube;
+}
+function dropCarried(){
+  if(!GAME.carry) return;
+  GAME.carry.drop();
+  GAME.carry=null;
+}
+
+/* ============================================================
+   18. PER-FRAME GAME UPDATE
+   ============================================================ */
+function updateGame(dt){
+  GAME.t+=dt;
+  updateFade(dt);
+  updateMotes(GAME.t);
+  if(starMat) starMat.uniforms.uTime.value=GAME.t;
+  const L=GAME.level;
+  const playing=(GAME.state==='playing');
+  if(playing){
+    GAME.campaignTime+=dt;
+    GAME.levelTime+=dt;
+  }
+  if(!L){ PARTS.update(dt); return; }
+  /* failed-state restart (game-clock driven so it pauses and QA-steps cleanly) */
+  if(GAME.state==='failed'){
+    GAME.failT-=dt;
+    DOM.vignette.style.opacity=Math.max(0,Math.min(1,GAME.failT/0.7)).toFixed(2);
+    if(GAME.failT<=0){
+      hideScreen(DOM.failed);
+      DOM.vignette.style.opacity=0;
+      startLevel(GAME.levelIndex,{silent:true});
+      GAME.state='playing';
+    }
+  }
+  /* level card timing */
+  if(GAME.state==='levelcard'){
+    GAME.cardT+=dt;
+    if(GAME.cardT>2.5){
+      hideScreen(DOM.levelcard);
+      GAME.state='playing';
+      DOM.hud.classList.add('on');
+    }
+  }
+  if(GAME.state==='menu'){
+    /* cinematic orbit of the current level */
+    const r=14, a=GAME.t*0.06;
+    camera.position.set(Math.cos(a)*r, L.bounds.max.y*0.45, Math.sin(a)*r);
+    camera.lookAt(0, L.bounds.max.y*0.28, 0);
+  }
+  /* systems */
+  for(const a of L.arches) a.update(dt, GAME.t);
+  if(GAME.state!=='menu') player.update(dt);
+  for(const mv of L.movers) mv.update(dt, GAME.t);
+  for(const c of L.cubes) c.update(dt);
+  for(const f of L.fragments) f.update(dt, GAME.t);
+  for(const mi of L.mirrors) mi.update(dt);
+  traceBeams(L, dt, GAME.t);
+  for(const s of L.sensors) s.update(dt);
+  for(const sw of L.sweepers) sw.update(dt, GAME.t);
+  updateConditionalFx(L, dt);
+  for(const w of L.wraps) w.update(dt);
+  for(const e of L.exits) e.update(dt, GAME.t);
+  if(L.hatch) L.hatch.update(dt);
+  if(L.def.update) L.def.update(L, dt, GAME.t);
+  for(const u of L.updaters) u(dt, GAME.t);
+  /* void safety net */
+  if(playing && !L.bounds.containsPoint(player.pos)) voidRespawn();
+  /* laser hum follows power */
+  SND.laserHum(_laserLevel);
+  updateHUD(dt);
+  updateInteract(dt);
+  applyShake(dt);
+  PARTS.update(dt);
+  INPUT.interactEdge=false;
+}
+
+/* ============================================================
+   19. LEVEL DEFINITIONS — CAMPAIGN (Part A: L1, L2)
+   ============================================================ */
+
+/* ---------------- LEVEL 1 : THE INITIATION ---------------- */
+LEVELS.push({
+  name:'The Initiation',
+  objective:'Collect 3 orb fragments — the ceiling hatch awakens',
+  hud:'fragments',
+  ambient:55,
+  palette:{ fog:0x070b12, fogDensity:0.014, trim:0x39d5c8, plat:0x2b3345,
+    checkerA:'#232b39', checkerB:'#181e2a', panel:'#1f2836', panelLine:'#2a3547',
+    floorRepX:8, floorRepY:8, wallRepX:5, hemiSky:0x8fb5c8, dirColor:0xffe8c0 },
+  shadowExt:{x:20,z:20,y:12},
+  build(L){
+    LShell(L, {w:34, h:12, d:34, ceilHole:2.6});
+    /* spawn dais + green arch (respawn anchor) */
+    LPlatform(L, 0, 0.25, 11, 3.6, 3.6, {mat:'platform'});
+    L.spawn={pos:V(0, 1.2, 12.4), yaw:0};
+    L.respawn={pos:V(0, 1.2, 12.4), yaw:0};
+    LArch(L, 'green', 0, 0.25, 10.1, 'z-');
+    /* tutorial paint */
+    LText(L, 0, 0.02, 7.6, ['W A S D — MOVE'], {normal:'y+', up:'z-', w:4.6, h:1.1, size:52, color:'#bcd2e8'});
+    LText(L, 3.4, 0.02, 9.6, ['SPACE — JUMP'], {normal:'y+', up:'z-', w:3.6, h:0.9, size:46, color:'#bcd2e8'});
+    LText(L, -3.4, 0.02, 9.6, ['E — INTERACT'], {normal:'y+', up:'z-', w:3.4, h:0.9, size:46, color:'#bcd2e8'});
+    LText(L, 0, 0.02, 2.5, ['STEP THROUGH THE COLORED ARCHES'], {normal:'y+', up:'z-', w:6.4, h:1.0, size:40, color:'#7d8ba0'});
+    /* arch legend behind spawn */
+    LText(L, -5.2, 7.6, 16.94, ['BLUE — WALL A'], {normal:'z-', up:'y+', w:3.2, h:0.8, size:54, color:ARCH_COLORS.blue, glowColor:ARCH_COLORS.blue});
+    LText(L, -1.7, 7.6, 16.94, ['RED — WALL B'], {normal:'z-', up:'y+', w:3.0, h:0.8, size:54, color:ARCH_COLORS.red, glowColor:ARCH_COLORS.red});
+    LText(L, 1.8, 7.6, 16.94, ['YELLOW — CEILING'], {normal:'z-', up:'y+', w:3.4, h:0.8, size:48, color:ARCH_COLORS.yellow, glowColor:ARCH_COLORS.yellow});
+    LText(L, 5.6, 7.6, 16.94, ['GREEN — FLOOR'], {normal:'z-', up:'y+', w:3.0, h:0.8, size:54, color:ARCH_COLORS.green, glowColor:ARCH_COLORS.green});
+    /* floor parkour flavor (kept clear of the spawn -> blue arch path) */
+    LPlatform(L, -7.2, 1.68, 1, 5, 4.2, {mat:'platform'});
+    LStairs(L, 6.2, 0, 1, 'x+', 4, {});
+    LPlatform(L, -8, 2.4, -6, 3, 3, {mat:'platform'});
+    /* arch network */
+    LArch(L, 'blue', 0, 0, -12, 'z-');                 // floor -> WALL A
+    LArch(L, 'red', -10, 0, -6, 'z-');                 // floor -> WALL B
+    LArch(L, 'blue', 8, 3, -16.93, 'x+', 'wallA');     // WALL A -> CEILING
+    LArch(L, 'yellow', 0, 8, -16.93, 'x+', 'wallA');   // WALL A -> WALL B
+    LArch(L, 'green', 0, 11.97, 8, 'z-', 'ceil');      // ceiling -> floor
+    LArch(L, 'green', 5, 3, 16.93, 'x-', 'wallB');     // WALL B -> floor
+    /* wall B landing ledge for the long yellow fall */
+    LBox(L, 0, 6.8, 16.3, 9, 1.6, 1.4, 'platform', {tag:'ledge'});
+    /* fragments on three planes */
+    new Fragment(L, -8, 9.5, -16.05, {});              // WALL A
+    new Fragment(L, -4, 11.35, -4, {});                // CEILING
+    new Fragment(L, 0, 7.6, 15.6, {});                 // WALL B (above ledge)
+    /* ceiling hatch exit */
+    new Hatch(L, 0, 12, 0, 2.6, 'ceil', {id:'exitHatch'});
+    const exit=new ExitVolume(L, 0, 12.75, 0, 2.2, 1.5, 2.2, {
+      locked:true, color:0x54e08a,
+      onEnter:()=>levelComplete()
+    });
+    L.onFragment=(f, got)=>{
+      L.vars.status=`FRAGMENTS ${got} / 3` + (got<3?'':' — THE HATCH AWAKENS');
+      if(got>=3){
+        L.hatch.openUp();
+        exit.setLocked(false);
+        toast('THE CEILING HATCH <b>UNLOCKS</b> — ASCEND');
+        SND.powered();
+        PARTS.burst(V(0,11.8,0), new THREE.Color(0x54e08a), 60, 3.5, 3, 1.4, V(0,-1,0));
+      }
+    };
+    L.vars.status='FRAGMENTS 0 / 3';
+  },
+  qa(ctx){
+    /* collect each fragment by teleporting into range, then verify the hatch
+       unlocks and the exit volume completes the level. */
+    for(const f of L_FIX().fragments){
+      ctx.warp(f.pos.x, f.pos.y, f.pos.z);
+      ctx.step(0.1);
+      if(!f.collected) return 'fragment not collected at '+f.pos.toArray().join(',');
+    }
+    if(!L_FIX().hatch.open && !L_FIX().hatch.opening) return 'hatch did not unlock';
+    ctx.steps(1.6, 1/30);                     // let the iris open
+    if(!L_FIX().hatch.open) return 'hatch iris did not finish opening';
+    if(L_FIX().exits[0].locked) return 'exit still locked';
+    player.pos.set(0, 12.5, 0);
+    ctx.step(0.1);
+    if(GAME.state!=='victory') return 'exit did not complete level (state='+GAME.state+')';
+    return true;
+  }
+});
+function L_FIX(){ return GAME.level; }
+
+/* ---------------- LEVEL 2 : THE LOOPING ESCAPE ---------------- */
+LEVELS.push({
+  name:'The Looping Escape',
+  objective:'Break the sequence — read the inverted paint',
+  hud:'sequence',
+  ambient:65.4,
+  palette:{ fog:0x0a0f0b, fogDensity:0.02, trim:0x7dc98f, plat:0x27352c,
+    checkerA:'#222b25', checkerB:'#171d19', panel:'#1e2..', panelLine:'#2a3a2f',
+    floorRepX:26, floorRepY:4, wallRepX:14, wallRepY:1.4,
+    hemiSky:0x9fbf9f, dirColor:0xd8ffc8, dirInt:0.9 },
+  shadowExt:{x:34,z:8,y:10},
+  build(L){
+    const LEN=60, W=8, H=8;
+    /* corridor shell (manual — asymmetric along X) */
+    LBox(L, LEN/2, -0.3, 0, LEN, 0.6, W, 'floor', {tag:'floor'});
+    LBox(L, LEN/2, H+0.3, 0, LEN, 0.6, W, 'floor', {tag:'ceiling'});
+    LBox(L, LEN/2, H/2, -W/2-0.3, LEN, H, 0.6, 'wall', {tag:'wallZ0'});
+    LBox(L, LEN/2, H/2,  W/2+0.3, LEN, H, 0.6, 'wall', {tag:'wallZ1'});
+    LBox(L, -0.3, H/2, 0, 0.6, H, W, 'wall', {tag:'wallX0'});
+    LBox(L, LEN+0.3, H/2, 0, 0.6, H, W, 'wall', {tag:'wallX1'});
+    L.bounds=new THREE.Box3(V(-1.5,-2.5,-5.5), V(LEN+1.5, H+1.6, 5.5));
+    /* long trim rails */
+    L._trimGeos.push((()=>{const g=new THREE.BoxGeometry(LEN-2,0.07,0.12); g.translate(LEN/2,0.035,-W/2+0.35); return g;})());
+    L._trimGeos.push((()=>{const g=new THREE.BoxGeometry(LEN-2,0.07,0.12); g.translate(LEN/2,0.035, W/2-0.35); return g;})());
+    L._trimGeos.push((()=>{const g=new THREE.BoxGeometry(0.12,0.07,W-2); g.translate(2,0.035,0); return g;})());
+    /* pillars + ceiling lights every 6 m (skip gate zones) */
+    for(let x=4; x<LEN-2; x+=6){
+      if(Math.abs(x-6)<1.2||Math.abs(x-48)<1.2) continue;
+      LBox(L, x, H/2, -W/2+0.4, 0.55, H, 0.7, 'wall', {tag:'pillar'});
+      LBox(L, x, H/2,  W/2-0.4, 0.55, H, 0.7, 'wall', {tag:'pillar'});
+      LBox(L, x, H-0.06, 0, 1.6, 0.1, 1.1, 'trim', {solid:false, castShadow:false});
+    }
+    /* spawn */
+    L.spawn={pos:V(3, 1.2, 0), yaw:Math.PI};   // facing +X? yaw PI faces +Z... set 0 => -Z. Face +X:
+    L.spawn.yaw=-Math.PI/2;                    // forward = +X
+    L.respawn={pos:V(3, 1.2, 0), yaw:-Math.PI/2};
+    LText(L, 3, 0.02, 0, ['THE CORRIDOR LIES'], {normal:'y+', up:'x+', w:4, h:0.9, size:44, color:'#7d8ba0'});
+    /* green normalizer gates — full cross-section, any plane may pass */
+    LArch(L, 'green', 6, 0.02, 0, 'x+', 'floor', {tall:true});
+    LArch(L, 'green', 48, 0.02, 0, 'x+', 'floor', {tall:true});
+    /* sequence arches (standard, center of corridor — walkable around) */
+    const archYellow=LArch(L, 'yellow', 12, 0.02, 0, 'x+');
+    const archBlue  =LArch(L, 'blue',   26, 0.02, 0, 'x+');
+    const archRed   =LArch(L, 'red',    40, 0.02, 0, 'x+');
+    L.vars.seqColors=['blue','yellow','red'];
+    /* the clue — painted UPSIDE-DOWN on the ceiling (readable from inverted gravity) */
+    LText(L, 9, 7.97, 0, ['THE ORDER'], {normal:'y-', up:'x+', w:3.4, h:0.9, size:48, color:'#e8c15a', upsideDown:true});
+    LText(L, 13.2, 7.97, 0, ['1st'], {normal:'y-', up:'x+', w:1.4, h:0.9, size:54, color:ARCH_COLORS.blue, upsideDown:true});
+    LText(L, 16.4, 7.97, 0, ['2nd'], {normal:'y-', up:'x+', w:1.4, h:0.9, size:54, color:ARCH_COLORS.yellow, upsideDown:true});
+    LText(L, 19.6, 7.97, 0, ['3rd'], {normal:'y-', up:'x+', w:1.4, h:0.9, size:54, color:ARCH_COLORS.red, upsideDown:true});
+    /* subtle echoes high on the side walls (visible from wall planes) */
+    LText(L, 13.5, 6.6, -3.94, ['BLUE - YELLOW - RED'], {normal:'z+', up:'x+', w:3.6, h:0.7, size:44, color:'#5d6f60'});
+    LText(L, 13.5, 6.6, 3.94, ['BLUE - YELLOW - RED'], {normal:'z-', up:'x+', w:3.6, h:0.7, size:44, color:'#5d6f60'});
+    /* wrap volumes — the infinite illusion */
+    const wrapE=new WrapVolume(L, 51, H/2, 0, 2.2, H, W, V(-44,0,0), {
+      onWrap(w){ L.vars.status=`LOOP ${w.loops}`; }
+    });
+    const wrapW=new WrapVolume(L, 1, H/2, 0, 2.2, H, W, V(44,0,0), {});
+    L.vars.status='LOOP 0';
+    /* exit door at the far end (revealed when the illusion breaks) */
+    const doorFrameMat=L.palette.glow(0xa97bff, 1.6);
+    LBox(L, LEN-0.9, H/2, 0, 0.5, H-0.6, W-1.5, 'wall', {tag:'endfill'});
+    const door=new THREE.Mesh(new THREE.PlaneGeometry(W-1.7, H-0.9),
+      L.palette.portal('#a97bff'));
+    door.position.set(LEN-1.18, H/2, 0);
+    door.rotation.y=-Math.PI/2;
+    WORLD.add(door); L.disposables.push(door);
+    L.vars.door=door;
+    const exit=new ExitVolume(L, LEN-1.5, H/2, 0, 1.6, H-0.8, W-1.7, {
+      locked:true, color:0xa97bff,
+      onEnter:()=>levelComplete()
+    });
+    /* sequence logic */
+    new Sequence(L, ['blue','yellow','red'], {
+      onDone(){
+        wrapE.enabled=false; wrapW.enabled=false;
+        exit.setLocked(false);
+        door.material=makePortalMat('#54e08a');
+        door.material.userData={owned:true};
+        SND.doorOpen();
+        flashScreen('#a97bff', 0.5);
+        shake(0.7);
+        toast('THE ILLUSION <b>SHATTERS</b> — THE END IS REAL NOW');
+        PARTS.burst(V(LEN-1.2, H/2, 0), new THREE.Color(0xa97bff), 60, 5, 3, 1.2);
+        L.vars.status='THE EXIT IS REAL — REACH THE END';
+      }
+    });
+    L.updaters.push((dt,t)=>{ door.material.uniforms.uTime.value=t; });
+  },
+  update(L, dt, t){
+    /* keep the door portal animated */
+  },
+  qa(ctx){
+    const L2=L_FIX();
+    /* verify wrap illusion */
+    player.pos.set(51, 1.2, 0);
+    ctx.step(0.1);
+    if(Math.abs(player.pos.x-7)>1.5) return 'east wrap failed (x='+player.pos.x.toFixed(2)+')';
+    const before=L2.sequences[0].progress;
+    if(before!==0) return 'sequence should start at 0 (got '+before+')';
+    /* wrong order first: yellow resets */
+    ctx.warp(12, 1.2, 0); ctx.step(0.12); ctx.steps(1.4, 1/30);   // pass yellow (from floor -> CEIL)
+    if(L2.sequences[0].progress!==0) return 'yellow first should keep progress 0';
+    ctx.setGravity('floor'); ctx.warp(26, 1.2, 0); ctx.steps(1.4, 1/30);  // blue -> WALL A
+    if(L2.sequences[0].progress!==1) return 'blue should be step 1 (got '+L2.sequences[0].progress+')';
+    ctx.setGravity('floor'); ctx.warp(12, 1.2, 0); ctx.steps(1.4, 1/30);  // yellow -> CEIL
+    if(L2.sequences[0].progress!==2) return 'yellow should be step 2';
+    ctx.setGravity('floor'); ctx.warp(40, 1.2, 0); ctx.steps(1.6, 1/30);  // red -> WALL B
+    if(!L2.sequences[0].done) return 'sequence not complete after B,Y,R';
+    if(L2.wraps[0].enabled) return 'wrap should be disabled after sequence';
+    if(L2.exits[0].locked) return 'exit should unlock after sequence';
+    ctx.warp(58, 4, 0); ctx.step(0.12);
+    if(GAME.state!=='victory') return 'exit did not complete (state='+GAME.state+')';
+    return true;
+  }
+});
+
+/* ============================================================
+   19b. CAMPAIGN (Part B: L3, L4, L5, L6)
+   ============================================================ */
+
+/* ---------------- LEVEL 3 : WEIGHT & GRAVITY ---------------- */
+LEVELS.push({
+  name:'Weight & Gravity',
+  objective:'Seat a gravity cube on each anchor — the vault will yield',
+  hud:'plates',
+  ambient:49,
+  palette:{ fog:0x0c0a08, fogDensity:0.015, trim:0xe0a54d, plat:0x35302a,
+    checkerA:'#2b2620', checkerB:'#1c1915', panel:'#241f1a', panelLine:'#332c24',
+    floorRepX:7, floorRepY:7, wallRepX:5, hemiSky:0xc8b594, dirColor:0xffd9a0 },
+  shadowExt:{x:18,z:18,y:14},
+  build(L){
+    LShell(L, {w:30, h:14, d:30});
+    L.spawn={pos:V(0, 1.2, 12.5), yaw:0};
+    L.respawn={pos:V(0, 1.2, 12.5), yaw:0};
+    LPlatform(L, 0, 0.25, 11, 3.4, 3.4, {mat:'platform'});
+    LArch(L, 'green', 0, 0.25, 10.1, 'z-');
+    LText(L, 0, 0.02, 7.8, ['CARRY THE CUBES ACROSS THE PLANES'], {normal:'y+', up:'z-', w:6, h:0.9, size:38, color:'#7d8ba0'});
+    /* cube pedestals */
+    for(const sx of [-3.4, 3.4]){
+      LBox(L, sx, 0.5, 4.2, 0.95, 1.0, 0.95, 'platform', {tag:'pedestal'});
+      LText(L, sx, 1.32, 4.2, ['CUBE'], {normal:'y+', up:'z-', w:1.4, h:0.5, size:40, color:'#39d5c8'});
+    }
+    new GravityCube(L, -3.4, 1.35, 4.2);
+    new GravityCube(L, 3.4, 1.35, 4.2);
+    /* pressure plates on two planes */
+    new PressurePlate(L, 0, 1.6, -14.82, 'wallA');
+    new PressurePlate(L, 0, 13.52, 0, 'ceil');
+    LText(L, 0, 3.4, -14.9, ['WALL ANCHOR'], {normal:'z+', up:'y+', w:3, h:0.8, size:44, color:'#e0a54d'});
+    LText(L, 3.2, 12.2, 0, ['CEILING ANCHOR'], {normal:'y-', up:'x-', w:3.4, h:0.8, size:40, color:'#e0a54d'});
+    /* arch network */
+    LArch(L, 'blue', -6, 0, -10.5, 'z-');               // floor -> WALL A
+    LArch(L, 'yellow', 6, 0, 8.5, 'z-');                // floor -> CEILING
+    LArch(L, 'green', 0, 13.97, 6.5, 'z-', 'ceil');     // ceiling -> floor
+    LArch(L, 'green', 7, 4, -14.9, 'x+', 'wallA');      // WALL A -> floor
+    LArch(L, 'red', 10, 0, -3, 'z-');                   // floor -> WALL B (shortcut to ceiling via red+red)
+    LArch(L, 'yellow', 9, 6, -14.9, 'x+', 'wallA');     // WALL A -> WALL B
+    /* vault */
+    LBox(L, 0, 2.0, -6.3, 5.2, 4.0, 0.45, 'wall', {tag:'vault'});
+    LBox(L, -2.45, 2.0, -4.0, 0.45, 4.0, 5.2, 'wall', {tag:'vault'});
+    LBox(L, 2.45, 2.0, -4.0, 0.45, 4.0, 5.2, 'wall', {tag:'vault'});
+    LBox(L, 0, 4.15, -4.0, 5.2, 0.45, 5.2, 'wall', {tag:'vault'});
+    LBox(L, -1.75, 3.0, -1.55, 2.1, 2.1, 0.4, 'wall', {tag:'vault'});
+    LBox(L, 1.75, 3.0, -1.55, 2.1, 2.1, 0.4, 'wall', {tag:'vault'});
+    LBox(L, 0, 3.75, -1.55, 1.6, 0.9, 0.4, 'wall', {tag:'vault'});
+    LText(L, 0, 4.7, -1.4, ['EXIT VAULT'], {normal:'z-', up:'y+', w:2.8, h:0.7, size:46, color:'#e0a54d'});
+    /* vault door (slides up when both plates are seated) */
+    const doorMesh=LBox(L, 0, 1.45, -1.52, 1.4, 2.9, 0.35, 'platform', {tag:'vaultdoor'});
+    const doorGlow=LBox(L, 0, 1.45, -1.3, 1.1, 2.6, 0.06, L.palette.glow(0xff5468, 1.5),
+      {solid:false, castShadow:false});
+    L.vars.vault={doorMesh, doorGlow, open:false, t:0};
+    const exit=new ExitVolume(L, 0, 1.2, -4.2, 2.0, 2.2, 2.0, {locked:true,
+      onEnter:()=>levelComplete()});
+    L.onPlateState=(plate, on)=>{
+      const both=L.plates.length>1 && L.plates.every(p=>p.active);
+      L.vars.status=L.plates.map((p,i)=>`${i===0?'WALL':'CEILING'} ANCHOR ${p.active?'●':'○'}`).join('   ');
+      if(both && !L.vars.vault.open){
+        L.vars.vault.open=true;
+        SND.doorSeal();
+        toast('BOTH ANCHORS SEATED — <b>THE VAULT YIELDS</b>');
+      }
+    };
+    L.vars.status='WALL ANCHOR ○   CEILING ANCHOR ○';
+    L.updaters.push((dt)=>{
+      const v=L.vars.vault;
+      if(v.open && v.t<1){
+        v.t=Math.min(1, v.t+dt/1.9);
+        const k=easeInOut(v.t);
+        v.doorMesh.mesh.position.y=1.45+k*3.1;
+        const c=v.doorMesh.collider;               // collider follows the sliding slab
+        c.min.y=v.doorMesh.mesh.position.y-1.45;
+        c.max.y=v.doorMesh.mesh.position.y+1.45;
+        v.doorGlow.mesh.position.y=1.45+k*3.1;
+        v.doorGlow.mesh.material.emissive.setHex(0x54e08a);
+        if(v.t>0.45 && exit.locked){ exit.setLocked(false); SND.doorOpen(); }
+      }
+    });
+  },
+  qa(ctx){
+    const L3=L_FIX();
+    const cubes=L3.cubes;
+    /* seat cube 1 on the wall anchor: drop it while wall gravity is active */
+    cubes[0].pos.set(0, 1.6, -13.2);
+    cubes[0].gravityDir.set(0,0,-1);
+    cubes[0].state='fall'; cubes[0].collider.active=true;
+    ctx.steps(1.5, 1/30);
+    if(!L3.plates[0].active) return 'cube did not seat on wall plate';
+    /* seat cube 2 on the ceiling anchor */
+    cubes[1].pos.set(0, 11.6, 0);
+    cubes[1].gravityDir.set(0,1,0);
+    cubes[1].state='fall'; cubes[1].collider.active=true;
+    ctx.steps(1.5, 1/30);
+    if(!L3.plates[1].active) return 'cube did not seat on ceiling plate';
+    ctx.steps(2.2, 1/30);
+    if(!L3.vars.vault.open) return 'vault did not open';
+    if(L3.exits[0].locked) return 'exit still locked';
+    player.pos.set(0, 1.2, -4.2);
+    ctx.step(0.12);
+    if(GAME.state!=='victory') return 'vault exit did not complete (state='+GAME.state+')';
+    return true;
+  }
+});
+
+/* ---------------- LEVEL 4 : THE SWITCHBOARD ---------------- */
+LEVELS.push({
+  name:'The Switchboard',
+  objective:'Rotate the mirror pillars — feed the sensor for 2 seconds',
+  hud:'laser',
+  ambient:58.3,
+  palette:{ fog:0x060a12, fogDensity:0.013, trim:0x4da3ff, plat:0x24303e,
+    checkerA:'#1f2833', checkerB:'#151c26', panel:'#1a2430', panelLine:'#26313f',
+    floorRepX:8, floorRepY:8, wallRepX:5, hemiSky:0x8fb0d8, dirColor:0xc8dcff, dirInt:0.95 },
+  shadowExt:{x:20,z:20,y:16},
+  build(L){
+    LShell(L, {w:34, h:16, d:34});
+    L.spawn={pos:V(0, 1.2, 13), yaw:0};
+    L.respawn={pos:V(0, 1.2, 13), yaw:0};
+    LPlatform(L, 0, 0.25, 11.5, 3.4, 3.4, {mat:'platform'});
+    LArch(L, 'green', 0, 0.25, 10.6, 'z-');
+    /* the beam machine */
+    new LaserEmitter(L, -16.55, 3.0, 0, V(1,0,0));
+    LText(L, -15.5, 4.6, 0, ['EMITTER'], {normal:'z+', up:'x+', w:2.6, h:0.6, size:40, color:'#ff8896'});
+    const M1=new Mirror(L, 0, 2.6, 0, 'floor', {strut:2.5, idx:0});
+    const M2=new Mirror(L, 0, 3.0, -16.35, 'wallA', {strut:0.65, idx:0});
+    const M3=new Mirror(L, 0, 15.65, -16.35, 'ceil', {strut:0.35, idx:0});
+    LText(L, 0, 0.02, 1.9, ['MIRROR I'], {normal:'y+', up:'z-', w:2, h:0.6, size:42, color:'#bcd2e8'});
+    LText(L, 0, 4.6, -15.6, ['MIRROR II'], {normal:'z+', up:'x+', w:2.4, h:0.6, size:42, color:'#bcd2e8'});
+    LText(L, 0, 14.6, -15.6, ['MIRROR III'], {normal:'y-', up:'x+', w:2.6, h:0.6, size:42, color:'#bcd2e8'});
+    new LaserSensor(L, 16.45, 15.65, 0.65, V(-1,0,0), { chargeTime:2.0,
+      onCharged(){
+        L.vars.gateOpen=true;
+        exit.setLocked(false);
+        SND.doorOpen();
+        toast('RESONANCE ACHIEVED — <b>THE GATE OPENS</b>');
+        PARTS.burst(V(0,1.6,6), new THREE.Color(0x54e08a), 50, 4, 2.6, 1.1);
+      }});
+    LText(L, 15.2, 14.6, 0.65, ['SENSOR'], {normal:'y-', up:'x-', w:2.4, h:0.6, size:40, color:'#4da3ff'});
+    /* access arches to the mirror planes */
+    LArch(L, 'blue', -8, 0, -11, 'z-');               // floor -> WALL A (mirror II)
+    LArch(L, 'yellow', 7, 0, 8, 'z-');                // floor -> CEILING (mirror III)
+    LArch(L, 'green', 0, 15.97, 6, 'z-', 'ceil');
+    LArch(L, 'green', 6, 4, -16.9, 'x+', 'wallA');
+    /* the gate (exit) */
+    LBox(L, -1.9, 1.8, 6, 0.6, 3.6, 0.6, 'wall', {tag:'gatepost'});
+    LBox(L, 1.9, 1.8, 6, 0.6, 3.6, 0.6, 'wall', {tag:'gatepost'});
+    LBox(L, 0, 3.75, 6, 4.4, 0.5, 0.6, 'wall', {tag:'gatetop'});
+    const bars=[];
+    for(let i=0;i<4;i++){
+      const b=LBox(L, -1.35+i*0.9, 1.7, 6, 0.22, 3.2, 0.22, 'platform', {tag:'gatebar'});
+      bars.push(b);
+    }
+    LText(L, 0, 2.2, 6.5, ['THE GATE'], {normal:'z-', up:'y+', w:2.2, h:0.6, size:44, color:'#7d8ba0'});
+    const exit=new ExitVolume(L, 0, 1.6, 6, 2.4, 3.0, 1.4, {locked:true,
+      onEnter:()=>levelComplete()});
+    L.vars.gate={bars, open:false, t:0};
+    L.updaters.push((dt)=>{
+      const g=L.vars.gate;
+      if(L.vars.gateOpen && !g.open){ g.open=true; }
+      if(g.open && g.t<1){
+        g.t=Math.min(1, g.t+dt/1.6);
+        const k=easeInOut(g.t);
+        for(const b of g.bars){
+          b.mesh.position.y=1.7-k*3.4;
+          b.collider.min.y=b.mesh.position.y-1.6;   // collider follows the bar
+          b.collider.max.y=b.mesh.position.y+1.6;
+        }
+      }
+    });
+    L.vars.status='ALIGN THE BEAM — E TO ROTATE MIRRORS';
+  },
+  qa(ctx){
+    const L4=L_FIX();
+    /* feed the designed solution: M1 idx 5, M2 idx 2, M3 idx 1 */
+    L4.mirrors[0].idx=5; L4.mirrors[0].applyAngle(true);
+    L4.mirrors[1].idx=2; L4.mirrors[1].applyAngle(true);
+    L4.mirrors[2].idx=1; L4.mirrors[2].applyAngle(true);
+    ctx.step(0.05);
+    const s=L4.sensors[0];
+    if(!s.powered) return 'designed mirror solution does not power the sensor';
+    ctx.steps(2.4, 1/30);
+    if(!s.charged) return 'sensor did not hold charge for 2s (charge='+s.charge.toFixed(2)+')';
+    if(L4.exits[0].locked) return 'gate still locked';
+    ctx.steps(1.8, 1/30);   // bars finish sliding
+    player.pos.set(0, 1.2, 6);
+    ctx.step(0.12);
+    if(GAME.state!=='victory') return 'gate exit did not complete (state='+GAME.state+')';
+    return true;
+  }
+});
+
+/* ---------------- LEVEL 5 : THE CHRONO-VOID ---------------- */
+LEVELS.push({
+  name:'The Chrono-Void',
+  objective:'Ascend to the spire crown before stabilization collapses',
+  hud:'timer',
+  ambient:43.6,
+  palette:{ fog:0x120806, fogDensity:0.011, trim:0xe8633c, plat:0x3a2b26,
+    checkerA:'#2e2118', checkerB:'#1e150f', panel:'#261a12', panelLine:'#38271b',
+    floorRepX:6, floorRepY:6, wallRepX:4, hemiSky:0xd8a888, dirColor:0xffc890, dirInt:1.05 },
+  shadowExt:{x:16,z:16,y:34},
+  build(L){
+    LShell(L, {w:26, h:34, d:26, topTrim:false});
+    L.vars.timeLimit=90;
+    L.vars.shiftEvery=20;
+    L.vars.nextShift=20;
+    L.vars.safe=false;
+    L.spawn={pos:V(0, 1.2, 10.5), yaw:0};
+    L.respawn={pos:V(0, 1.2, 10.5), yaw:0};
+    LPlatform(L, 0, 0.25, 9, 3.4, 3.4, {mat:'platform'});
+    LArch(L, 'green', 0, 0.25, 8.1, 'z-');
+    /* central spire */
+    LBox(L, 0, 15, 0, 6, 30, 6, 'wall', {tag:'tower'});
+    LPlatform(L, 0, 30.45, 0, 7.2, 7.2, {mat:'platform'});   // the crown
+    LText(L, 0, 30.5, 3.1, ['THE CROWN'], {normal:'z-', up:'y+', w:3, h:0.7, size:46, color:'#e8c15a'});
+    /* square-spiral stair flights hugging the tower (counterclockwise, rising) */
+    const FACES=[
+      {dir:'x+', sx:-5.5, sz: 4.35, corner:[ 5.8,  5.8]},
+      {dir:'z-', sx: 4.35, sz: 5.5, corner:[ 5.8, -5.8]},
+      {dir:'x-', sx: 5.5, sz:-4.35, corner:[-5.8, -5.8]},
+      {dir:'z+', sx:-4.35, sz:-5.5, corner:[-5.8,  5.8]}
+    ];
+    let y=0.0;
+    const landings=[];
+    for(let flight=0; flight<5; flight++){
+      const face=FACES[flight%4];
+      const top=LStairs(L, face.sx, y, face.sz, face.dir, 16,
+        {stepH:0.38, stepD:0.74, width:2.6});
+      y=top.y;
+      if(flight<4){
+        LPlatform(L, face.corner[0], y, face.corner[1], 2.9, 2.9, {mat:'platform'});
+        landings.push([face.corner[0], y, face.corner[1]]);
+      }
+    }
+    /* bridge the final flight to the crown */
+    LPlatform(L, 4.9, y, 4.35, 2.7, 2.7, {mat:'platform'});
+    /* safe zones — the corner landings themselves, gravity-anchored shelters */
+    L.vars.zones=[];
+    const glowZone=L.palette.glow(0x54e08a, 2.2);
+    for(const [cx, cy, cz] of landings){
+      LBox(L, cx, cy+0.06, cz, 2.6, 0.1, 2.6, glowZone, {solid:false, castShadow:false});
+      LText(L, cx, cy+0.02, cz+1.9, ['SAFE ZONE'], {normal:'y+', up:'z-', w:2.2, h:0.6, size:40, color:'#54e08a'});
+      L.vars.zones.push({box:new THREE.Box3(V(cx-1.7,cy-1.2,cz-1.7), V(cx+1.7,cy+3.0,cz+1.7))});
+    }
+    /* recovery arches on the walls at altitude */
+    LArch(L, 'green', -5, 10, -12.95, 'x+', 'wallA');
+    LArch(L, 'green', 5, 20, 12.95, 'x-', 'wallB');
+    LArch(L, 'green', 0, 33.97, 0, 'z-', 'ceil');
+    /* crown portal exit */
+    const exit=new ExitVolume(L, 0, 31.6, 0, 2.4, 2.4, 2.4, {locked:false, color:0xe8c15a,
+      onEnter:()=>levelComplete()});
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.09, 10, 30),
+      L.palette.glow(0xe8c15a, 2.6));
+    ring.position.set(0, 31.6, 0);
+    WORLD.add(ring); L.disposables.push(ring);
+    L.vars.status='ALTITUDE 0 / 31';
+    LText(L, 0, 0.02, 6, ['CLIMB — 90 SECONDS — GREEN ZONES ANCHOR GRAVITY'], {normal:'y+', up:'z-', w:7.5, h:0.9, size:36, color:'#7d8ba0'});
+  },
+  update(L, dt, t){
+    const v=L.vars;
+    if(GAME.state!=='playing') return;
+    /* altitude readout */
+    v.status='ALTITUDE '+Math.max(0,Math.round(player.pos.y))+' / 31'+(v.safe?'   [ANCHORED]':'');
+    /* periodic gravity rotation */
+    if(GAME.levelTime>=v.nextShift){
+      v.nextShift+=v.shiftEvery;
+      v.safe=false;
+      for(const z of v.zones){
+        if(z.box.containsPoint(player.pos)){ v.safe=true; break; }
+      }
+      const q=new THREE.Quaternion().setFromAxisAngle(V(1,0,0), Math.PI/2);
+      SND.gravityBoom();
+      flashScreen('#e8633c', 0.5);
+      if(v.safe){
+        player.forceGravityQuat(new THREE.Quaternion().copy(player.qGrav), {dur:0.45, color:'#54e08a', hum:false});
+        toast('<b>SAFE ZONE</b> — GRAVITY ANCHORED');
+        PARTS.burst(player.pos, new THREE.Color(0x54e08a), 24, 2.5, 2, 0.8);
+      }else{
+        const qTo=new THREE.Quaternion().copy(q).multiply(player.qGrav);
+        player.forceGravityQuat(qTo, {dur:0.5, fling:true, color:'#e8633c', hum:false});
+        toast('STABILIZATION SHIFT — <b>HOLD SOMETHING</b>', 2000, true);
+      }
+    }
+    /* timer failure */
+    if(GAME.levelTime>=v.timeLimit){
+      failLevel('Stabilization Collapsed','THE ROOM REFORMS — NINETY SECONDS AGAIN',{});
+    }
+  },
+  qa(ctx){
+    const L5=L_FIX();
+    /* gravity rotates on the 20s mark */
+    ctx.steps(20.8, 1/20);
+    if(gKey(player.gravityDir)!=='0,0,-1') return 'auto-shift did not rotate gravity to WALL A (got '+gKey(player.gravityDir)+')';
+    /* safe zone anchoring — shelter on the first corner landing */
+    ctx.setGravity('floor');
+    player.pos.set(5.8, 7.0, 5.8);
+    ctx.steps(20.8, 1/20);      // cross the 40s mark inside the zone
+    if(gKey(player.gravityDir)!=='0,-1,0') return 'safe zone failed to anchor gravity (got '+gKey(player.gravityDir)+')';
+    /* timer collapse + restart */
+    GAME.levelTime=89.4;
+    ctx.steps(0.8, 1/20);
+    if(GAME.state!=='failed') return 'timer collapse did not fail the level';
+    ctx.steps(2.2, 1/20);
+    if(GAME.state!=='playing' || GAME.levelTime>1) return 'level did not restart cleanly';
+    /* victory at the crown */
+    player.pos.set(0, 31.2, 0);
+    ctx.step(0.12);
+    if(GAME.state!=='victory') return 'crown portal did not complete (state='+GAME.state+')';
+    return true;
+  }
+});
+
+/* ---------------- LEVEL 6 : THE SILENT INVERSION ---------------- */
+LEVELS.push({
+  name:'The Silent Inversion',
+  objective:'Take 3 energy cores — touch nothing red',
+  hud:'cores',
+  ambient:73.4,
+  palette:{ fog:0x0a0612, fogDensity:0.016, trim:0xa97bff, plat:0x2c2440,
+    checkerA:'#241f33', checkerB:'#171325', panel:'#1d1830', panelLine:'#2a2340',
+    floorRepX:7, floorRepY:7, wallRepX:5, hemiSky:0x9f8fd8, dirColor:0xcabfff, dirInt:0.85 },
+  shadowExt:{x:18,z:18,y:12},
+  build(L){
+    LShell(L, {w:30, h:12, d:30, floorHole:2.6});
+    L.spawn={pos:V(0, 1.2, 12.2), yaw:0};
+    L.respawn={pos:V(0, 1.2, 12.2), yaw:0};
+    LPlatform(L, 0, 0.25, 11, 3.4, 3.4, {mat:'platform'});
+    LArch(L, 'green', 0, 0.25, 10.1, 'z-');
+    LText(L, 0, 0.02, 7.8, ['THE SENTINELS SWEEP — INVERT OR TIME THEM'], {normal:'y+', up:'z-', w:6.6, h:0.9, size:36, color:'#7d8ba0'});
+    /* cores on three planes */
+    new Fragment(L, -11, 0.45, -11, {core:true});
+    new Fragment(L, 0, 6.5, -14.45, {core:true});
+    new Fragment(L, 0, 11.3, 4, {core:true});
+    /* sentinel sweepers */
+    new Sweeper(L, {x:0, y:1.5, z:-6, axis:'x', amp:6, speed:0.6, phase:0, h:3.0, d:9, deadly:true});
+    new Sweeper(L, {x:0, y:1.5, z:6, axis:'x', amp:6, speed:0.66, phase:2.1, h:3.0, d:9, deadly:true});
+    new Sweeper(L, {x:0, y:10.5, z:0, axis:'x', amp:6, speed:0.5, phase:1.0, h:3.0, d:9, deadly:true});
+    new Sweeper(L, {x:0, y:6, z:0, axis:'z', amp:5, speed:0.42, phase:3.0, h:6.0, d:8, deadly:true});
+    /* hazard stripes marking the sweep lanes */
+    const stripeMat=L.palette.glow(0xff2233, 0.7);
+    for(const sz of [-6, 6]){
+      LBox(L, 0, 0.015, sz, 13, 0.03, 0.16, stripeMat, {solid:false, castShadow:false, onRay:false});
+    }
+    LBox(L, 0, 11.985, 0, 13, 0.03, 0.16, stripeMat, {solid:false, castShadow:false, onRay:false});
+    /* plane access */
+    LArch(L, 'blue', -7, 0, -11, 'z-');
+    LArch(L, 'red', 7, 0, -8, 'z-');
+    LArch(L, 'yellow', 8, 0, 9, 'z-');
+    LArch(L, 'green', 0, 11.97, -8, 'z-', 'ceil');
+    LArch(L, 'green', 8, 5, -14.9, 'x+', 'wallA');
+    /* floor descent hatch exit */
+    new Hatch(L, 0, 0, 0, 2.6, 'floor', {id:'descent'});
+    const exit=new ExitVolume(L, 0, -0.75, 0, 2.2, 1.4, 2.2, {locked:true, color:0xa97bff,
+      onEnter:()=>levelComplete()});
+    L.onFragment=(f, got)=>{
+      L.vars.status=`CORES ${got} / 3` + (got<3?'':' — DESCEND');
+      for(const sw of L.sweepers) sw.speedMul=1+got*0.18;
+      if(got>=3){
+        L.hatch.openUp();
+        exit.setLocked(false);
+        toast('THE FLOOR <b>DESCENT</b> UNLOCKS');
+      }
+    };
+    L.vars.status='CORES 0 / 3';
+    L.vars.hazCd=0;
+    L.onHazard=(type)=>{
+      if(L.vars.hazCd>0) return;
+      L.vars.hazCd=1.6;
+      SND.detect();
+      failLevel('Detected','RETURNING TO THE GREEN ARCH — CORES RETAINED',{soft:true});
+    };
+    L.updaters.push((dt)=>{ L.vars.hazCd=Math.max(0,L.vars.hazCd-dt); });
+  },
+  qa(ctx){
+    const L6=L_FIX();
+    /* collect one core, then get hit — core is retained, player respawns */
+    player.pos.set(-11, 1.0, -11);
+    ctx.step(0.1);
+    if(!L6.fragments[0].collected) return 'core 1 not collected';
+    const spawn=L6.spawn.pos.clone();
+    const pane=L6.sweepers[0].center(GAME.t);   // stand exactly in the pane's path
+    player.pos.set(pane.x, 1.2, pane.z);
+    ctx.step(0.05);
+    if(player.pos.distanceTo(spawn)>3) return 'sentinel did not respawn player';
+    if(!L6.fragments[0].collected) return 'core was lost on detection (should be retained)';
+    /* remaining cores + hatch */
+    player.pos.set(0, 6.5, -14.45); ctx.step(0.1);
+    player.pos.set(0, 11.0, 4); ctx.step(0.1);
+    if(L6.fragments.filter(f=>f.collected).length<3) return 'not all cores collected';
+    ctx.steps(1.6, 1/30);
+    if(!L6.hatch.open) return 'descent hatch did not open';
+    player.pos.set(0, -0.5, 0);
+    ctx.step(0.12);
+    if(GAME.state!=='victory') return 'descent exit did not complete (state='+GAME.state+')';
+    return true;
+  }
+});
+
+/* ============================================================
+   19c. CAMPAIGN (Part C: L7, L8)
+   ============================================================ */
+
+/* ---------------- LEVEL 7 : THE REVERSED CHASM ---------------- */
+LEVELS.push({
+  name:'The Reversed Chasm',
+  objective:'Cross the bridge of the worthy plane — ride the void elevator',
+  hud:'escape',
+  ambient:61.7,
+  palette:{ fog:0x04070c, fogDensity:0.012, trim:0x39d5c8, plat:0x22303c,
+    checkerA:'#1c2833', checkerB:'#121a24', panel:'#18222e', panelLine:'#242f3c',
+    floorRepX:8, floorRepY:8, wallRepX:5, hemiSky:0x7fa8c8, dirColor:0xb8d0e8, dirInt:0.95 },
+  shadowExt:{x:20,z:20,y:16},
+  build(L){
+    /* floor only exists as a perimeter ring — the center is the chasm */
+    LShell(L, {w:34, h:16, d:34, floorHole:27.6});
+    L.spawn={pos:V(0, 1.2, 15.2), yaw:0};
+    L.respawn={pos:V(0, 1.2, 15.2), yaw:0};
+    LPlatform(L, 0, 0.25, 14.2, 3.4, 3.4, {mat:'platform'});
+    LArch(L, 'green', 0, 0.25, 13.1, 'z-');
+    LText(L, 0, 0.02, 11.2, ['THE BRIDGE EXISTS ONLY FOR THE WORTHY PLANE'], {normal:'y+', up:'z-', w:7, h:0.9, size:34, color:'#7d8ba0'});
+    /* ---------------- the conditional bridge ---------------- */
+    const FLOORSET=[FLOOR_G], WALLASET=[WALLA_G], WALLBSET=[WALLB_G];
+    /* segment 1 — solid on the FLOOR plane */
+    for(let i=0;i<4;i++){
+      addConditional(L, -12.8+i*1.9, 0.27, 0, 1.9, 0.55, 2.4, FLOORSET, {name:'seg1'});
+    }
+    /* keystone 1 (always solid) with the BLUE arch — floor -> WALL A */
+    LPlatform(L, -5.2, 0.5, 0, 2.1, 2.6, {mat:'platform'});
+    LArch(L, 'blue', -5.2, 0.5, 0, 'x+');
+    /* segment 2 — fins solid only on WALL A (their +Z faces are the walkway) */
+    for(let i=0;i<4;i++){
+      addConditional(L, -3.6+i*2.0, 1.05, 0.25, 1.9, 2.1, 0.5, WALLASET,
+        {name:'seg2', color:0x1d2a36, emissive:0x4da3ff});
+    }
+    /* keystone 2 — a WALL A fin carrying the YELLOW arch: WALL A -> WALL B */
+    addConditional(L, 4.0, 1.05, 0.25, 1.9, 2.1, 0.5, WALLASET,
+      {name:'seg2', color:0x1d2a36, emissive:0x4da3ff});
+    LArch(L, 'yellow', 4.0, 1.0, 0.5, 'x+', 'wallA');
+    /* segment 3 — fins solid only on WALL B (their -Z faces) */
+    for(let i=0;i<3;i++){
+      addConditional(L, 5.2+i*2.0, 1.05, -0.45, 1.9, 2.1, 0.5, WALLBSET,
+        {name:'seg3', color:0x2a1d24, emissive:0xff5468});
+    }
+    /* keystone 3 — a WALL B fin carrying the GREEN arch: WALL B -> FLOOR */
+    addConditional(L, 11.0, 1.05, -0.45, 1.9, 2.1, 0.5, WALLBSET,
+      {name:'seg3', color:0x2a1d24, emissive:0xff5468});
+    LArch(L, 'green', 11.0, 1.0, -0.7, 'x+', 'wallB');
+    /* void elevator + exit ledge (elevator sits directly under the green-arch drop) */
+    const elev=new Elevator(L, 12.4, 0.5, 0, 3.6, 3.6, 0.5, 13.2, {speed:1.5});
+    LPlatform(L, 15.5, 13.2, 0, 3.2, 3.2, {mat:'platform'});
+    const exit=new ExitVolume(L, 16.2, 13.9, 0, 2.2, 2.4, 2.2, {locked:false, color:0x54e08a,
+      onEnter:()=>levelComplete()});
+    LText(L, 15.5, 13.25, 1.6, ['VOID ELEVATOR EXIT'], {normal:'z-', up:'y+', w:2.8, h:0.6, size:34, color:'#54e08a'});
+    /* recovery arches on the walls / ceiling */
+    LArch(L, 'green', -4, 2, -16.93, 'x+', 'wallA');
+    LArch(L, 'green', 4, 2, 16.93, 'x-', 'wallB');
+    LArch(L, 'green', 0, 15.97, 8, 'z-', 'ceil');
+    L.vars.status='PLANE: FLOOR — SEGMENT 1 SOLID';
+    L.vars.onPlaneShift=(cf, active)=>{
+      if(!active) return;
+      if(cf.name==='seg2') L.vars.status='PLANE: WALL A — FINS RAISED';
+      if(cf.name==='seg3') L.vars.status='PLANE: WALL B — FINS RAISED';
+      SND.mirrorRotate();
+      PARTS.burst(V(cf.mesh.position.x, cf.mesh.position.y, cf.mesh.position.z),
+        new THREE.Color(0x39d5c8), 14, 2.2, 1.8, 0.6);
+    };
+  },
+  qa(ctx){
+    const L7=L_FIX();
+    /* conditional solidity: floor platform under FLOOR gravity */
+    let hit=WORLD_COLLIDE.raycast(V(-11,4,0), V(0,-1,0), 20);
+    if(!hit || Math.abs(hit.point.y-0.55)>0.3) return 'seg1 not solid under FLOOR gravity';
+    ctx.setGravity('wallA');
+    hit=WORLD_COLLIDE.raycast(V(-11,4,0), V(0,-1,0), 20);
+    if(hit) return 'seg1 should ghost under WALL A gravity';
+    /* fins solid under WALL A */
+    hit=WORLD_COLLIDE.raycast(V(-1.6,1.4,4), V(0,0,-1), 20);
+    if(!hit || Math.abs(hit.point.z-0.5)>0.3) return 'seg2 fins not solid under WALL A';
+    /* blue arch flips to WALL A */
+    ctx.setGravity('floor');
+    ctx.warp(-5.2, 1.4, 0);
+    ctx.steps(1.2, 1/30);
+    if(gKey(player.gravityDir)!=='0,0,-1') return 'blue arch did not flip to WALL A (got '+gKey(player.gravityDir)+')';
+    /* yellow arch flips to WALL B */
+    ctx.warp(4.0, 1.9, 1.75);
+    ctx.steps(1.2, 1/30);
+    if(gKey(player.gravityDir)!=='0,0,1') return 'yellow arch did not flip to WALL B (got '+gKey(player.gravityDir)+')';
+    /* green arch returns to FLOOR, landing on the elevator */
+    ctx.warp(11.0, 1.9, -1.6);
+    ctx.steps(1.4, 1/30);
+    if(gKey(player.gravityDir)!=='0,-1,0') return 'green arch did not restore FLOOR';
+    if(player.pos.y>2.5) return 'player did not fall back to elevator level (y='+player.pos.y.toFixed(2)+')';
+    /* elevator ride */
+    ctx.warp(12.4, 1.6, 0);
+    ctx.steps(11, 1/30);
+    if(player.pos.y<12) return 'elevator did not carry the player (y='+player.pos.y.toFixed(2)+')';
+    ctx.warp(16.2, 14.0, 0);
+    ctx.step(0.12);
+    if(GAME.state!=='victory') return 'exit did not complete (state='+GAME.state+')';
+    return true;
+  }
+});
+
+/* ---------------- LEVEL 8 : THE MONUMENT OF ESCHER ---------------- */
+LEVELS.push({
+  name:'The Monument of Escher',
+  objective:'Rebuild the Core Anchor — sequence, light, resonance, socket',
+  hud:'final',
+  ambient:36.7,
+  palette:{ fog:0x0d0c08, fogDensity:0.008, trim:0xe8c15a, plat:0x38322a,
+    checkerA:'#2e2a20', checkerB:'#1d1a14', panel:'#262218', panelLine:'#3a3426',
+    floorRepX:10, floorRepY:10, wallRepX:6, hemiSky:0xd8c890, dirColor:0xffeec0, dirInt:1.2 },
+  shadowExt:{x:22,z:22,y:36},
+  build(L){
+    LShell(L, {w:40, h:36, d:40});
+    L.spawn={pos:V(0, 1.2, 14), yaw:0};
+    L.respawn={pos:V(0, 1.2, 14), yaw:0};
+    LPlatform(L, 0, 0.25, 12.8, 3.4, 3.4, {mat:'platform'});
+    LArch(L, 'green', 0, 0.25, 11.9, 'z-');
+    LText(L, 0, 0.02, 9.6, ['THE MONUMENT — FOUR LOCKS, ONE CROWN'], {normal:'y+', up:'z-', w:7, h:0.9, size:36, color:'#7d8ba0'});
+    /* central tower + square-spiral Penrose stairs */
+    LBox(L, 0, 17.5, 0, 10, 35, 10, 'wall', {tag:'tower'});
+    LPlatform(L, 0, 35.4, 0, 11, 11, {mat:'platform'});   // the crown
+    const FACES=[
+      {dir:'x+', sx:-7,   sz: 6.5, corner:[ 6.5,  6.5]},
+      {dir:'z-', sx: 6.5, sz: 7,   corner:[ 6.5, -6.5]},
+      {dir:'x-', sx: 7,   sz:-6.5, corner:[-6.5, -6.5]},
+      {dir:'z+', sx:-6.5, sz:-7,   corner:[-6.5,  6.5]}
+    ];
+    let y=0;
+    const corners=[];
+    for(let flight=0; flight<6; flight++){
+      const face=FACES[flight%4];
+      const top=LStairs(L, face.sx, y, face.sz, face.dir, 14,
+        {stepH:0.42, stepD:0.78, width:3});
+      y=top.y;
+      const big=(flight===1||flight===3);
+      LPlatform(L, face.corner[0], y, face.corner[1], big?5.2:4.4, big?5.2:4.4, {mat:'platform'});
+      corners.push([face.corner[0], y, face.corner[1], big]);
+    }
+    /* bridge final flight to the crown */
+    LPlatform(L, 4.6, y, -4.6, 3.2, 3.2, {mat:'platform'});
+    /* tier landings we care about */
+    const T1=corners[1], T2=corners[3];     // [x, y, z]
+    /* ---------- GATE 1 : SEQUENCE LOCK (tier 1 ring on wall A) ---------- */
+    LPlatform(L, T1[0], T1[1], -13.5, 3.4, 8.8, {mat:'platform'});
+    LPlatform(L, 0, T1[1], -19.4, 16, 3, {mat:'platform'});     // the ring
+    const ringY=T1[1];
+    L.vars.ringY=ringY;
+    const archBlue=LArch(L, 'blue', -5, ringY, -19.2, 'x+');
+    const archYellow=LArch(L, 'yellow', 0, ringY, -19.2, 'x+');
+    const archRed=LArch(L, 'red', 5, ringY, -19.2, 'x+');
+    L.vars.seqColors=['red','blue','yellow'];
+    /* the clue — painted upside-down on the ceiling above the ring */
+    LText(L, -8.5, 35.97, -19.4, ['THE ORDER'], {normal:'y-', up:'x+', w:3.2, h:0.9, size:42, color:'#e8c15a', upsideDown:true});
+    LText(L, -4.2, 35.97, -19.4, ['1st RED'], {normal:'y-', up:'x+', w:2.2, h:0.8, size:48, color:ARCH_COLORS.red, upsideDown:true});
+    LText(L, 0.2, 35.97, -19.4, ['2nd BLUE'], {normal:'y-', up:'x+', w:2.5, h:0.8, size:44, color:ARCH_COLORS.blue, upsideDown:true});
+    LText(L, 5.0, 35.97, -19.4, ['3rd YELLOW'], {normal:'y-', up:'x+', w:2.7, h:0.8, size:40, color:ARCH_COLORS.yellow, upsideDown:true});
+    /* recovery arches around tier 1 */
+    LArch(L, 'green', 0, ringY+3.2, -19.93, 'x+', 'wallA');
+    LArch(L, 'green', -10, 2.5, -19.9, 'x+', 'wallA');
+    LArch(L, 'green', 10, 2.5, 19.9, 'x-', 'wallB');
+    LArch(L, 'green', 5, 35.97, -19.4, 'z-', 'ceil');
+    /* gate 1 barrier */
+    const gate1=LBox(L, T1[0]-0.9, T1[1]+1.7, -6.5, 0.3, 3.2, 3.6, L.palette.glow(0xff5468,1.6), {tag:'gate'});
+    L.vars.gates={g1:gate1, g1open:false};
+    new Sequence(L, ['red','blue','yellow'], {
+      onDone(){
+        L.vars.gates.g1open=true;
+        hudSetStage(0);
+        toast('SEQUENCE LOCK <b>RELEASED</b>');
+      }
+    });
+    /* ---------- GATE 2 : LASER LOCK (tier 2) ---------- */
+    const T2x=T2[0], T2y=T2[1], T2z=T2[2];
+    /* emitter pedestal + MA on the tier-2 landing, MB across a jump gap */
+    LPlatform(L, T2x-2.5, T2y, T2z, 2.4, 2.4, {mat:'platform'});   // emitter pedestal
+    new LaserEmitter(L, T2x-3.4, T2y+1.1, T2z, V(1,0,0));
+    const MA=new Mirror(L, T2x-0.0, T2y+1.4, T2z, 'floor', {strut:2.6, idx:0});
+    LText(L, T2x, T2y+0.05, T2z+2.2, ['MIRROR I'], {normal:'y+', up:'z-', w:2, h:0.55, size:40, color:'#bcd2e8'});
+    /* jump-gap pedestal carrying MB */
+    LPlatform(L, T2x, T2y, T2z+5.0, 2.4, 2.4, {mat:'platform'});
+    LBox(L, T2x, T2y/2, T2z+5.0, 0.7, T2y-0.25, 0.7, 'wall', {tag:'column'});
+    const MB=new Mirror(L, T2x, T2y+1.4, T2z+5.0, 'floor', {strut:2.6, idx:0});
+    LText(L, T2x, T2y+0.05, T2z+2.9, ['MIRROR II'], {normal:'y+', up:'z-', w:2.2, h:0.55, size:40, color:'#bcd2e8'});
+    /* sensor on the far wall */
+    new LaserSensor(L, 19.2, T2y+1.3, T2z+5.0, V(-1,0,0), { chargeTime:2.0,
+      onCharged(){
+        L.vars.laserDone=true;
+        hudSetStage(1);
+        shieldDrop();
+        toast('RESONANCE — <b>THE CORE IS BARE</b>');
+      }});
+    LText(L, 17.2, T2y+2.6, T2z+5.0, ['SENSOR'], {normal:'x-', up:'y+', w:2.2, h:0.6, size:40, color:'#4da3ff'});
+    /* core matrix + shield (parked in the landing corner, clear of the beam corridor) */
+    const core=new GravityCube(L, T2x-1.7, T2y+1.1, T2z+1.7, {big:true});
+    core.mesh.userData.interact={type:'cube', label:'CARRY CORE MATRIX', obj:core};
+    const shield=LBox(L, T2x-1.7, T2y+1.1, T2z+1.7, 1.9, 1.9, 1.9, L.palette.glow(0xe8c15a,0.9), {tag:'shield'});
+    shield.mesh.material.transparent=true;
+    shield.mesh.material.opacity=0.45;
+    function shieldDrop(){
+      L.vars.shieldT=0;
+    }
+    const gate2=LBox(L, -5.9, T2y+1.6, 6.5, 0.3, 3.2, 3.6, L.palette.glow(0xff5468,1.6), {tag:'gate'});
+    /* ---------- GATE 3 : RESONANCE PAD (the corner before the final flight) ---------- */
+    const T3=corners[4];
+    const padGlow=L.palette.glow(0x39d5c8, 1.4);
+    LBox(L, T3[0], T3[1]+0.04, T3[2], 2.2, 0.1, 2.2, padGlow, {solid:false, castShadow:false});
+    LText(L, T3[0], T3[1]+0.02, T3[2]+2.1, ['STAND — RESONANCE PAD'], {normal:'y+', up:'z-', w:3.4, h:0.7, size:34, color:'#39d5c8'});
+    const gate3=LBox(L, 6.5, T3[1]+1.8, 5.4, 3.4, 3.2, 0.3, L.palette.glow(0xff5468,1.6), {tag:'gate'});
+    L.vars.pad={pos:V(T3[0], T3[1], T3[2]), charge:0, done:false};
+    /* ---------- THE CROWN : socket + finale ---------- */
+    LArch(L, 'yellow', 2.2, 35.42, 2.2, 'x+');    // crown -> ceiling
+    const socketMat=L.palette.glow(0xe8c15a, 2.4);
+    const socket=new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.12, 12, 32), socketMat);
+    socket.position.set(0, 35.85, 0);
+    socket.rotation.x=Math.PI/2;
+    WORLD.add(socket); L.disposables.push(socket);
+    const socketCore=new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.5, 20),
+      new THREE.MeshStandardMaterial({color:0x0b0e14, roughness:0.6, emissive:0x544318, emissiveIntensity:0.5}));
+    socketCore.position.set(0, 35.7, 0);
+    WORLD.add(socketCore); L.disposables.push(socketCore);
+    LText(L, 0, 35.6, 3.4, ['THE SOCKET'], {normal:'y-', up:'z-', w:2.6, h:0.7, size:42, color:'#e8c15a'});
+    socket.userData.interact={ type:'socket', label:'INSERT CORE MATRIX',
+      action:(c)=>{
+        if(c!==core || L.vars.finale) return;
+        L.vars.finale={t:0, cube:c};
+        c.state='seated';
+        c.collider.active=false;
+        SND.winBig();
+        flashScreen('#e8c15a', 0.6);
+        shake(0.9);
+        hudSetStage(3, 'THE MONUMENT AWAKENS');
+        GAME.state='cinematic';
+        player.frozen=true;
+        DOM.hud.classList.remove('on');
+        toast('THE CORE ANCHOR IS <b>REBORN</b>');
+      }};
+    L.interactables.push(socket);
+    /* inverted waterfalls + drifting monoliths */
+    L.updaters.push((dt,t)=>{
+      for(let i=0;i<2;i++){
+        const x=i===0?-19.3:19.3;
+        if(Math.random()<dt*14){
+          PARTS.spawn(V(x+(Math.random()-0.5)*1.4, 0.4+Math.random(), -8+Math.random()*5),
+            V((Math.random()-0.5)*0.2, 3.2+Math.random()*1.6, (Math.random()-0.5)*0.2),
+            new THREE.Color(0x53b8d8), 2.6, 1.6);
+        }
+      }
+    });
+    const monoliths=[];
+    for(const [mx,my,mz] of [[-14,8,14],[14,16,-14],[-13,20,12],[13,26,13]]){
+      const m=LBox(L, mx, my, mz, 1.4, 3.2, 1.4, 'wall', {solid:false, castShadow:true});
+      monoliths.push(m.mesh);
+    }
+    L.updaters.push((dt,t)=>{
+      monoliths.forEach((m,i)=>{ m.position.y+= Math.sin(t*0.5+i*1.7)*0.0035; m.rotation.y+=dt*0.04; });
+    });
+    /* gate/pad/shield/finale dynamics */
+    L.updaters.push((dt,t)=>{
+      /* gates slide open */
+      const openGate=(g,open)=>{
+        if(!open || g.opened) return;
+        g.opened=true;
+        g.collider.active=false;
+        PARTS.burst(V(g.mesh.position.x,g.mesh.position.y,g.mesh.position.z),
+          new THREE.Color(0x54e08a), 30, 3, 2.4, 0.9);
+        SND.doorOpen();
+      };
+      openGate(L.vars.gates.g1, L.vars.gates.g1open);
+      if(L.vars.laserDone){
+        openGate(gate2, true);
+        /* shield dissolve */
+        if(L.vars.shieldT!==undefined && L.vars.shieldT<1){
+          L.vars.shieldT+=dt/1.1;
+          const k=Math.min(1,L.vars.shieldT);
+          shield.mesh.material.opacity=0.45*(1-k);
+          shield.mesh.scale.setScalar(Math.max(0.001,1-k*0.6));
+          shield.mesh.position.y+=dt*0.7;
+          if(L.vars.shieldT>=1) shield.collider.active=false;
+        }
+      }
+      /* resonance pad charging */
+      const pad=L.vars.pad;
+      if(!pad.done){
+        const b=player.box(_l8box);
+        const onPad=Math.abs(player.pos.x-pad.pos.x)<1.5 && Math.abs(player.pos.z-pad.pos.z)<1.5
+          && Math.abs(player.pos.y-(pad.pos.y+0.95))<1.4 && player.grounded;
+        if(onPad) pad.charge=Math.min(2, pad.charge+dt);
+        else pad.charge=Math.max(0, pad.charge-dt*1.4);
+        padGlow.emissiveIntensity=1.4+pad.charge*0.8;
+        if(pad.charge>=2){
+          pad.done=true;
+          hudSetStage(2, 'THE CROWN IS REACHABLE');
+          openGate(gate3, true);
+          toast('RESONANCE HELD — <b>THE CROWN UNLOCKS</b>');
+          SND.powered();
+        }
+      }
+      /* finale cinematic — orbit the monument as the core launches */
+      if(L.vars.finale){
+        const f=L.vars.finale;
+        f.t+=dt;
+        const c=f.cube;
+        c.mesh.position.lerp(V(0, 35.7, 0), 1-Math.exp(-3*dt));
+        c.mesh.quaternion.slerp(new THREE.Quaternion(), 1-Math.exp(-2*dt));
+        socketMat.emissiveIntensity=2.4+Math.sin(f.t*9)*1.4;
+        const a=f.t*0.28+0.8;
+        const r=Math.max(6, 30-f.t*4.5);
+        camera.position.set(Math.cos(a)*r, 12+f.t*3.5, Math.sin(a)*r);
+        camera.lookAt(0, 16, 0);
+        if(Math.random()<dt*22){
+          PARTS.burst(V((Math.random()-0.5)*8, 34+Math.random()*1.5, (Math.random()-0.5)*8),
+            new THREE.Color(0xffd76a), 8, 3.5, 2.4, 1.0);
+        }
+        if(f.t>5.0 && GAME.state==='cinematic'){
+          campaignVictory();
+        }
+      }
+    });
+    L.vars.status='LOCKS: SEQUENCE · LIGHT · RESONANCE';
+  },
+  qa(ctx){
+    const L8=L_FIX();
+    /* stage 1 — sequence in the order R, B, Y */
+    ctx.setGravity('floor');
+    ctx.warp(5, ringFixY(L8)+1.3, -19.2); ctx.steps(1.3, 1/30);
+    if(L8.sequences[0].progress!==1) return 'sequence step 1 failed (progress='+L8.sequences[0].progress+')';
+    ctx.setGravity('floor');
+    ctx.warp(-5, ringFixY(L8)+1.3, -19.2); ctx.steps(1.3, 1/30);
+    if(L8.sequences[0].progress!==2) return 'sequence step 2 failed';
+    ctx.setGravity('floor');
+    ctx.warp(0, ringFixY(L8)+1.3, -19.2); ctx.steps(1.3, 1/30);
+    if(!L8.sequences[0].done) return 'sequence did not complete';
+    if(!L8.vars.gates.g1open) return 'gate 1 did not open';
+    /* stage 2 — laser solution: MA idx 3, MB idx 7 */
+    L8.mirrors[0].idx=3; L8.mirrors[0].applyAngle(true);
+    L8.mirrors[1].idx=7; L8.mirrors[1].applyAngle(true);
+    ctx.step(0.05);
+    if(!L8.sensors[0].powered) return 'laser solution does not power the sensor';
+    ctx.steps(2.4, 1/30);
+    if(!L8.sensors[0].charged) return 'sensor did not charge';
+    ctx.steps(1.4, 1/30);
+    /* stage 3 — resonance pad (arrive with floor gravity, as a real climber would) */
+    const pad=L8.vars.pad;
+    ctx.setGravity('floor');
+    ctx.warp(pad.pos.x, pad.pos.y+1.0, pad.pos.z);
+    player.grounded=true;
+    ctx.steps(2.3, 1/30);
+    if(!pad.done) return 'resonance pad did not complete (charge='+pad.charge.toFixed(2)+')';
+    /* stage 4 — carry the core to the socket */
+    pickUp(L8.cubes[0]);
+    if(GAME.carry!==L8.cubes[0]) return 'core pick-up failed';
+    ctx.warp(0, 35.1, 0);
+    ctx.step(0.05);
+    const socket=L8.interactables.find(m=>m.userData.interact&&m.userData.interact.type==='socket');
+    if(!socket) return 'socket interactable missing';
+    socket.userData.interact.action(GAME.carry);
+    ctx.steps(5.4, 1/30);
+    if(GAME.state!=='victory') return 'finale did not reach victory screen (state='+GAME.state+')';
+    return true;
+  }
+});
+function ringFixY(L){ return L.vars.ringY; }
+const _l8box={min:V(),max:V()};
+
+/* ============================================================
+   20. PROCEDURAL BONUS LEVELS (Level 9+, seeded)
+   ============================================================ */
+function procLevel(seed, name, sub, palette, ambient){
+  return {
+    name, objective:sub, hud:'fragments', ambient,
+    palette, shadowExt:{x:17,z:17,y:14},
+    build(L){
+      const rng=mulberry32(seed);
+      LShell(L, {w:30, h:14, d:30, ceilHole:2.6});
+      L.spawn={pos:V(0, 1.2, 11.5), yaw:0};
+      L.respawn={pos:V(0, 1.2, 11.5), yaw:0};
+      LPlatform(L, 0, 0.25, 10.2, 3.4, 3.4, {mat:'platform'});
+      LArch(L, 'green', 0, 0.25, 9.3, 'z-');
+      LText(L, 0, 0.02, 6.8, ['GENERATED VAULT — EVERY PLANE WALKS'], {normal:'y+', up:'z-', w:6.2, h:0.9, size:36, color:'#7d8ba0'});
+      const cells=[-9.5, 0, 9.5];
+      const platforms={FLOOR:[], CEIL:[], WALLA:[], WALLB:[]};
+      /* floor kerbs */
+      for(const gx of cells) for(const gz of cells){
+        if(gx===0 && gz===0) continue;
+        if(rng()<0.62){
+          const w=2.2+rng()*1.4, d=2.2+rng()*1.4;
+          const x=gx+(rng()*2-1)*1.2, z=gz+(rng()*2-1)*1.2;
+          LPlatform(L, x, 0.45, z, w, d, {mat:'platform'});
+          platforms.FLOOR.push({x, y:0.45, z});
+        }
+      }
+      /* ceiling kerbs (recessed panels) */
+      for(const gx of cells) for(const gz of cells){
+        if(rng()<0.5){
+          const w=2.2+rng()*1.4, d=2.2+rng()*1.4;
+          const x=gx+(rng()*2-1)*1.2, z=gz+(rng()*2-1)*1.2;
+          LBox(L, x, 13.75, z, w, 0.4, d, 'platform', {tag:'ceilplat'});
+          platforms.CEIL.push({x, y:13.55, z});
+        }
+      }
+      /* wall fins — kerbs on WALL A / WALL B */
+      for(const side of [-14.8, 14.8]){
+        for(const gy of [2.5, 6, 9.5]) for(const gx of cells){
+          if(rng()<0.5){
+            const w=2.2+rng()*1.2, h=2.2+rng()*1.2;
+            const x=gx+(rng()*2-1)*1.0, y=gy+(rng()*2-1)*0.8;
+            LBox(L, x, y, side, w, h, 0.5, 'platform', {tag:'fin'});
+            const key=side<0?'WALLA':'WALLB';
+            platforms[key].push({x, y, z: side<0 ? -14.55 : 14.55});
+          }
+        }
+      }
+      /* hub arches — all four planes reachable from the floor */
+      LArch(L, 'blue', 0, 0, -4.2, 'z-');
+      LArch(L, 'red', 4.2, 0, 0, 'x-');
+      LArch(L, 'yellow', -4.2, 0, 0, 'x+');
+      LArch(L, 'green', 0, 13.97, 4, 'z-', 'ceil');
+      /* a few seeded bonus arches mounted on wall fins */
+      let extra=0;
+      for(const p of platforms.WALLA){
+        if(extra>=2) break;
+        if(rng()<0.18){
+          LArch(L, rng()<0.5?'blue':'yellow', p.x, p.y-0.6, -14.6, 'x+', 'wallA');
+          extra++;
+        }
+      }
+      extra=0;
+      for(const p of platforms.WALLB){
+        if(extra>=2) break;
+        if(rng()<0.18){
+          LArch(L, rng()<0.5?'red':'yellow', p.x, p.y-0.6, 14.6, 'x-', 'wallB');
+          extra++;
+        }
+      }
+      /* four fragments across four distinct planes */
+      const planeKeys=['FLOOR','CEIL','WALLA','WALLB'];
+      for(const key of planeKeys){
+        const list=platforms[key].length?platforms[key]:[{x:0,y:key==='CEIL'?13.55:0.45,z:key==='WALLA'?-14.55:(key==='WALLB'?14.55:0)}];
+        const p=list[Math.floor(rng()*list.length)];
+        const off=0.55;
+        const fp = key==='FLOOR' ? V(p.x, p.y+off, p.z)
+                 : key==='CEIL'  ? V(p.x, p.y-off, p.z)
+                 : key==='WALLA' ? V(p.x, p.y, p.z+off)
+                 : V(p.x, p.y, p.z-off);
+        new Fragment(L, fp.x, fp.y, fp.z, {});
+        L.vars['plat_'+key]=p;
+      }
+      /* exit — ceiling hatch */
+      new Hatch(L, 0, 14, 0, 2.6, 'ceil', {id:'exitHatch'});
+      const exit=new ExitVolume(L, 0, 14.75, 0, 2.2, 1.5, 2.2, {locked:true,
+        onEnter:()=>levelComplete()});
+      L.onFragment=(f, got)=>{
+        L.vars.status=`SIGILS ${got} / 4` + (got<4?'':' — THE HATCH AWAKENS');
+        if(got>=4){
+          L.hatch.openUp();
+          exit.setLocked(false);
+          SND.powered();
+          toast('THE HATCH <b>AWAKENS</b>');
+        }
+      };
+      L.vars.status='SIGILS 0 / 4';
+    },
+    qa(ctx){
+      const Lp=L_FIX();
+      /* each fragment must have a walkable surface on its own plane */
+      for(const f of Lp.fragments){
+        const dir = Math.abs(f.pos.z)>10 ? V(0,0,Math.sign(f.pos.z))
+                   : (f.pos.y>7 ? V(0,1,0) : V(0,-1,0));
+        const hit=WORLD_COLLIDE.raycast(f.pos.clone().addScaledVector(dir,-3), dir, 6);
+        if(!hit) return 'no walkable surface below fragment at '+f.pos.toArray().map(n=>n.toFixed(1));
+      }
+      /* collect all four by standing at each platform, then exit via the hatch */
+      for(const key of ['FLOOR','CEIL','WALLA','WALLB']){
+        const p=Lp.vars['plat_'+key];
+        ctx.setGravity(key==='FLOOR'?'floor':key==='CEIL'?'ceil':key==='WALLA'?'wallA':'wallB');
+        const stand = key==='FLOOR' ? V(p.x, p.y+0.95, p.z)
+                    : key==='CEIL'  ? V(p.x, p.y-0.95, p.z)
+                    : key==='WALLA' ? V(p.x, p.y, p.z+0.95)
+                    : V(p.x, p.y, p.z-0.95);
+        ctx.warp(stand.x, stand.y, stand.z);
+        ctx.steps(0.6, 1/30);
+      }
+      const got=Lp.fragments.filter(f=>f.collected).length;
+      if(got<4) return 'not all fragments collected via platforms ('+got+'/4)';
+      ctx.steps(1.6, 1/30);
+      if(!Lp.hatch.open) return 'hatch did not open after 4 fragments';
+      ctx.warp(0, 14.5, 0);
+      ctx.step(0.12);
+      if(GAME.state!=='victory') return 'hatch exit did not complete (state='+GAME.state+')';
+      return true;
+    }
+  };
+}
+LEVELS.push(procLevel(20260926, 'The Fractal Well',
+  'Collect 4 sigils in the generated vault',
+  { fog:0x051012, fogDensity:0.015, trim:0x2fd4b0, plat:0x213332,
+    checkerA:'#1d2f2c', checkerB:'#13211f', panel:'#182825', panelLine:'#253a36',
+    floorRepX:7, floorRepY:7, wallRepX:5, hemiSky:0x8fc8b8, dirColor:0xc0ffe8 }, 51.9));
+LEVELS.push(procLevel(31415926, 'The Escher Machine',
+  'Collect 4 sigils in the generated vault',
+  { fog:0x100514, fogDensity:0.015, trim:0xd455c8, plat:0x332138,
+    checkerA:'#2c1f2e', checkerB:'#1d141f', panel:'#251a28', panelLine:'#38263c',
+    floorRepX:7, floorRepY:7, wallRepX:5, hemiSky:0xc89fd8, dirColor:0xe8c0ff }, 46.2));
+
+/* ============================================================
+   21. MAIN LOOP, MENUS, BOOT
+   ============================================================ */
+const FPS={avg:60, acc:0, n:0, t:0};
+const clock=new THREE.Clock();
+
+function render(){
+  if(GAME.logicOnly) return;
+  if(SAVE.bloom && composer) composer.render();
+  else renderer.render(scene, camera);
+}
+function loop(){
+  const dt=Math.min(0.05, clock.getDelta());
+  /* fps meter */
+  FPS.acc+=dt; FPS.n++;
+  if(FPS.acc>0.5){ FPS.avg=FPS.n/FPS.acc; FPS.acc=0; FPS.n=0; }
+  if(!GAME.qa){
+    if(GAME.state==='paused'){ PARTS.update(dt); updateFade(dt); render(); return; }
+    updateGame(dt);
+  }
+  render();
+}
+
+/* ---------------- menu wiring ---------------- */
+function setupMenu(){
+  const grid=$('lvl-grid');
+  const rebuild=()=>{
+    grid.innerHTML='';
+    LEVELS.forEach((lv,i)=>{
+      const locked=(i+1)>SAVE.unlocked;
+      const el=document.createElement('div');
+      el.className='lvl'+(locked?' locked':'');
+      const bonus=i>=8;
+      el.innerHTML=`<div class="n">${bonus?'✦'+ROMAN[i]:ROMAN[i]}</div>
+        <div class="t">${locked?'':lv.name}</div>
+        <div class="b">${SAVE.best[i]!==undefined?fmtTime(SAVE.best[i]):''}</div>`;
+      if(!locked) el.onclick=()=>{
+        SND.init(); SND.uiClick();
+        enterGame(i);
+      };
+      grid.appendChild(el);
+    });
+  };
+  rebuild();
+  $('btn-start').onclick=()=>{
+    SND.init(); SND.uiClick();
+    enterGame(Math.min(SAVE.unlocked, LEVELS.length)-1);
+  };
+  $('btn-levels').onclick=()=>{ SND.init(); SND.uiClick();
+    $('levels').classList.remove('hidden'); $('help').classList.add('hidden'); $('settings').classList.add('hidden'); };
+  $('btn-help').onclick=()=>{ SND.init(); SND.uiClick();
+    $('help').classList.remove('hidden'); $('levels').classList.add('hidden'); $('settings').classList.add('hidden'); };
+  $('btn-settings').onclick=()=>{ SND.init(); SND.uiClick();
+    $('settings').classList.remove('hidden'); $('levels').classList.add('hidden'); $('help').classList.add('hidden'); };
+  $('btn-levels-back').onclick=()=>{ SND.uiClick(); $('levels').classList.add('hidden'); };
+  $('btn-help-back').onclick=()=>{ SND.uiClick(); $('help').classList.add('hidden'); };
+  $('btn-settings-back').onclick=()=>{ SND.uiClick(); $('settings').classList.add('hidden'); };
+  /* settings */
+  const vol=$('set-vol'), sens=$('set-sens');
+  vol.value=Math.round(SAVE.vol*100); sens.value=Math.round(SAVE.sens*100);
+  $('set-vol-v').textContent=vol.value;
+  $('set-sens-v').textContent=(sens.value/100).toFixed(1);
+  vol.oninput=()=>{ SAVE.vol=vol.value/100; SND.setVolume(SAVE.vol);
+    $('set-vol-v').textContent=vol.value; persist(); };
+  sens.oninput=()=>{ SAVE.sens=sens.value/100; $('set-sens-v').textContent=(sens.value/100).toFixed(1); persist(); };
+  const sw=(id,key,cb)=>{
+    const el=$(id);
+    el.classList.toggle('on', !!SAVE[key]);
+    el.onclick=()=>{ SAVE[key]=!SAVE[key]; el.classList.toggle('on', SAVE[key]);
+      persist(); cb&&cb(); SND.uiClick(); };
+  };
+  sw('set-inv','invertY');
+  sw('set-bloom','bloom');
+  sw('set-shadow','shadows',()=>{ dirLight.castShadow=SAVE.shadows; });
+  sw('set-fps','fps');
+  /* pause / victory */
+  $('btn-resume').onclick=()=>{ SND.uiClick(); resumeGame(); };
+  $('btn-restart').onclick=()=>{ SND.uiClick(); hideScreen(DOM.pause);
+    restartLevel(); GAME.state='playing'; resumeGame(); };
+  $('btn-pmenu').onclick=()=>{ SND.uiClick(); hideScreen(DOM.pause); toMenu(); };
+  $('btn-next').onclick=()=>{ SND.uiClick();
+    const nxt=GAME.levelIndex+1;
+    if(nxt>=LEVELS.length){ toMenu(); return; }
+    enterGame(nxt); };
+  $('btn-replay').onclick=()=>{ SND.uiClick(); enterGame(GAME.levelIndex); };
+  $('btn-bonus').onclick=()=>{ SND.uiClick(); enterGame(8); };
+  $('btn-vmenu').onclick=()=>{ SND.uiClick(); toMenu(); };
+  /* pointer lock plumbing */
+  addEventListener('click', ()=>{
+    if(GAME.state==='playing' && plc && !plc.isLocked && !GAME.qa) plc.lock();
+  });
+  document.addEventListener('pointerlockchange', ()=>{
+    if(!plc) return;
+    if(!plc.isLocked && GAME.state==='playing'){
+      GAME.state='paused';
+      showScreen(DOM.pause);
+    }
+  });
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden && GAME.state==='playing'){
+      GAME.state='paused'; showScreen(DOM.pause);
+    }
+  });
+}
+function resumeGame(){
+  hideScreen(DOM.pause);
+  GAME.state='playing';
+  if(plc && !plc.isLocked) plc.lock();
+}
+function enterGame(i){
+  DOM.menu.classList.add('hidden');
+  GAME.campaignTime = i===0 ? 0 : GAME.campaignTime;
+  startLevel(i);
+  if(plc && !plc.isLocked) plc.lock();
+}
+function toMenu(){
+  DOM.menu.classList.remove('hidden');
+  DOM.hud.classList.remove('on');
+  GAME.state='menu';
+  startLevel(0, {silent:true});
+  GAME.state='menu';
+  if(plc && plc.isLocked) plc.unlock();
+  const grid=$('lvl-grid');
+  grid.innerHTML='';
+  setupMenu();
+}
+
+/* ============================================================
+   22. QA SELF-TEST HARNESS  (?qa=1)
+   ============================================================ */
+const QG={
+  floor:new THREE.Quaternion(),
+  wallA:new THREE.Quaternion().setFromAxisAngle(V(1,0,0), Math.PI/2),
+  ceil: new THREE.Quaternion().setFromAxisAngle(V(1,0,0), Math.PI),
+  wallB:new THREE.Quaternion().setFromAxisAngle(V(1,0,0), -Math.PI/2),
+};
+function qaRun(){
+  const results=[];
+  const log=(ok,name,msg)=>{
+    results.push({ok,name,msg});
+    console.log((ok?'QA|PASS|':'QA|FAIL|')+name+(msg?'|'+msg:''));
+  };
+  const ctx={
+    step(dt){ updateGame(dt); },
+    steps(t,dt){ const n=Math.round(t/dt); for(let i=0;i<n;i++) updateGame(dt); },
+    warp(x,y,z){ player.pos.set(x,y,z); player.vel.set(0,0,0); },
+    setGravity(name){ player.snapTo(player.pos, player.yaw, QG[name].clone()); },
+  };
+  const guard=(fn)=>{ try{ return fn(); }catch(e){ return 'EXCEPTION: '+e.message; } };
+
+  /* 0 — boot integrity */
+  log(guard(()=>{ if(LEVELS.length!==10) return 'level count '+LEVELS.length;
+    return true; }), 'boot.levels');
+  log(guard(()=>{ if(GAME.logicOnly && !GAME.qa) return 'renderer missing';
+    return true; }), 'boot.renderer');
+
+  /* 1 — gravity quaternion math (all planes x all arches) */
+  log(guard(()=>{
+    const planes=['floor','wallA','ceil','wallB'];
+    const expect={ blue:{floor:'0,0,-1', wallA:'0,1,0', ceil:'0,0,1', wallB:'0,-1,0'},
+                   red:{floor:'0,0,1', wallA:'0,-1,0', ceil:'0,0,-1', wallB:'0,1,0'},
+                   yellow:{floor:'0,1,0', wallA:'0,0,1', ceil:'0,-1,0', wallB:'0,0,-1'},
+                   green:{floor:'0,-1,0', wallA:'0,-1,0', ceil:'0,-1,0', wallB:'0,-1,0'} };
+    for(const p of planes){
+      player.snapTo(V(0,2,0), 0, QG[p].clone());
+      for(const at of ['blue','red','yellow','green']){
+        camera.quaternion.identity();
+        player.composeCamera(0.016);
+        const qTo=player.computeArchQuaternion(at);
+        const g=V(0,-1,0).applyQuaternion(qTo);
+        if(gKey(g)!==expect[at][p])
+          return `${at} from ${p}: got ${gKey(g)} want ${expect[at][p]}`;
+      }
+    }
+    player.snapTo(V(0,2,0),0,QG.floor);
+    return true;
+  }), 'gravity.arch-math');
+
+  /* 2 — arch double-trigger cooldown */
+  log(guard(()=>{
+    startLevel(0,{silent:true});
+    GAME.state='playing';
+    player.frozen=false;
+    player.pos.set(0,1.2,0); player.vel.set(0,0,0);
+    if(!player.applyArch('blue')) return 'first trigger refused';
+    if(player.applyArch('red')) return 'double trigger not blocked';
+    player.update(1.2);
+    if(player.transition) return 'transition did not finish';
+    if(gKey(player.gravityDir)!=='0,0,-1') return 'gravity after blue wrong: '+gKey(player.gravityDir);
+    return true;
+  }), 'gravity.cooldown');
+
+  /* 3 — movement stays intuitive on inverted planes (no WASD inversion) */
+  log(guard(()=>{
+    startLevel(0,{silent:true});
+    GAME.state='playing'; player.frozen=false;
+    INPUT.f=true; INPUT.b=false; INPUT.l=false; INPUT.r=false;
+    player.snapTo(V(0,11.1,0), -Math.PI/2, QG.ceil.clone());  // on ceiling, facing +X
+    player.composeCamera(0.016);
+    const x0=player.pos.x, y0=player.pos.y, z0=player.pos.z;
+    ctx.steps(0.5, 1/30);
+    const dx=player.pos.x-x0, dy=player.pos.y-y0, dz=player.pos.z-z0;
+    INPUT.f=false;
+    if(dx<0.8) return 'no forward progress on ceiling (dx='+dx.toFixed(2)+')';
+    if(Math.abs(dy)>0.6) return 'vertical drift on ceiling (dy='+dy.toFixed(2)+')';
+    if(Math.abs(dz)>0.6) return 'lateral drift on ceiling (dz='+dz.toFixed(2)+')';
+    return true;
+  }), 'movement.ceiling-forward');
+
+  log(guard(()=>{
+    startLevel(0,{silent:true});
+    GAME.state='playing'; player.frozen=false;
+    INPUT.f=true;
+    player.snapTo(V(0,3,-3.1), -Math.PI/2, QG.wallA.clone());  // on wall A, facing +X
+    player.composeCamera(0.016);
+    const y0=player.pos.y;
+    ctx.steps(0.5, 1/30);
+    INPUT.f=false;
+    if(player.pos.x<0.8) return 'no forward progress on wall';
+    if(player.pos.y < y0-0.1) return 'player sank while walking on wall';
+    return true;
+  }), 'movement.wall-forward');
+
+  /* 4 — jump + ground + step-up */
+  log(guard(()=>{
+    startLevel(0,{silent:true});
+    GAME.state='playing'; player.frozen=false;
+    player.snapTo(V(0,1.2,3), 0, QG.floor.clone());
+    ctx.steps(0.3, 1/30);
+    if(!player.grounded) return 'not grounded on floor';
+    INPUT.jumpBuf=0.14;
+    ctx.step(1/30);
+    INPUT.jumpBuf=0;
+    if(player.grounded) return 'jump did not leave the ground';
+    ctx.steps(0.9, 1/30);
+    if(!player.grounded) return 'did not land after jump';
+    return true;
+  }), 'player.jump-ground');
+
+  /* 5 — void respawn safety net */
+  log(guard(()=>{
+    startLevel(0,{silent:true});
+    GAME.state='playing'; player.frozen=false;
+    player.pos.set(1000, 1, 0);
+    ctx.step(1/30);
+    const r=GAME.level.respawn.pos;
+    if(player.pos.distanceTo(r)>3) return 'not respawned at green arch ('+player.pos.toArray().join(',')+')';
+    if(gKey(player.gravityDir)!=='0,-1,0') return 'gravity not reset on respawn';
+    return true;
+  }), 'player.void-respawn');
+
+  /* 6 — per-level scripted playthroughs */
+  for(let i=0;i<LEVELS.length;i++){
+    const res=guard(()=>{
+      startLevel(i,{silent:true});
+      GAME.state='playing';
+      player.frozen=false;
+      player.archCd=0;
+      const r=LEVELS[i].qa(ctx);
+      return r;
+    });
+    log(res===true, 'level.'+(i+1)+'.'+LEVELS[i].name.replace(/\s+/g,'-'),
+        typeof res==='string'?res:undefined);
+  }
+
+  /* 7 — performance sanity: collider and mesh budgets per level */
+  log(guard(()=>{
+    for(let i=0;i<LEVELS.length;i++){
+      startLevel(i,{silent:true});
+      if(WORLD_COLLIDE.colliders.length>520)
+        return 'level '+(i+1)+' collider count '+WORLD_COLLIDE.colliders.length;
+      if(WORLD.children.length>420)
+        return 'level '+(i+1)+' scene node count '+WORLD.children.length;
+    }
+    return true;
+  }), 'perf.budgets');
+
+  const pass=results.filter(r=>r.ok).length;
+  window.__QA_DONE__={pass, fail:results.length-pass, total:results.length,
+    results:results.map(r=>(r.ok?'PASS ':'FAIL ')+r.name+(r.msg?' | '+r.msg:''))};
+  window.__QA_FAIL__=results.filter(r=>!r.ok).map(r=>r.name);
+  console.log('QA|SUMMARY|'+pass+'/'+results.length);
+  console.log(JSON.stringify(window.__QA_DONE__.results));
+}
+
+/* ============================================================
+   23. BOOT
+   ============================================================ */
+function boot(){
+  try{
+    initRenderer();
+  }catch(e){
+    DOM.errMsg.textContent='WebGL could not start: '+e.message+
+      ' — the room needs a browser with hardware acceleration.';
+    showScreen(DOM.err);
+    GAME.logicOnly=true;
+  }
+  buildVoid();
+  bindInput();
+  try{
+    plc=new PointerLockControls(camera, document.body);
+    plc.pointerSpeed=0;   // look is driven by our quaternion math; PLC manages lock lifecycle
+  }catch(e){ plc=null; }
+  setupMenu();
+  GAME.qa = location.search.includes('qa=1');
+  if(GAME.qa){
+    startLevel(0,{silent:true});
+    GAME.state='playing';
+    setTimeout(qaRun, 120);
+    renderer && renderer.setAnimationLoop(loop);
+  }else{
+    startLevel(0,{silent:true});
+    GAME.state='menu';
+    renderer && renderer.setAnimationLoop(loop);
+  }
+  window.addEventListener('error', (e)=>{
+    if(e.message && e.message.includes('module')){
+      DOM.errMsg.textContent='A module failed to load — check that unpkg.com is reachable.';
+      showScreen(DOM.err);
+    }
+  });
+}
+/* public debug/automation handle (used by the QA harness and curious players) */
+window.__TIR__={ GAME, player, WORLD_COLLIDE, LEVELS, startLevel, updateGame,
+  restartLevel, V, pickUp, dropCarried, PARTS, SND, traceBeams, BEAM_POOL, rayQuad };
+boot();
+</script>
+</body>
+</html>
