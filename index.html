@@ -515,10 +515,13 @@ body.touch .ctl-grid kbd{display:none}
   background:rgba(8,10,16,.92);border:1px solid rgba(196,163,90,.45);border-radius:var(--radius);
   padding:10px 16px;pointer-events:none;white-space:nowrap;
   box-shadow:0 12px 40px rgba(0,0,0,.5)}
-@media (orientation:portrait){ body.touch #rotate-tip{display:flex} }
+/* v20: never cover the main menu — only nudge during play */
+body.touch #rotate-tip{display:none}
+@media (orientation:portrait){
+  body.touch.playing #rotate-tip{display:flex}
+}
 @media (orientation:portrait) and (max-width:420px){
-  body.touch #rotate-tip{font-size:10px;letter-spacing:.12em;padding:8px 12px;white-space:normal;
-    max-width:92vw;text-align:center;line-height:1.4}
+  body.touch.playing #rotate-tip{font-size:11px;letter-spacing:.14em;padding:8px 14px}
 }
 
 @media (max-width:720px){
@@ -817,6 +820,54 @@ body.touch .hud-br{font-size:11px}
   #compass .dial{width:42px;height:42px}
 }
 
+
+/* ============ v20 portrait menu — no overlap, thumb-first ============ */
+body.touch #menu .foot{display:none}
+body.touch #menu{
+  justify-content:flex-start;
+  padding-top:max(10px, env(safe-area-inset-top));
+  padding-bottom:max(12px, env(safe-area-inset-bottom));
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+}
+body.touch #menu .menu-plate{
+  gap:12px;
+  padding:18px 14px 20px;
+  max-height:none;
+  margin:auto 0;
+  width:min(100%, 420px);
+}
+body.touch #menu .menu-version{
+  position:static;
+  align-self:flex-end;
+  margin:0 4px 4px 0;
+  font-size:8px;
+  letter-spacing:.14em;
+  opacity:.7;
+}
+body.touch #menu .kicker{font-size:10px;letter-spacing:.28em}
+body.touch #menu h1{font-size:clamp(34px, 10vw, 48px);line-height:1.02}
+body.touch #menu .narrow{font-size:10px;letter-spacing:.2em}
+body.touch #menu .tag{
+  font-size:13px;line-height:1.45;max-width:28ch;margin:0 auto;
+}
+body.touch #menu .menu-actions{gap:8px;max-width:100%}
+body.touch #menu .menu-actions button{
+  min-height:48px;padding:14px 16px;letter-spacing:.12em;font-size:12px;
+}
+body.touch #menu .room-frame{display:none}
+@media (orientation:portrait) and (max-height:760px){
+  body.touch #menu .arch-legend{display:none}
+  body.touch #menu .tag{display:none}
+  body.touch #menu .kicker{display:none}
+  body.touch #menu .title-rule{margin:0}
+}
+@media (orientation:portrait) and (max-height:640px){
+  body.touch #menu .narrow{display:none}
+  body.touch #menu h1{font-size:32px}
+  body.touch #menu .menu-plate{gap:8px;padding:12px 12px 16px}
+  body.touch #menu .menu-actions button{min-height:44px;padding:12px}
+}
+
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -828,22 +879,22 @@ body.touch .hud-br{font-size:11px}
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V19</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V20</span>
   <div class="menu-plate">
-    <div class="kicker">AN ESCHER GRAVITY PUZZLE</div>
+    <div class="kicker">gravity puzzle</div>
     <h1>The Impossible Room</h1>
     <div class="title-rule" aria-hidden="true">
       <span class="tr-blue"></span><span class="tr-red"></span>
       <span class="tr-yellow"></span><span class="tr-green"></span>
     </div>
-    <div class="narrow">FIFTEEN CHAMBERS · FOUR GRAVITIES · ONE EXIT</div>
+    <div class="narrow">15 chambers · 4 gravities</div>
     <div class="arch-legend" role="list">
       <span class="arch-chip" role="listitem" style="color:#4da3ff"><i class="shape-blue" style="background:#4da3ff;color:#4da3ff"></i><b>BLUE</b><em>WALL A</em></span>
       <span class="arch-chip" role="listitem" style="color:#ff5468"><i class="shape-red" style="background:#ff5468;color:#ff5468"></i><b>RED</b><em>WALL B</em></span>
       <span class="arch-chip" role="listitem" style="color:#e8c15a"><i class="shape-yellow" style="color:#e8c15a"></i><b>YELLOW</b><em>CEILING</em></span>
       <span class="arch-chip" role="listitem" style="color:#54e08a"><i class="shape-green" style="background:#54e08a;color:#54e08a"></i><b>GREEN</b><em>FLOOR</em></span>
     </div>
-    <div class="tag">Walk the atrium. Pass the arches. Collect the shards. The Academy teaches four gravities — then ten machines try to keep you in. Chase the S rank. The vaults never end.</div>
+    <div class="tag">Four ways down. Fifteen chambers. Learn the arches — then the machines stop being kind.</div>
     <div class="btn-row menu-actions">
       <button id="btn-start" class="primary">ENTER THE ROOM</button>
       <button id="btn-levels">CHAMBERS</button>
@@ -984,7 +1035,7 @@ body.touch .hud-br{font-size:11px}
       </div>
     </div>
   </div>
-  <div class="foot">SINGLE FILE · THREE.JS · WEB AUDIO SYNTH · DESKTOP &amp; MOBILE</div>
+  <div class="foot" aria-hidden="true"></div>
 </div>
 
 <!-- ===================== TOUCH CONTROLS ===================== -->
@@ -995,7 +1046,7 @@ body.touch .hud-br{font-size:11px}
   <div class="tbtn" id="tb-pause">II</div>
   <div class="tbtn" id="tb-cheat">⌁</div>
 </div>
-<div id="rotate-tip">ROTATE TO LANDSCAPE — THE ROOM NEEDS WIDTH</div>
+<div id="rotate-tip">Turn sideways</div>
 
 <!-- ===================== CHEAT CONSOLE ===================== -->
 <div id="cheatbar">
@@ -1137,6 +1188,7 @@ const IS_TOUCH = _touchQ!==null ? _touchQ==='1'
 const PIX_CAP = IS_TOUCH ? 1.5 : 1.75;   // device-pixel-ratio ceiling per platform
 let BASE_FOV = 75;                        // widened on narrow / portrait viewports
 if(IS_TOUCH) document.body.classList.add('touch');
+document.body.classList.add('on-menu');
 
 /* ============================================================
    0. CONSTANTS, UTILITIES, PERSISTENCE
@@ -8196,7 +8248,10 @@ function setupMenu(){
     if(SAVE.unlocked>1 || (SAVE.best && Object.keys(SAVE.best).length)){
       const name=(LEVELS[resume]&&LEVELS[resume].name)||('Chamber '+(resume+1));
       const short=name.length>22?name.slice(0,20)+'…':name;
-      btn.textContent='CONTINUE · '+(ROMAN[resume]||(resume+1))+' '+short;
+      const roman=ROMAN[resume]||String(resume+1);
+      btn.textContent = (innerWidth<400)
+        ? ('CONTINUE · '+roman)
+        : ('CONTINUE · '+roman+' '+short);
     }else{
       btn.textContent='ENTER THE ROOM';
     }
@@ -8376,6 +8431,8 @@ function resumeGame(){
 }
 function enterGame(i){
   DOM.menu.classList.add('hidden');
+  document.body.classList.add('playing');
+  document.body.classList.remove('on-menu');
   hideScreen(DOM.victory);          // defensive: never carry overlays into play
   hideScreen(DOM.failed);
   hideScreen(DOM.pause);
@@ -8393,6 +8450,8 @@ function enterGame(i){
 }
 function toMenu(){
   DOM.menu.classList.remove('hidden');
+  document.body.classList.remove('playing');
+  document.body.classList.add('on-menu');
   DOM.hud.classList.remove('on');
   hideScreen(DOM.victory);
   hideScreen(DOM.failed);
