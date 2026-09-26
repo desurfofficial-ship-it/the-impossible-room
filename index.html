@@ -187,7 +187,7 @@ button:disabled{opacity:.32;cursor:not-allowed;box-shadow:none}
 }
 
 /* level select grid (v14 — chamber plaques) */
-#levels{max-width:860px;width:min(860px,94vw)}
+#levels.modal{max-width:none;width:auto}
 #levels .h2{margin-bottom:4px}
 .grid-h{grid-column:1/-1;font-family:var(--mono);font-size:10px;letter-spacing:.34em;
   color:var(--ink-dim);text-transform:uppercase;display:flex;align-items:center;gap:12px;
@@ -232,22 +232,7 @@ button:disabled{opacity:.32;cursor:not-allowed;box-shadow:none}
 .lvl .rk.rk-b{color:#54e08a}
 .lvl .rk.rk-c{color:#9a9488}
 
-/* settings */
-.set-row{display:flex;align-items:center;justify-content:space-between;gap:26px;
-  padding:9px 0;border-bottom:1px solid var(--line);min-width:360px}
-.set-row:last-child{border-bottom:none}
-.set-row label{font-size:13px;color:var(--ink-dim);letter-spacing:.08em}
-.set-row input[type=range]{width:170px;accent-color:var(--accent)}
-.set-row .val{font-family:var(--mono);font-size:12px;color:var(--ink);width:44px;
-  text-align:right}
-.switch{position:relative;width:44px;height:22px;border-radius:999px;
-  background:rgba(255,255,255,.12);cursor:pointer;transition:background .2s}
-.switch::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;
-  border-radius:50%;background:#cfd6e4;transition:all .2s}
-.switch.on{background:rgba(57,213,200,.55)}
-.switch.on::after{left:24px;background:#eafffb}
-.tabbar{display:flex;gap:8px;justify-content:center;margin-bottom:4px}
-.tabbar button{padding:8px 16px;font-size:12px}
+/* settings (legacy rules removed — see v15 PREMIUM MODALS) */
 
 /* help table */
 #help .panel{max-width:640px}
@@ -663,6 +648,115 @@ body.touch #chain-bar{width:64px}
 #btn-daily::before{content:'✦';margin-right:8px;font-size:10px;color:#ff9ee0}
 #btn-daily:active{border-color:#ff9ee0}
 
+
+/* ============ v15 PREMIUM MODALS + RESPONSIVE CHROME ============ */
+.modal{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+  padding:max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+    max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  background:rgba(4,5,10,.72);backdrop-filter:blur(10px) saturate(1.1);
+  animation:modalIn .22s ease}
+.modal.hidden{display:none!important}
+@keyframes modalIn{from{opacity:0}to{opacity:1}}
+.modal-card{width:min(440px,100%);max-height:min(88vh,720px);display:flex;flex-direction:column;
+  padding:0!important;overflow:hidden;
+  box-shadow:0 40px 120px rgba(0,0,0,.75),0 0 0 1px rgba(255,255,255,.04);
+  animation:cardIn .28s cubic-bezier(.2,.8,.2,1)}
+.modal-card-wide{width:min(720px,100%);max-height:min(90vh,820px)}
+@keyframes cardIn{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
+.modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
+  padding:20px 22px 14px;border-bottom:1px solid var(--line);flex-shrink:0}
+.modal-kicker{font-family:var(--mono);font-size:10px;letter-spacing:.36em;color:var(--brass)}
+.modal-title{font-family:var(--serif);font-style:italic;font-size:28px;color:#f2eee6;margin:4px 0 0;font-weight:600}
+.modal-x{border:1px solid var(--line);background:transparent;color:var(--ink-dim);
+  width:40px;height:40px;padding:0;border-radius:var(--radius);letter-spacing:0;font-size:16px;
+  display:grid;place-items:center;flex-shrink:0}
+.modal-x:hover{color:#fff;border-color:var(--brass)}
+.modal-scroll{overflow-y:auto;padding:8px 22px 22px;-webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:rgba(196,163,90,.35) transparent}
+.modal-scroll::-webkit-scrollbar{width:6px}
+.modal-scroll::-webkit-scrollbar-thumb{background:rgba(196,163,90,.35);border-radius:3px}
+
+.set-section{padding:14px 0;border-bottom:1px solid var(--line)}
+.set-section:last-child{border-bottom:0}
+.set-h{font-family:var(--mono);font-size:10px;letter-spacing:.28em;color:var(--accent);
+  text-transform:uppercase;margin:0 0 12px}
+.set-row{display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:12px 14px;
+  min-height:40px;padding:6px 0}
+.set-row label{font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--ink-dim)}
+.set-row .val{font-family:var(--mono);font-size:11px;color:var(--ink);min-width:36px;text-align:right;
+  font-variant-numeric:tabular-nums}
+.set-row input[type=range]{-webkit-appearance:none;appearance:none;width:min(160px,36vw);height:4px;
+  background:rgba(255,255,255,.12);border-radius:2px;outline:none}
+.set-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;
+  border-radius:50%;background:var(--ink);border:2px solid var(--void);box-shadow:0 0 0 1px var(--brass);
+  cursor:pointer}
+.switch{width:44px;height:24px;border-radius:12px;background:rgba(255,255,255,.1);
+  border:1px solid var(--line);position:relative;cursor:pointer;transition:background .15s}
+.switch::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;
+  border-radius:50%;background:#c8c4ba;transition:transform .15s,background .15s}
+.switch.on{background:rgba(94,200,192,.25);border-color:rgba(94,200,192,.5)}
+.switch.on::after{transform:translateX(20px);background:var(--accent)}
+
+.help-tabs{display:flex;gap:4px;padding:10px 16px 0;flex-shrink:0;overflow-x:auto;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.help-tabs::-webkit-scrollbar{display:none}
+.help-tab{flex:1;min-width:max-content;padding:10px 14px;font-size:11px;letter-spacing:.12em;
+  border-radius:var(--radius);background:transparent;border:1px solid transparent;color:var(--ink-dim)}
+.help-tab.on{border-color:var(--line-2);background:rgba(255,255,255,.05);color:var(--ink)}
+.help-tab:hover{color:var(--ink)}
+.help-pane{display:none;padding-top:8px}
+.help-pane.on{display:block}
+.help-split{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.help-lead{font-family:var(--serif);font-style:italic;font-size:16px;line-height:1.5;
+  color:var(--ink);margin:0 0 14px}
+.help-note{font-family:var(--mono);font-size:12px;line-height:1.6;color:var(--ink-dim);margin:12px 0 0}
+.help-arch{max-width:100%;margin:12px 0}
+.help-ranks{display:grid;gap:8px;margin:12px 0}
+.help-ranks .hr{display:flex;align-items:center;gap:14px;padding:10px 12px;
+  border:1px solid var(--line);border-radius:var(--radius);background:rgba(0,0,0,.25)}
+.help-ranks .hr b{font-family:var(--serif);font-style:italic;font-size:22px;min-width:28px}
+.help-ranks .hr span{font-family:var(--mono);font-size:12px;color:var(--ink-dim)}
+.ctl-grid{display:grid;grid-template-columns:auto 1fr;gap:10px 16px;font-size:13px;color:var(--ink-dim)}
+
+/* Menu actions — premium responsive stack */
+#menu .menu-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:420px}
+#menu .menu-actions .primary{grid-column:1/-1;width:100%}
+#menu .menu-actions button{width:100%}
+#menu .menu-plate{max-width:min(640px,94vw)}
+#levels .lvl-grid{max-height:none;margin-top:4px}
+
+/* Responsive: phones */
+@media (max-width:720px){
+  #menu .menu-plate{padding:22px 16px 20px;gap:14px}
+  #menu h1{font-size:clamp(36px,11vw,52px)}
+  .arch-legend{grid-template-columns:repeat(2,1fr)}
+  .help-split{grid-template-columns:1fr}
+  .lvl-grid{grid-template-columns:repeat(3,1fr)!important}
+  .modal-title{font-size:24px}
+  .set-row{grid-template-columns:1fr auto;gap:8px}
+  .set-row input[type=range]{grid-column:1/-1;width:100%}
+  .set-row .val{grid-column:2;grid-row:1}
+}
+@media (max-width:420px){
+  .lvl-grid{grid-template-columns:repeat(2,1fr)!important}
+  #menu .menu-actions{grid-template-columns:1fr}
+  #menu .menu-actions .primary{grid-column:1}
+  #menu .room-frame{inset:8px}
+  #menu .menu-version{font-size:7px;top:12px;right:12px;padding:4px 6px;letter-spacing:.16em}
+}
+@media (max-height:560px) and (orientation:landscape){
+  #menu .menu-plate{padding:12px 20px;gap:8px;max-height:94vh;overflow-y:auto}
+  #menu h1{font-size:32px}
+  #menu .tag{display:none}
+  .arch-legend{display:none}
+  .modal-card{max-height:96vh}
+}
+@supports (padding: max(0px)){
+  #menu{padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right))
+    max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left))}
+}
+
+
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -674,7 +768,7 @@ body.touch #chain-bar{width:64px}
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V14</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V15</span>
   <div class="menu-plate">
     <div class="kicker">AN ESCHER GRAVITY PUZZLE</div>
     <h1>The Impossible Room</h1>
@@ -700,97 +794,135 @@ body.touch #chain-bar{width:64px}
     </div>
     <div id="menu-stats"></div>
   </div>
-  <div class="panel hidden" id="levels">
-    <div class="h2">Select Chamber</div>
-    <div class="lvl-grid" id="lvl-grid"></div>
-    <div class="btn-row" style="margin-top:16px"><button id="btn-levels-back">BACK</button></div>
+  <div class="modal hidden" id="levels" role="dialog" aria-label="Chambers">
+    <div class="modal-card panel modal-card-wide">
+      <header class="modal-head">
+        <div>
+          <div class="modal-kicker">ATLAS</div>
+          <h2 class="modal-title">Chambers</h2>
+        </div>
+        <button type="button" class="modal-x" id="btn-levels-back" aria-label="Close">✕</button>
+      </header>
+      <div class="modal-scroll">
+        <div class="lvl-grid" id="lvl-grid"></div>
+      </div>
+    </div>
   </div>
-  <div class="panel hidden" id="settings">
-    <div class="set-row"><label>Master volume</label>
-      <input type="range" id="set-vol" min="0" max="100" value="70">
-      <span class="val" id="set-vol-v">70</span></div>
-    <div class="set-row"><label>Effects volume</label>
-      <input type="range" id="set-sfx" min="0" max="100" value="100">
-      <span class="val" id="set-sfx-v">100</span></div>
-    <div class="set-row"><label>Ambience volume</label>
-      <input type="range" id="set-amb" min="0" max="100" value="90">
-      <span class="val" id="set-amb-v">90</span></div>
-    <div class="set-row"><label>Look sensitivity</label>
-      <input type="range" id="set-sens" min="20" max="200" value="100">
-      <span class="val" id="set-sens-v">1.0</span></div>
-    <div class="set-row"><label>Invert Y</label><div class="switch" id="set-inv"></div><span></span></div>
-    <div class="set-row"><label>Bloom lighting</label><div class="switch on" id="set-bloom"></div><span></span></div>
-    <div class="set-row"><label>Soft shadows</label><div class="switch on" id="set-shadow"></div><span></span></div>
-    <div class="set-row"><label>FPS counter</label><div class="switch" id="set-fps"></div><span></span></div>
-    <div class="set-row"><label>Reduce motion</label><div class="switch" id="set-motion"></div><span></span></div>
-    <div class="set-row"><label>Speedrun timer</label><div class="switch on" id="set-srt"></div><span></span></div>
-    <div class="set-row hidden touch-only" id="row-hap"><label>Vibration</label><div class="switch on" id="set-hap"></div><span></span></div>
-    <div class="set-row hidden" id="row-fs"><label>Fullscreen</label><div class="switch" id="set-fs"></div><span></span></div>
-    <div class="btn-row" style="margin-top:16px"><button id="btn-settings-back">BACK</button></div>
+  <div class="modal hidden" id="settings" role="dialog" aria-label="Settings">
+    <div class="modal-card panel">
+      <header class="modal-head">
+        <div>
+          <div class="modal-kicker">SYSTEM</div>
+          <h2 class="modal-title">Settings</h2>
+        </div>
+        <button type="button" class="modal-x" id="btn-settings-back" aria-label="Close">✕</button>
+      </header>
+      <div class="modal-scroll">
+        <div class="set-section">
+          <div class="set-h">Audio</div>
+          <div class="set-row"><label>Master volume</label>
+            <input type="range" id="set-vol" min="0" max="100" value="70">
+            <span class="val" id="set-vol-v">70</span></div>
+          <div class="set-row"><label>Effects</label>
+            <input type="range" id="set-sfx" min="0" max="100" value="100">
+            <span class="val" id="set-sfx-v">100</span></div>
+          <div class="set-row"><label>Ambience</label>
+            <input type="range" id="set-amb" min="0" max="100" value="90">
+            <span class="val" id="set-amb-v">90</span></div>
+        </div>
+        <div class="set-section">
+          <div class="set-h">Controls</div>
+          <div class="set-row"><label>Look sensitivity</label>
+            <input type="range" id="set-sens" min="20" max="200" value="100">
+            <span class="val" id="set-sens-v">1.0</span></div>
+          <div class="set-row"><label>Invert Y</label><div class="switch" id="set-inv"></div></div>
+          <div class="set-row hidden touch-only" id="row-hap"><label>Vibration</label><div class="switch on" id="set-hap"></div></div>
+        </div>
+        <div class="set-section">
+          <div class="set-h">Graphics</div>
+          <div class="set-row"><label>Bloom lighting</label><div class="switch on" id="set-bloom"></div></div>
+          <div class="set-row"><label>Soft shadows</label><div class="switch on" id="set-shadow"></div></div>
+          <div class="set-row"><label>FPS counter</label><div class="switch" id="set-fps"></div></div>
+          <div class="set-row"><label>Speedrun timer</label><div class="switch on" id="set-srt"></div></div>
+          <div class="set-row hidden" id="row-fs"><label>Fullscreen</label><div class="switch" id="set-fs"></div></div>
+        </div>
+        <div class="set-section">
+          <div class="set-h">Accessibility</div>
+          <div class="set-row"><label>Reduce motion</label><div class="switch" id="set-motion"></div></div>
+        </div>
+      </div>
+    </div>
   </div>
-  <div class="panel hidden" id="help">
-    <div class="h2">Controls</div>
-    <div class="ctl-grid">
-      <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span>Move on your current plane (relative to view)</span>
-      <span><kbd>SPACE</kbd></span><span>Jump away from your current surface</span>
-      <span><kbd>SHIFT</kbd></span><span>Sprint</span>
-      <span><kbd>E</kbd></span><span>Interact — pick up / drop cubes, rotate mirrors, insert cores</span>
-      <span><kbd>ESC</kbd></span><span>Pause (releases the mouse)</span>
-      <span><kbd>R</kbd></span><span>Restart current chamber</span>
+  <div class="modal hidden" id="help" role="dialog" aria-label="How to play">
+    <div class="modal-card panel modal-card-wide">
+      <header class="modal-head">
+        <div>
+          <div class="modal-kicker">FIELD MANUAL</div>
+          <h2 class="modal-title">How to Play</h2>
+        </div>
+        <button type="button" class="modal-x" id="btn-help-back" aria-label="Close">✕</button>
+      </header>
+      <div class="help-tabs" role="tablist">
+        <button type="button" class="help-tab on" data-tab="ht-controls" role="tab">Controls</button>
+        <button type="button" class="help-tab" data-tab="ht-gravity" role="tab">Gravity</button>
+        <button type="button" class="help-tab" data-tab="ht-flow" role="tab">Flow &amp; Rank</button>
+        <button type="button" class="help-tab" data-tab="ht-academy" role="tab">Academy</button>
+      </div>
+      <div class="modal-scroll">
+        <div class="help-pane on" id="ht-controls">
+          <div class="help-split">
+            <div>
+              <div class="set-h">Desktop</div>
+              <div class="ctl-grid">
+                <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span><span>Move on your current plane</span>
+                <span><kbd>SPACE</kbd></span><span>Jump off your surface</span>
+                <span><kbd>SHIFT</kbd></span><span>Sprint</span>
+                <span><kbd>E</kbd></span><span>Interact — cubes, mirrors, cores</span>
+                <span><kbd>ESC</kbd></span><span>Pause</span>
+                <span><kbd>R</kbd></span><span>Restart chamber</span>
+              </div>
+            </div>
+            <div>
+              <div class="set-h">Touch</div>
+              <div class="ctl-grid">
+                <span><b>LEFT</b></span><span>Stick — move · rim to sprint</span>
+                <span><b>RIGHT</b></span><span>Drag to look</span>
+                <span><b>JUMP</b></span><span>Leap from surface</span>
+                <span><b>USE</b></span><span>Interact</span>
+                <span><b>II</b></span><span>Pause</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="help-pane" id="ht-gravity">
+          <p class="help-lead">Arches rotate which way is down. Shapes mark each plane so color is never the only cue.</p>
+          <div class="arch-legend help-arch">
+            <span class="arch-chip" style="color:#4da3ff"><i class="shape-blue" style="background:#4da3ff;color:#4da3ff"></i><b>BLUE</b><em>WALL A</em></span>
+            <span class="arch-chip" style="color:#ff5468"><i class="shape-red" style="background:#ff5468;color:#ff5468"></i><b>RED</b><em>WALL B</em></span>
+            <span class="arch-chip" style="color:#e8c15a"><i class="shape-yellow" style="color:#e8c15a"></i><b>YELLOW</b><em>CEILING</em></span>
+            <span class="arch-chip" style="color:#54e08a"><i class="shape-green" style="background:#54e08a;color:#54e08a"></i><b>GREEN</b><em>FLOOR</em></span>
+          </div>
+          <p class="help-note">Arches stack. On Wall A, blue sends you to the ceiling. Watch the gravity compass. Fall into the void and you wake at the green arch.</p>
+        </div>
+        <div class="help-pane" id="ht-flow">
+          <p class="help-lead">Every arch multiplies your score — up to ×12. The chain decays in twelve seconds. Death breaks it. A shard briefly shields the decay.</p>
+          <div class="help-ranks">
+            <div class="hr"><b class="rk-s">S</b><span>Gold par · zero deaths · clean run</span></div>
+            <div class="hr"><b class="rk-a">A</b><span>Under silver · light mistakes</span></div>
+            <div class="hr"><b class="rk-b">B</b><span>Under bronze · still escaped</span></div>
+            <div class="hr"><b class="rk-c">C</b><span>Completed — refine the path</span></div>
+          </div>
+          <p class="help-note">The room does not explain the solution. Reading the space is the puzzle.</p>
+        </div>
+        <div class="help-pane" id="ht-academy">
+          <p class="help-lead">Chambers I–V are lessons. A live checklist tracks each skill. The floor catches Academy falls so you can learn without soft-locking.</p>
+          <p class="help-note">VI–XV are machines. XVI+ are endless vaults. The Daily Vault is a shared seed for one day.</p>
+          <div class="btn-row" style="margin-top:14px;justify-content:flex-start">
+            <button type="button" id="btn-guide">FULL GUIDE ↗</button>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="h2">Touch Controls — phones &amp; tablets</div>
-    <div class="ctl-grid">
-      <span><b>LEFT THUMB</b></span><span>Virtual stick — drag to move; push to the rim to sprint</span>
-      <span><b>RIGHT THUMB</b></span><span>Drag anywhere on the right to look around</span>
-      <span><b>JUMP</b></span><span>Leap away from your current surface</span>
-      <span><b>USE</b></span><span>Pick up / drop cubes, rotate mirrors, insert cores</span>
-      <span><b>II</b></span><span>Pause</span>
-    </div>
-    <div class="h2">The Academy — the first five chambers</div>
-    <div class="ctl-grid" style="grid-template-columns:1fr">
-      <span>Chambers I–V are <b>lessons</b>: movement &amp; jumping, the blue arch (walls),
-      yellow &amp; red (ceiling and the other wall), the green anchor (and the void), and a
-      final examination that combines everything. A live <b>checklist</b> at the top of the
-      screen ticks off each skill as you perform it — slip off the causeway and the floor
-      catches you, with step blocks leading back up.</span>
-    </div>
-    <div class="h2">The Arches</div>
-    <div class="ctl-grid" style="grid-template-columns:1fr">
-      <span><b style="color:#4da3ff">BLUE</b> rotates gravity +90° — you fall onto <b>Wall A</b>.
-      <b style="color:#ff5468">RED</b> rotates −90° — <b>Wall B</b>.
-      <b style="color:#e8c15a">YELLOW</b> inverts it — the <b>ceiling</b> becomes your floor.
-      <b style="color:#54e08a">GREEN</b> resets to the room floor.
-      Shape key (colorblind-safe): blue ● · red ■ · yellow ▲ · green ◆.</span>
-      <span>Arches stack: on Wall A, a blue arch sends you to the ceiling. Watch the gravity
-      compass, bottom-left. If you fall into the void you awake at the green arch.</span>
-    </div>
-    <div class="h2">Flow — the Paradox Chain</div>
-    <div class="ctl-grid" style="grid-template-columns:1fr">
-      <span>Every gravity arch you pass <b>chains</b>: ×2 ×3 ×4… up to <b>×12</b>.
-      The chain pays out on everything you collect and it <b>decays in 12 seconds</b> —
-      keep moving between planes to hold it. Dying drops it to zero.
-      <b style="color:#ff8f8f">The meter blinks and ticks when it is about to die</b>, and
-      every shard you grab <b style="color:#54e08a">shields the chain for 2.5s</b> — decay
-      pauses while the bar glows green.
-      Tiers: <b style="color:#9fd8e8">WALKER ×2</b> · <b style="color:#4da3ff">INVERTED ×3</b> ·
-      <b style="color:#e8c15a">IMPOSSIBLE ×5</b> · <b style="color:#ff9ee0">PARADOX ×8</b> ·
-      <b style="color:#ff9ee0">ESCHER ×12</b>.</span>
-      <span>Escaping scores a <b>medal</b> (GOLD / SILVER / BRONZE vs the chamber's par time)
-      and a <b>rank</b>. The formula is no secret:
-      <b style="color:#ff9ee0">S</b> = gold par + zero deaths ·
-      <b style="color:#ffd76a">A</b> = silver par + at most one death ·
-      <b style="color:#54e08a">B</b> = bronze par + at most three ·
-      <b style="color:#9aa3b5">C</b> = you made it out. Chase the S.</span>
-      <span>Beyond Chamber XV the vaults keep going — <b>endless generated depth</b>,
-      thinner platforms, faster sentinels, and from the deep floors
-      <b style="color:#ff5468">pulsars</b> that breathe, <b style="color:#ff5468">orbitals</b> that
-      circle the room, and <b style="color:#39d5c8">drifting kerbs</b> that carry you.
-      Or take the <b>Daily Vault</b> — same seed for everyone, one fresh room every day.
-      How deep can you fall upward?</span>
-    </div>
-    <div class="btn-row" style="margin-top:16px">
-      <button id="btn-guide">OPEN THE FULL GUIDE ↗</button>
-      <button id="btn-help-back">BACK</button></div>
   </div>
   <div class="foot">SINGLE FILE · THREE.JS · WEB AUDIO SYNTH · DESKTOP &amp; MOBILE</div>
 </div>
@@ -8011,12 +8143,34 @@ function setupMenu(){
     $('levels').classList.remove('hidden'); $('help').classList.add('hidden'); $('settings').classList.add('hidden'); };
   $('btn-help').onclick=()=>{ SND.init(); SND.uiClick();
     $('help').classList.remove('hidden'); $('levels').classList.add('hidden'); $('settings').classList.add('hidden'); };
+
+  /* v15: How to Play tabs */
+  document.querySelectorAll('.help-tab').forEach(tab=>{
+    tab.onclick=()=>{
+      document.querySelectorAll('.help-tab').forEach(t=>t.classList.toggle('on', t===tab));
+      document.querySelectorAll('.help-pane').forEach(p=>p.classList.toggle('on', p.id===tab.dataset.tab));
+      SND.uiClick && SND.uiClick();
+    };
+  });
+
   $('btn-settings').onclick=()=>{ SND.init(); SND.uiClick();
     $('settings').classList.remove('hidden'); $('levels').classList.add('hidden'); $('help').classList.add('hidden'); };
   $('btn-levels-back').onclick=()=>{ SND.uiClick(); $('levels').classList.add('hidden'); };
   $('btn-help-back').onclick=()=>{ SND.uiClick(); $('help').classList.add('hidden'); };
   $('btn-guide').onclick=()=>{ SND.uiClick(); window.open('HOW-TO-PLAY.html','_blank','noopener'); };
   $('btn-settings-back').onclick=()=>{ SND.uiClick(); $('settings').classList.add('hidden'); };
+
+  /* v15: Esc closes open menu modals */
+  addEventListener('keydown', e=>{
+    if(e.code!=='Escape') return;
+    if(!$('menu') || $('menu').classList.contains('hidden')) return;
+    let closed=false;
+    ['levels','settings','help'].forEach(id=>{
+      const el=$(id); if(el && !el.classList.contains('hidden')){ el.classList.add('hidden'); closed=true; }
+    });
+    if(closed){ e.preventDefault(); SND.uiClick&&SND.uiClick(); }
+  });
+
   /* settings */
   const vol=$('set-vol'), sens=$('set-sens');
   const sfxV=$('set-sfx'), ambV=$('set-amb');
