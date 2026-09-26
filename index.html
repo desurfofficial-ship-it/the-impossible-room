@@ -757,6 +757,32 @@ body.touch #chain-bar{width:64px}
 }
 
 
+
+/* ============ v16 pause / victory / fail cards ============ */
+#pause,#victory,#failed{z-index:40;padding:max(12px,env(safe-area-inset-top)) 16px}
+.overlay-card{width:min(420px,100%);padding:28px 26px 24px!important;
+  display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;
+  animation:cardIn .28s cubic-bezier(.2,.8,.2,1)}
+.overlay-card-vic{width:min(480px,100%);gap:12px}
+.overlay-card-fail{border-color:rgba(255,84,104,.35);
+  box-shadow:0 40px 100px rgba(0,0,0,.7),0 0 40px rgba(255,84,104,.08)}
+.overlay-sub{font-family:var(--mono);font-size:12px;letter-spacing:.14em;color:var(--ink-dim);
+  line-height:1.5;max-width:34ch;margin:0}
+.overlay-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;margin-top:10px}
+.overlay-actions .primary{grid-column:1/-1}
+.overlay-actions button{width:100%}
+.overlay-actions .danger{border-color:rgba(255,84,104,.35);color:#ffb0ba}
+.overlay-actions .danger:hover{border-color:rgba(255,84,104,.7);box-shadow:0 0 20px rgba(255,84,104,.15)}
+#victory #v-rank{margin:4px 0 2px}
+#victory .stat-rows{width:100%;min-width:0;text-align:left;margin:6px 0}
+#victory #v-rankhint{width:100%}
+body.touch #pause .pl-note{display:none}
+@media (max-width:420px){
+  .overlay-actions{grid-template-columns:1fr}
+  .overlay-actions .primary{grid-column:1}
+  .big-title{font-size:clamp(28px,9vw,40px)}
+}
+
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -768,7 +794,7 @@ body.touch #chain-bar{width:64px}
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V15</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V16</span>
   <div class="menu-plate">
     <div class="kicker">AN ESCHER GRAVITY PUZZLE</div>
     <h1>The Impossible Room</h1>
@@ -991,36 +1017,42 @@ body.touch #chain-bar{width:64px}
 </div>
 
 <div id="pause" class="screen hidden">
-  <div class="big-title">Suspended</div>
-  <div class="btn-row">
-    <button id="btn-resume" class="primary">RESUME</button>
-    <button id="btn-restart">RESTART CHAMBER</button>
-    <button id="btn-pmenu">ABANDON TO MENU</button>
+  <div class="overlay-card panel">
+    <div class="modal-kicker">SUSPENDED</div>
+    <div class="big-title">Paused</div>
+    <p class="overlay-sub pl-note">Mouse released — Resume recaptures look.</p>
+    <div class="overlay-actions">
+      <button id="btn-resume" class="primary">RESUME</button>
+      <button id="btn-restart">RESTART CHAMBER</button>
+      <button id="btn-pmenu" class="danger">ABANDON TO MENU</button>
+    </div>
   </div>
-  <div style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:.2em" class="pl-note">
-    MOUSE RELEASED — CLICK RESUME TO RECAPTURE</div>
 </div>
 
 <div id="victory" class="screen hidden">
-  <div class="kicker" id="v-kick">CHAMBER COMPLETE</div>
-  <div class="big-title" id="v-title">Escaped</div>
-  <div id="v-rank" class="hidden"><span id="v-rank-letter">A</span>
-    <span id="v-rank-name">ESCAPED CLEAN</span></div>
-  <div class="panel"><div class="stat-rows" id="v-stats"></div></div>
-  <div id="v-rankhint"></div>
-  <div class="btn-row">
-    <button id="btn-next" class="primary">NEXT CHAMBER</button>
-    <button id="btn-replay">REPLAY</button>
-    <button id="btn-share" class="hidden">SHARE RUN</button>
-    <button id="btn-bonus" class="hidden">BONUS CHAMBERS</button>
-    <button id="btn-vmenu">MENU</button>
+  <div class="overlay-card panel overlay-card-vic">
+    <div class="kicker" id="v-kick">CHAMBER COMPLETE</div>
+    <div class="big-title" id="v-title">Escaped</div>
+    <div id="v-rank" class="hidden"><span id="v-rank-letter">A</span>
+      <span id="v-rank-name">ESCAPED CLEAN</span></div>
+    <div class="stat-rows" id="v-stats"></div>
+    <div id="v-rankhint"></div>
+    <div class="overlay-actions">
+      <button id="btn-next" class="primary">NEXT CHAMBER</button>
+      <button id="btn-replay">REPLAY</button>
+      <button id="btn-share" class="hidden">SHARE RUN</button>
+      <button id="btn-bonus" class="hidden">BONUS CHAMBERS</button>
+      <button id="btn-vmenu">MENU</button>
+    </div>
   </div>
 </div>
 
 <div id="failed" class="screen hidden">
-  <div class="big-title" id="f-title">Detected</div>
-  <div style="font-family:var(--mono);letter-spacing:.2em;color:var(--ink-dim)" id="f-sub">
-    RETURNING TO THE GREEN ARCH</div>
+  <div class="overlay-card panel overlay-card-fail">
+    <div class="modal-kicker">SEVERED</div>
+    <div class="big-title" id="f-title">Detected</div>
+    <div class="overlay-sub" id="f-sub">RETURNING TO THE GREEN ARCH</div>
+  </div>
 </div>
 
 <div id="err" class="screen hidden">
