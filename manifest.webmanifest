@@ -1,17 +1,35 @@
 {
-  "name": "The Impossible Room — A Gravity Escape",
+  "name": "The Impossible Room \u2014 A Gravity Escape",
   "short_name": "Impossible Room",
-  "description": "A walkable M.C. Escher atrium. Bend gravity through colored arches, collect orb fragments and escape eight impossible chambers. Plays offline.",
+  "description": "Bend gravity through colored arches. Learn in The Academy, escape fifteen chambers, then the endless vaults. Collect shards. Chase the S rank. Plays offline.",
   "start_url": ".",
   "scope": ".",
   "display": "fullscreen",
   "orientation": "any",
   "background_color": "#05060a",
   "theme_color": "#05060a",
-  "categories": ["games", "puzzle"],
+  "categories": [
+    "games",
+    "puzzle"
+  ],
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }
