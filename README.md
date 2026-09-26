@@ -109,6 +109,16 @@ only goes up. Cheated runs are flagged **⌁ TAINTED** and never touch records, 
 |---|
 | ![](l10.png) |
 
+### v7 — The Polish Pass (release candidate)
+
+| The Daily Vault — seed of the day | Chain SHIELDED — shards pause the decay |
+|---|---|
+| ![](v7-daily-vault.png) | ![](v7-chain-shield.png) |
+
+| Victory: peak tier + FLAWLESS row + the S formula printed | The paint is BACK — floor manuals render (invisible since v2!) |
+|---|---|
+| ![](v7-victory-hint.png) | ![](v7-l1-paint.png) |
+
 ### v6 — The Academy
 
 | The new menu (live world shows through) | Chamber select: Academy / Escape / Vaults |
@@ -246,7 +256,40 @@ Fall into the void and you awake at the green arch — nothing is lost but time.
 
 ## Changelog
 
-**v6 — The Academy (this release)**
+**v7 — The Polish Pass (release candidate)**
+- **CRITICAL FIX — the paint was invisible.** `LText` painted floor/wall manuals onto
+  6×0-pixel canvas textures (world sizes were being used as pixel sizes). An invalid
+  WebGL texture samples as *undefined* — sometimes black (the decals never rendered,
+  since v2), sometimes **white — causing nondeterministic full-frame bloom whiteouts**
+  in vault views. Fixed: proper 1024px canvases with aspect-matched sizes — every
+  painted hint in the game now actually renders, and the whiteouts are gone.
+- **CRITICAL FIX — vault sentinels were toothless.** Deep vaults spawned sweeping
+  sentinels but never wired `onHazard`, so they couldn't hurt you. Now a hit is a soft
+  fail: respawn at the green arch, sigils kept.
+- **Portal brightness recalibrated** (peak 1.85×→1.15, alpha halved) and the bloom
+  threshold raised 0.82→0.9: portal-dense views no longer pulse into a white wash.
+- **Scoring is transparent.** The victory report now shows **peak chain with its tier
+  name** (×8 · PARADOX), a **FLAWLESS ✓/✗ row**, and — whenever you miss it — **exactly
+  what Rank S demands**: gold time (how many seconds over) + the death count.
+- **Paradox Chain feel:** decay warning (meter blinks + soft ticks under 3.4s),
+  **chain shield** (every shard pauses the decay for 2.5s — the meter glows green),
+  chain-shield sound, and a first-×2 hint toast. Lesson IV now teaches the chain
+  (reach ×3 to complete the lesson).
+- **Vault twists:** the **Pulsar** (depth 2+, a breathing sentinel whose glow warns
+  before its danger), **drifting kerbs** (depth 2+, oscillating footholds that carry
+  you), and the **Orbital** (depth 4+, a pillar circling the room's waist).
+- **The Daily Vault:** a magenta menu button — one generated vault per calendar day,
+  same seed for every player, its own best-time record, fresh tomorrow.
+- **Juice:** shard pickups fire an expanding screen ring + HUD counter pulse; arch
+  transitions get a color-tuned whoosh and a settle thud; Academy teaching arches get
+  holographic guide beacons that dissolve after first use.
+- **Meta:** chamber tiles show centisecond bests; the vaults header shows your best
+  floor; endless victories show best depth; `daily` and `stats` cheats extended;
+  `resetbest` wipes daily records too.
+- Difficulty audit: Lesson III ★1→2, Weight & Gravity ★2→3.
+- QA: 55→58 tests (flow.shield, sentinel.twists, daily.vault) — 58/58 desktop + touch.
+
+**v6 — The Academy (previous release)**
 - **15 hand-crafted chambers** (was 8): the campaign is now two acts —
   **The Academy (I–V)** and **The Escape (VI–XV)** — plus the endless vaults from XVI.
 - **The Academy teaches the game.** The first five chambers are lessons: movement & jumping,

@@ -105,6 +105,7 @@ tr:last-child td{border-bottom:none}
 .note b{color:var(--ink)}
 .note.gold{border-color:var(--gold);background:rgba(232,193,90,.06)}
 .note.red{border-color:var(--red);background:rgba(255,84,104,.06)}
+.note.green{border-color:#54e08a;background:rgba(84,224,138,.06)}
 ul,ol{margin:12px 0 12px 22px;color:var(--dim);font-size:15px}
 li{margin:7px 0}
 .stars{color:var(--gold);letter-spacing:2px;font-size:13px;white-space:nowrap}
@@ -236,6 +237,12 @@ footer{margin-top:70px;padding-top:24px;border-top:1px solid var(--line);
     Everything you collect pays out <b>multiplied by your chain</b>. But the chain is alive —
     it <b>decays to zero if you don't flip again within 12 seconds</b>, and it <b>shatters
     instantly when you die</b>. The meter at the bottom of the screen shows the countdown.</p>
+  <ul>
+    <li><b style="color:#ff8f8f">Under 3.4 seconds left the meter blinks and ticks</b> — you will hear the decay coming.</li>
+    <li><b style="color:#54e08a">Every shard you grab shields the chain for 2.5 seconds</b> — decay pauses
+      while the bar glows green. Collecting your way across the room keeps the melody alive.</li>
+    <li>Tier-ups (×2, ×3, ×5, ×8, ×12) pay bonus score, flash the screen, and ring a power chord.</li>
+  </ul>
   <div class="tiers">
     <div class="tier"><span class="t-mult" style="color:#9fd8e8">×2</span>
       <span class="t-name" style="color:#9fd8e8">WALKER</span>
@@ -258,6 +265,9 @@ footer{margin-top:70px;padding-top:24px;border-top:1px solid var(--line);
     <li>Tier-ups (×2, ×3, ×5, ×8, ×12) pay bonus score and flash the screen.</li>
     <li>Dying with a chain of ×3 or more shows the chain you lost. Let that sting. Then go again.</li>
   </ul>
+  <div class="note green"><b>Lesson IV teaches the chain.</b> The Academy's fourth chamber asks you to
+    reach ×3 before it lets the lesson complete — so by the time the Escape begins, you already
+    speak the language of the multiplier.</div>
   <div class="note red"><b>Design intent:</b> the safe route (walk everywhere, flip rarely) always
     works — but the <b>flow route</b> (constant flips, planned arch loops, controlled free-fall)
     doubles your score. Greed is the intended playstyle.</div>
@@ -302,6 +312,10 @@ footer{margin-top:70px;padding-top:24px;border-top:1px solid var(--line);
     C → B → A → S. Your best rank shows as a badge in the chamber select grid, and your
     <b>lifetime score</b> (shown on the main menu) only goes up. Cheated runs are flagged
     <b style="color:#ff9ee0">⌁ TAINTED</b> and never touch records, scores, or ranks.</p>
+  <p><b>The formula is printed on every victory screen.</b> The report now shows your
+    <b>peak chain with its tier name</b> (×8 · PARADOX), a <b>FLAWLESS ✓/✗ row</b>, and —
+    whenever you miss it — exactly what Rank S demands: the gold time (with how many
+    seconds over) and the death count. No more guessing what the letter wants from you.</p>
 </section>
 
 <!-- ============ 6. SPEEDRUN ============ -->
@@ -377,9 +391,23 @@ footer{margin-top:70px;padding-top:24px;border-top:1px solid var(--line);
   <ul>
     <li><b>Depth 1–2:</b> the two hand-seeded vaults (The Fractal Well, The Escher Machine) — generous footholds.</li>
     <li><b>Every depth:</b> platforms get sparser and smaller, bonus arches rarer, par times longer.</li>
-    <li><b>Depth 3+:</b> sentinel beams join the vaults, and they gain speed each depth.</li>
-    <li>Your <b>deepest chamber</b> is saved and shown on the menu. Falling upward has no floor.</li>
+    <li><b style="color:#ff5468">The Pulsar (depth 2+):</b> a breathing sentinel at the room's heart — its glow swells
+      <i>before</i> its danger does. Cross the center on the quiet beat, not the loud one.</li>
+    <li><b style="color:#39d5c8">Drifting kerbs (depth 2+):</b> glowing footholds that oscillate through the safe lanes
+      between platform cells — and <b>carry you with them</b>. Ride one across a gap, hop off at the far platform.</li>
+    <li><b>Depth 3+:</b> sentinel beams join the vaults, and they gain speed each depth. A hit costs a respawn
+      at the green arch — your sigils are kept.</li>
+    <li><b style="color:#ff5468">The Orbital (depth 4+):</b> a pillar circling the vault's waist. Time your wall-to-wall
+      crossings between its passes.</li>
+    <li>Your <b>deepest chamber</b> is saved and shown on the menu and on every victory report. Falling upward has no floor.</li>
   </ul>
+
+  <h3>The Daily Vault — seed of the day</h3>
+  <p>The magenta button on the main menu is the <b style="color:#ff9ee0">DAILY VAULT</b>: one
+    generated vault per calendar day with the <b>same seed for every player in the world</b> —
+    a fresh room tomorrow, your own record today. It keeps a separate best time (shown on the
+    button itself), runs at depth-3 difficulty, and never expires your normal progress. The
+    <code>daily</code> cheat warps you there too.</p>
 </section>
 
 <!-- ============ 8. TIPS ============ -->
@@ -398,6 +426,7 @@ footer{margin-top:70px;padding-top:24px;border-top:1px solid var(--line);
       <li><b>Chamber XIII: the mazes are color-coded.</b> Blue fins are walkable only when you're on Wall A, red only on Wall B, yellow only on the ceiling — the arch chain B → Y → R → G is the golden route.</li>
       <li><b>Mirrors rotate 45° per interact.</b> In laser chambers, work from the emitter outward; the beam preview updates live and is safe to watch.</li>
       <li><b>Bank the chain before the exit.</b> The completion bonus is flat, but fragments on the final stretch pay ×12 if you arrive flowing. Route your last pickups through arches.</li>
+      <li><b>Shards buy time.</b> Every pickup shields the chain for 2.5 seconds — when the meter starts ticking red, a shard in reach is worth more than a shortcut.</li>
       <li><b>Death costs less than hesitation.</b> You keep fragments, you keep your best time, you lose only the chain. The room rewards restarts-per-minute, not caution.</li>
     </ol>
   </div>
@@ -441,7 +470,7 @@ footer{margin-top:70px;padding-top:24px;border-top:1px solid var(--line);
 <footer>
   THE IMPOSSIBLE ROOM · A GRAVITY ESCAPE<br>
   SINGLE FILE · THREE.JS · WEB AUDIO SYNTH · PROCEDURAL WORLDS<br>
-  GUIDE v6 — MATCHES GAME BUILD v6 “THE ACADEMY”
+  GUIDE v7 — MATCHES GAME BUILD v7 “THE POLISH PASS”
 </footer>
 
 </div>

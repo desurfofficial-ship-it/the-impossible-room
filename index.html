@@ -486,6 +486,15 @@ body.touch .ctl-grid kbd{display:none}
   border-radius:2px}
 #chain.escher #chain-mult{animation:hueSpin 1.1s linear infinite}
 @keyframes hueSpin{to{filter:hue-rotate(360deg)}}
+/* v7 — decay warning: the meter blinks and pulses when the chain is dying */
+#chain.warn #chain-fill{animation:chainWarnFill .5s steps(2) infinite}
+#chain.warn #chain-mult{animation:chainWarnTxt .5s steps(2) infinite}
+@keyframes chainWarnFill{50%{opacity:.25}}
+@keyframes chainWarnTxt{50%{opacity:.4}}
+/* v7 — chain shield: a shard bought you time; decay pauses, bar glows green */
+#chain.shielded #chain-fill{background:#54e08a !important;box-shadow:0 0 12px rgba(84,224,138,.9)}
+#chain.shielded #chain-tier{color:#54e08a}
+#chain.shielded #chain-bar{box-shadow:0 0 10px rgba(84,224,138,.55)}
 body.touch #chain{bottom:calc(258px + env(safe-area-inset-bottom,0px));padding:7px 16px;
   gap:9px}
 body.touch #chain-mult{font-size:18px;min-width:36px}
@@ -507,6 +516,28 @@ body.touch #chain-bar{width:64px}
 @keyframes popFloat{0%{opacity:0;transform:translate(-50%,-30%) scale(.7)}
   14%{opacity:1;transform:translate(-50%,-55%) scale(1.14)}
   100%{opacity:0;transform:translate(-50%,-170%) scale(.95)}}
+
+/* v7 — shard pickup ring: an unmistakable expanding halo at the collect point */
+.shard-ring{position:absolute;width:26px;height:26px;border-radius:50%;
+  border:2.5px solid #ffe07a;transform:translate(-50%,-50%);
+  animation:ringOut .62s cubic-bezier(.2,.7,.3,1) forwards;pointer-events:none}
+@keyframes ringOut{0%{opacity:.95;transform:translate(-50%,-50%) scale(.35)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(3.1)}}
+
+/* v7 — HUD counter pulse on shard pickup */
+#hud.pulse .mod-big{animation:hudPulse .42s cubic-bezier(.2,1.6,.4,1)}
+#hud.pulse .pip.on{animation:pipPop .42s cubic-bezier(.2,1.7,.4,1)}
+@keyframes hudPulse{0%{transform:scale(1)}35%{transform:scale(1.16)}100%{transform:scale(1)}}
+@keyframes pipPop{0%{transform:scale(1)}40%{transform:scale(1.5)}100%{transform:scale(1)}}
+
+/* v7 — rank math in the open: the S formula under the victory report */
+#v-rankhint{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
+  color:var(--ink-dim);margin-top:12px;text-align:center;line-height:1.7;
+  text-transform:uppercase}
+#v-rankhint b.gold{color:var(--gold)}
+#v-rankhint b.dim{color:#6a7284}
+#v-rankhint .gold{color:var(--gold)}
+#v-rankhint .dim{color:#6a7284}
 
 /* victory rank medallion */
 #v-rank{display:flex;align-items:center;gap:20px;min-height:86px}
@@ -539,6 +570,10 @@ body.touch #chain-bar{width:64px}
 /* full-guide button inside the help panel */
 #btn-guide{border-color:rgba(232,193,90,.5);color:var(--gold);font-size:13px}
 #btn-guide:active{border-color:var(--gold)}
+/* v7 — the daily vault gets its own accent: magenta like the paradox tier */
+#btn-daily{border-color:rgba(255,158,224,.45);color:#ff9ee0;font-size:13px}
+#btn-daily::before{content:'✦';margin-right:8px;font-size:11px;color:#ff9ee0}
+#btn-daily:active{border-color:#ff9ee0}
 
 </style>
 </head><body>
@@ -546,7 +581,7 @@ body.touch #chain-bar{width:64px}
 
 <!-- ===================== MAIN MENU ===================== -->
 <div id="menu" class="screen">
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V6</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V7</span>
   <div class="kicker">AN ESCHER GRAVITY PUZZLE</div>
   <h1>The Impossible Room<span class="narrow">FIFTEEN CHAMBERS · FOUR GRAVITIES · ONE EXIT</span></h1>
   <div class="arch-legend">
@@ -561,6 +596,7 @@ body.touch #chain-bar{width:64px}
   <div class="btn-row">
     <button id="btn-start" class="primary">ENTER THE ROOM</button>
     <button id="btn-levels">CHAMBERS</button>
+    <button id="btn-daily" class="daily">DAILY VAULT</button>
     <button id="btn-help">HOW TO PLAY</button>
     <button id="btn-settings">SETTINGS</button>
     <button id="btn-install" class="hidden">INSTALL APP</button>
@@ -632,15 +668,24 @@ body.touch #chain-bar{width:64px}
       <span>Every gravity arch you pass <b>chains</b>: ×2 ×3 ×4… up to <b>×12</b>.
       The chain pays out on everything you collect and it <b>decays in 12 seconds</b> —
       keep moving between planes to hold it. Dying drops it to zero.
+      <b style="color:#ff8f8f">The meter blinks and ticks when it is about to die</b>, and
+      every shard you grab <b style="color:#54e08a">shields the chain for 2.5s</b> — decay
+      pauses while the bar glows green.
       Tiers: <b style="color:#9fd8e8">WALKER ×2</b> · <b style="color:#4da3ff">INVERTED ×3</b> ·
       <b style="color:#e8c15a">IMPOSSIBLE ×5</b> · <b style="color:#ff9ee0">PARADOX ×8</b> ·
       <b style="color:#ff9ee0">ESCHER ×12</b>.</span>
       <span>Escaping scores a <b>medal</b> (GOLD / SILVER / BRONZE vs the chamber's par time)
-      and a <b>rank</b> — <b style="color:#ff9ee0">S</b> flawless ·
-      <b style="color:#ffd76a">A</b> clean · <b style="color:#54e08a">B</b> survivor ·
-      <b style="color:#9aa3b5">C</b> escaped. Chase the S.</span>
+      and a <b>rank</b>. The formula is no secret:
+      <b style="color:#ff9ee0">S</b> = gold par + zero deaths ·
+      <b style="color:#ffd76a">A</b> = silver par + at most one death ·
+      <b style="color:#54e08a">B</b> = bronze par + at most three ·
+      <b style="color:#9aa3b5">C</b> = you made it out. Chase the S.</span>
       <span>Beyond Chamber XV the vaults keep going — <b>endless generated depth</b>,
-      thinner platforms, faster sentinels. How deep can you fall upward?</span>
+      thinner platforms, faster sentinels, and from the deep floors
+      <b style="color:#ff5468">pulsars</b> that breathe, <b style="color:#ff5468">orbitals</b> that
+      circle the room, and <b style="color:#39d5c8">drifting kerbs</b> that carry you.
+      Or take the <b>Daily Vault</b> — same seed for everyone, one fresh room every day.
+      How deep can you fall upward?</span>
     </div>
     <div class="btn-row" style="margin-top:16px">
       <button id="btn-guide">OPEN THE FULL GUIDE ↗</button>
@@ -729,6 +774,7 @@ body.touch #chain-bar{width:64px}
   <div id="v-rank" class="hidden"><span id="v-rank-letter">A</span>
     <span id="v-rank-name">ESCAPED CLEAN</span></div>
   <div class="panel"><div class="stat-rows" id="v-stats"></div></div>
+  <div id="v-rankhint"></div>
   <div class="btn-row">
     <button id="btn-next" class="primary">NEXT CHAMBER</button>
     <button id="btn-replay">REPLAY</button>
@@ -881,7 +927,8 @@ const STORE = {
 const SAVE = Object.assign({ unlocked:1, best:{}, campaignBest:null,
   vol:0.7, sens:1.0, invertY:false, bloom:true, shadows:true, fps:false,
   sfxVol:1.0, ambVol:0.9, speedrun:true, haptics:true,
-  score:0, levelScore:{}, ranks:{}, bestDepth:0, flowHintSeen:false }, STORE.load());
+  score:0, levelScore:{}, ranks:{}, bestDepth:0, flowHintSeen:false,
+  daily:null, chainHintSeen:false }, STORE.load());
 /* fresh installs on phones/tablets: start with bloom off for smooth framerates */
 if(IS_TOUCH){ try{ if(!localStorage.getItem('tir_save')) SAVE.bloom=false; }catch(e){} }
 
@@ -918,6 +965,7 @@ const DOM = {
   lcNum:$('lc-num'), lcName:$('lc-name'), lcObj:$('lc-obj'),
   vKick:$('v-kick'), vTitle:$('v-title'), vStats:$('v-stats'),
   vRank:$('v-rank'), vRankLetter:$('v-rank-letter'), vRankName:$('v-rank-name'),
+  vRankHint:$('v-rankhint'),
   chain:$('chain'), chainMult:$('chain-mult'), chainTier:$('chain-tier'),
   chainFill:$('chain-fill'), hudScore:$('hud-score'), popups:$('popups'),
   menuStats:$('menu-stats'),
@@ -1146,7 +1194,11 @@ class AudioEngine{
     this.blip({type:'sine',f0:65,f1:40,d:0.09,g:0.14,at:0.16}); }
   gravityBoom(){ this.blip({type:'sine',f0:80,f1:34,d:0.5,g:0.3});
     this.noise({ftype:'lowpass',f0:900,f1:120,d:0.5,g:0.1}); }
-  whoosh(up=true){ this.noise({f0:up?300:2200,f1:up?2400:220,q:0.7,d:0.34,g:0.07}); }
+  whoosh(up=true, color){
+    /* v7: the whoosh is tuned to the arch's color — every plane has a voice */
+    const base={blue:300, red:236, yellow:372, green:264}[color]||(up?300:2200);
+    this.noise({f0:up?base:base*7, f1:up?base*8:base, q:0.7, d:0.34, g:0.07});
+  }
   doorOpen(){ this.noise({ftype:'lowpass',f0:900,f1:200,d:0.7,g:0.1,q:2});
     this.blip({type:'square',f0:65,f1:50,d:0.5,g:0.13}); }
   doorSeal(){ this.blip({type:'square',f0:100,f1:70,d:0.25,g:0.18});
@@ -1195,6 +1247,14 @@ class AudioEngine{
   chainLost(){                     // the multiplier slips away
     this.blip({type:'sawtooth',f0:520,f1:130,d:0.42,g:0.08,bus:this.music});
     this.blip({type:'sine',f0:196,f1:98,d:0.4,g:0.06,at:0.05,bus:this.music});
+  }
+  chainWarn(){                     // v7: soft urgent tick — the chain is about to die
+    this.blip({type:'sine',f0:1318,d:0.05,g:0.034});
+    this.blip({type:'sine',f0:1318,d:0.05,g:0.024,at:0.1});
+  }
+  chainShield(){                   // v7: a shard bought you two and a half seconds
+    this.blip({type:'sine',f0:784,d:0.16,g:0.06,bus:this.music});
+    this.blip({type:'sine',f0:1046,d:0.22,g:0.05,at:0.08,bus:this.music});
   }
   rankSting(rank){
     if(rank==='S'){ this.winBig(); return; }
@@ -1376,7 +1436,11 @@ function initRenderer(){
   }
   composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.5, 0.4, 0.82);
+  /* v7: threshold 0.82 -> 0.9 (portal shimmer + lit walls both sat above
+     0.82 in linear HDR and the bloom blurred them into a full-frame wash;
+     0.9 keeps the real emitters — sun, shards, glow strips, sentinels —
+     blooming while broad surfaces stay clean) */
+  bloomPass = new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.5, 0.4, 0.90);
   composer.addPass(bloomPass);
   composer.addPass(new OutputPass());
   window.addEventListener('resize', onResize);
@@ -1519,16 +1583,26 @@ const GLOW_TEX = makeGlowSprite();
 
 /* text decal texture (painted instructions / clues) */
 function makeTextTex(lines, opts={}){
-  const W=opts.w||512, H=opts.h||256;
+  /* v7 CRITICAL FIX: opts.w/h are WORLD (metre) sizes for the decal plane —
+     they were being used as CANVAS PIXEL dimensions, producing 6x0 canvases.
+     An invalid texture samples as UNDEFINED in WebGL: sometimes white
+     (bloom whiteouts, nondeterministic per load), sometimes black (the
+     painted floor text has been invisible since v2!). Canvas pixels now
+     derive from a fixed width with a matching aspect ratio, and the font
+     scales with it. The paint finally exists. */
+  const wW=opts.w??3, wH=opts.h??1.2;
+  const W=1024;
+  const H=Math.max(64, Math.min(512, Math.round(W*wH/wW)));
   const c=document.createElement('canvas'); c.width=W; c.height=H;
   const x=c.getContext('2d');
   x.clearRect(0,0,W,H);
   const color=opts.color||'#bcd2e8';
-  const size=opts.size||46;
+  const k=W/512;
+  const size=(opts.size||46)*k;
   x.font=`${opts.weight||600} ${size}px ui-monospace, Menlo, Consolas, monospace`;
   x.textAlign='center'; x.textBaseline='middle';
   if(opts.glow!==false){
-    x.shadowColor=opts.glowColor||color; x.shadowBlur=26;
+    x.shadowColor=opts.glowColor||color; x.shadowBlur=26*k;
   }
   const lh=size*1.35;
   const startY=H/2-(lines.length-1)*lh/2;
@@ -1538,6 +1612,7 @@ function makeTextTex(lines, opts={}){
   });
   const t=new THREE.CanvasTexture(c);
   t.colorSpace=THREE.SRGBColorSpace;
+  t.anisotropy=4;
   return t;
 }
 
@@ -2043,16 +2118,16 @@ const THEMES=[
     shafts:[{x:0,y:7,z:0,h:13.6,r:1.5,r1:2.8,color:0xa8ffe8,opacity:0.15}],
     fx:{mode:'caustics', color:0x8fe8d0, rate:6}
   },
-  { /* 16 — Vault : NEBULA ROSE (cosmic) */
+  { /* 16 — Vault : NEBULA ROSE (cosmic) — v7 tuned: was blowing out sun-facing walls */
     nature:'cosmic',
     dome:true, stars:true, sun:{dir:[-0.4,0.45,0.4], color:0xf0c8ff, size:34}, moon:false,
     clouds:false,
-    sky:{top:0x241436, horizon:0x7a4a80, bottom:0x1a0e2a, glow:0xe8a8ff, glowAmt:0.55},
-    hemi:{sky:0xd8a8e8, ground:0x503c64, int:1.48},
-    dir:{color:0xf0c8ff, int:2.0, pos:[-10,16,8]},
+    sky:{top:0x241436, horizon:0x7a4a80, bottom:0x1a0e2a, glow:0xe8a8ff, glowAmt:0.42},
+    hemi:{sky:0xd8a8e8, ground:0x503c64, int:1.26},
+    dir:{color:0xf0c8ff, int:1.62, pos:[-10,16,8]},
     fog:{color:0x605070, density:0.007},
-    motes:{color:0xe8b8ff}, exposure:1.5,
-    shafts:[{x:0,y:7,z:0,h:13.6,r:1.5,r1:2.8,color:0xe8b0ff,opacity:0.14}],
+    motes:{color:0xe8b8ff}, exposure:1.32,
+    shafts:[{x:0,y:7,z:0,h:13.6,r:1.5,r1:2.8,color:0xe8b0ff,opacity:0.10}],
     fx:{mode:'sparks', color:0xff9ee0, rate:5}
   }
 ];
@@ -2754,7 +2829,7 @@ class Player{
     flowFlip(type);                          // v5: player-driven flips feed the chain
     this.startTransition(qTo, {
       dur: opts.dur ?? 0.5, color: opts.color, fling: opts.fling, safeSnap: opts.safeSnap,
-      pos: opts.pos
+      pos: opts.pos, archType: type
     });
     return true;
   }
@@ -2772,7 +2847,7 @@ class Player{
     this.frozen=true;
     this.fovKick=1;
     flashScreen(this.transition.color, 0.42);
-    SND.whoosh(true);
+    SND.whoosh(true, opts.archType);        // v7: every arch color has its own voice
     buzz(22);
     if(opts.hum!==false) SND.archHum(opts.archType||'blue', opts.pos);
     DOM.compass.classList.add('shift');
@@ -2786,6 +2861,7 @@ class Player{
     this.transition=null;
     this.frozen=false;
     SND.archSettle();
+    shake(0.10);                            // v7: a gentle thud — the room agrees to the new down
     DOM.compass.classList.remove('shift');
     if(t.safeSnap){
       const hit=WORLD_COLLIDE.raycast(this.pos, this.gravityDir, HALF_H+3.4);
@@ -3167,8 +3243,12 @@ function makePortalMat(hexColor){
         float swirl=sin(vUv.y*16.0+uTime*2.4+sin(vUv.x*5.0+uTime*1.7)*1.6)*0.5+0.5;
         float edge=smoothstep(0.52,0.30,r);
         float core=smoothstep(0.5,0.0,r)*0.55;
-        float a=(swirl*0.35+core)*edge;
-        gl_FragColor=vec4(uColor*(1.15+swirl*0.7), a);
+        /* v7: peak was color*1.85 at alpha 0.9 — stacked additively over lit
+           walls it saturated whole portal-dense views (vault spawn frames
+           pulsed near-white on the shimmer beat, verified in v6 too).
+           Halved contribution: still an unmistakably glowing gate. */
+        float a=(swirl*0.22+core*0.7)*edge;
+        gl_FragColor=vec4(uColor*(0.85+swirl*0.30), a);
       }`,
     transparent:true, depthWrite:false, side:THREE.DoubleSide,
     blending:THREE.AdditiveBlending
@@ -3572,6 +3652,67 @@ function LArch(L, type, x,y,z, facing, mount='floor', o={}){
 }
 
 /* ============================================================
+   8b. GUIDE BEACONS (v7) — holographic waypoints over teaching
+   arches. A soft vertical beam + a bobbing diamond that dissolves
+   the moment the arch is first walked through. Academy only.
+   ============================================================ */
+function addGuideBeacon(L, arch, colorHex){
+  const col=new THREE.Color(colorHex);
+  const beamMat=new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:0.14,
+    depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide });
+  beamMat.userData={owned:true};
+  const beam=new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.8, 6.4, 10, 1, true), beamMat);
+  beam.position.copy(arch.base).addScaledVector(arch.U, 4.4);
+  beam.quaternion.setFromUnitVectors(V(0,1,0), arch.U);
+  beam.renderOrder=3;
+  const diaMat=new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:0.9,
+    depthWrite:false, blending:THREE.AdditiveBlending });
+  diaMat.userData={owned:true};
+  const dia=new THREE.Mesh(new THREE.OctahedronGeometry(0.3), diaMat);
+  dia.renderOrder=3;
+  WORLD.add(beam); WORLD.add(dia);
+  L.disposables.push(beam, dia);
+  let used=false, fade=1;
+  L.updaters.push((dt, t)=>{
+    if(!used && !arch.armed) used=true;          /* fired once — begin the dissolve */
+    if(used){
+      fade=Math.max(0, fade-dt*1.6);
+      beamMat.opacity=0.14*fade; diaMat.opacity=0.9*fade;
+      if(fade<=0){ WORLD.remove(beam); WORLD.remove(dia); return; }
+    }
+    dia.position.copy(arch.base).addScaledVector(arch.U, 7.6+Math.sin(t*2.1)*0.3);
+    dia.rotation.y+=dt*1.7;
+    beamMat.opacity=(used?fade*0.14:0.14)*(0.8+0.2*Math.sin(t*2.6));
+  });
+}
+
+/* ---- v7 juice helpers: shard ring (screen space) + HUD pulse ---- */
+function shardRing(worldPos, color){
+  if(!DOM.popups || !camera) return;
+  let x=innerWidth*0.5, y=innerHeight*0.44;
+  const v=worldPos.clone().project(camera);
+  if(v.z>-1 && v.z<1){
+    x=clamp((v.x*0.5+0.5)*innerWidth, 40, innerWidth-40);
+    y=clamp((-v.y*0.5+0.5)*innerHeight, 50, innerHeight-50);
+  }
+  const el=document.createElement('div');
+  el.className='shard-ring';
+  el.style.borderColor=color;
+  el.style.left=x.toFixed(0)+'px';
+  el.style.top=y.toFixed(0)+'px';
+  DOM.popups.appendChild(el);
+  setTimeout(()=>{ if(el.parentNode) el.remove(); }, 640);
+}
+let _hudPulseT=null;
+function hudPulse(){
+  DOM.hud.classList.remove('pulse');
+  void DOM.hud.offsetWidth;                 /* restart the CSS animation */
+  DOM.hud.classList.add('pulse');
+  clearTimeout(_hudPulseT);
+  _hudPulseT=setTimeout(()=>DOM.hud.classList.remove('pulse'), 450);
+}
+
+/* ============================================================
    9. ORB FRAGMENTS
    ============================================================ */
 class Fragment{
@@ -3620,7 +3761,17 @@ class Fragment{
     buzz(14);
     PARTS.burst(this.mesh.position, new THREE.Color(this.isCore?0xa97bff:0xffd76a),
       36, 4.5, 3.0, 0.9);
-    flashScreen(this.isCore?'#a97bff':'#e8c15a', 0.28);
+    flashScreen(this.isCore?'#a97bff':'#e8c15a', 0.34);
+    /* v7 juice: expanding screen-space ring + HUD counter pulse — the
+       pickup must be unmistakable even in peripheral vision */
+    shardRing(this.mesh.position, this.isCore?'#c9a4ff':'#ffe07a');
+    hudPulse();
+    /* v7 flow: a shard shields the chain for 2.5s — decay pauses, the
+       meter glows green. Grabbing the next foothold keeps the melody alive. */
+    if(FLOW.chain>0){
+      FLOW.shield=Math.max(FLOW.shield||0, 2.5);
+      SND.chainShield();
+    }
     /* v5 flow: fragments pay out through the paradox chain */
     awardScore((this.isCore?700:400)*Math.max(1,FLOW.chain), this.mesh.position,
       {big:true, label:(this.isCore?'CORE +':'FRAGMENT +')});
@@ -4085,6 +4236,12 @@ class Sweeper{
     this.h=o.h??3.0;
     this.d=o.d??9;
     this.deadly=!!o.deadly;
+    /* v7 vault twists: PULSAR breathes in place (size swells on a rhythm);
+       ORBITAL circles the room on two axes (amp2/axis2 give the second arm) */
+    this.pulse=!!o.pulse;
+    this.orbit=!!o.orbit;
+    this.axis2=o.axis2==='y'?V(0,1,0):(o.axis2==='x'?V(1,0,0):(o.axis2?V(0,0,1):null));
+    this.amp2=o.amp2??0;
     this.speedMul=1;
     const mat=new THREE.MeshStandardMaterial({ color:0x180508, emissive:0xff2233,
       emissiveIntensity:2.2, roughness:0.4, transparent:true, opacity:0.65 });
@@ -4097,21 +4254,29 @@ class Sweeper{
     L.sweepers.push(this);
   }
   center(t){
-    const s=Math.sin(t*this.speed*this.speedMul+this.phase)*this.amp;
-    return this.base.clone().addScaledVector(this.axis, s);
+    const w=t*this.speed*this.speedMul+this.phase;
+    const c=this.base.clone().addScaledVector(this.axis, Math.sin(w)*this.amp);
+    if(this.orbit && this.axis2) c.addScaledVector(this.axis2, Math.cos(w)*this.amp2);
+    return c;
+  }
+  pulseFactor(t){
+    if(!this.pulse) return 1;
+    return 0.35+1.05*(0.5+0.5*Math.sin(t*this.speed*1.6+this.phase));
   }
   update(dt, t){
     const c=this.center(t);
     const a=this.axis;
-    const w=this.w, hh=this.h/2, dd=this.d/2;
+    const pf=this.pulseFactor(t);
+    const w=this.w*pf, hh=this.h*pf/2, dd=this.d*pf/2;
     let sx,sy,sz;
-    if(a.x){ sx=w; sy=this.h; sz=this.d; }
-    else if(a.y){ sx=this.d; sy=w; sz=this.h; }
-    else { sx=this.d; sy=this.h; sz=w; }
+    if(a.x){ sx=w; sy=this.h*pf; sz=this.d*pf; }
+    else if(a.y){ sx=this.d*pf; sy=w; sz=this.h*pf; }
+    else { sx=this.d*pf; sy=this.h*pf; sz=w; }
     this.mesh.position.copy(c);
     this.mesh.scale.set(sx,sy,sz);
     this.box={ min:V(c.x-sx/2, c.y-sy/2, c.z-sz/2), max:V(c.x+sx/2, c.y+sy/2, c.z+sz/2) };
-    this.mesh.material.emissiveIntensity=1.8+Math.sin(t*8)*0.5;
+    /* the glow swells BEFORE the danger does — the telegraph is the reward */
+    this.mesh.material.emissiveIntensity=(this.pulse?0.7+pf*1.7:1.8+Math.sin(t*8)*0.5);
     /* proximity warning ticks */
     const d=this.mesh.position.distanceTo(player.pos);
     if(d<7){
@@ -4130,6 +4295,44 @@ class Sweeper{
   }
 }
 const _swpBox={min:V(),max:V()};
+
+/* ============================================================
+   13b. DRIFT KERBS (v7) — slow oscillating footholds that carry
+   the player. The deep vaults breathe underfoot.
+   ============================================================ */
+class DriftKerb{
+  constructor(L, x,y,z, w, d, axis, amp, speed, o={}){
+    this.L=L;
+    this.base=V(x,y,z);
+    this.axis=axis==='x'?V(1,0,0):(axis==='y'?V(0,1,0):V(0,0,1));
+    this.amp=amp; this.speed=speed;
+    this.phase=o.phase??Math.random()*TAU;
+    const mat=new THREE.MeshStandardMaterial({ color:0x2b3345, roughness:0.7,
+      metalness:0.2, emissive:0x39d5c8, emissiveIntensity:0.35 });
+    mat.userData={owned:true};
+    this.mesh=new THREE.Mesh(new THREE.BoxGeometry(w,0.4,d), mat);
+    this.mesh.castShadow=true; this.mesh.receiveShadow=true;
+    WORLD.add(this.mesh);
+    L.disposables.push(this.mesh);
+    this.w=w; this.d=d; this.h=0.4;
+    this.collider=WORLD_COLLIDE.add(V(x-w/2,y-0.2,z-d/2), V(x+w/2,y+0.2,z+d/2),
+      { mesh:this.mesh, tag:'drift', onRay:true });
+    this.s=0;
+    L.movers.push(this);
+  }
+  update(dt, t){
+    const s=Math.sin(t*this.speed+this.phase)*this.amp;
+    const ds=s-this.s; this.s=s;
+    const c=this.base.clone().addScaledVector(this.axis, s);
+    this.mesh.position.copy(c);
+    this.collider.min.set(c.x-this.w/2, c.y-this.h/2, c.z-this.d/2);
+    this.collider.max.set(c.x+this.w/2, c.y+this.h/2, c.z+this.d/2);
+    this.collider.delta.set(0,0,0).addScaledVector(this.axis, ds);
+    if(ds!==0 && player.grounded && player.groundCollider===this.collider){
+      player.pos.addScaledVector(this.axis, ds);   /* ride the kerb */
+    }
+  }
+}
 
 /* ============================================================
    14. CONDITIONAL (PLANE-GATED) PLATFORMS + MOVING PLATFORMS
@@ -4407,12 +4610,14 @@ function updateFade(dt){
    with medals (vs par time) and ranks S/A/B/C.
    ============================================================ */
 const FLOW={
-  chain:0, t:0, WINDOW:12, peak:0, run:0, tier:-1, lastNote:0
+  chain:0, t:0, WINDOW:12, peak:0, run:0, tier:-1, lastNote:0,
+  shield:0, warnT:0
 };
 const _FLIP_FWD=V();   /* scratch for popup placement (see flowFlip) */
 function flowReset(){
   FLOW.chain=0; FLOW.t=0; FLOW.peak=0; FLOW.run=0; FLOW.tier=-1;
-  DOM.chain.classList.remove('on','escher','pop');
+  FLOW.shield=0; FLOW.warnT=0;
+  DOM.chain.classList.remove('on','escher','pop','warn','shielded');
   if(DOM.popups) DOM.popups.innerHTML='';
 }
 function flowFlip(type){
@@ -4420,6 +4625,12 @@ function flowFlip(type){
   FLOW.chain=Math.min(12, FLOW.chain+1);
   FLOW.t=FLOW.WINDOW;
   FLOW.peak=Math.max(FLOW.peak, FLOW.chain);
+  /* v7: the first ×2 gets one gentle explanation, ever — right when the
+     player can feel the mechanic working */
+  if(FLOW.chain===2 && !SAVE.chainHintSeen && !GAME.qa){
+    SAVE.chainHintSeen=true; persist();
+    toast('PARADOX CHAIN — <b>ARCHES MULTIPLY, SHARDS PAY ×CHAIN</b>', 4200);
+  }
   const tier=tierFor(FLOW.chain);
   const col=(tier>=0?TIERS[tier].color:'#9fd8e8');
   /* popups must float AHEAD of the camera — the camera sits inside the
@@ -4450,19 +4661,32 @@ function flowBreak(silent){
     toast('CHAIN LOST — <b>×'+FLOW.chain+'</b> GONE', 2200, true);
     buzz([40,30,40]);
   }
-  FLOW.chain=0; FLOW.t=0; FLOW.tier=-1;
-  DOM.chain.classList.remove('on','escher');
+  FLOW.chain=0; FLOW.t=0; FLOW.tier=-1; FLOW.shield=0; FLOW.warnT=0;
+  DOM.chain.classList.remove('on','escher','warn','shielded');
 }
 function flowUpdate(dt){
   if(FLOW.chain<=0) return;
-  FLOW.t-=dt;
-  if(FLOW.t<=0){ flowBreak(); return; }
+  /* v7 chain shield: shards pause the decay for 2.5s — the meter glows */
+  if(FLOW.shield>0){
+    FLOW.shield-=dt;
+  }else{
+    FLOW.t-=dt;
+    if(FLOW.t<=0){ flowBreak(); return; }
+  }
   /* meter */
   const tier=tierFor(FLOW.chain);
   DOM.chain.classList.toggle('on', FLOW.chain>=2);
   DOM.chain.classList.toggle('escher', tier>=TIERS.length-1);
+  DOM.chain.classList.toggle('shielded', FLOW.shield>0);
+  /* v7 decay warning: under 3.4s the meter blinks and ticks — fair, legible */
+  const warn=(FLOW.shield<=0 && FLOW.t<3.4 && FLOW.chain>=2);
+  DOM.chain.classList.toggle('warn', warn);
+  if(warn){
+    FLOW.warnT-=dt;
+    if(FLOW.warnT<=0){ SND.chainWarn(); FLOW.warnT=0.55; }
+  }else FLOW.warnT=0;
   DOM.chainMult.textContent='×'+FLOW.chain;
-  DOM.chainTier.textContent=tier>=0?TIERS[tier].name:'DRIFTER';
+  DOM.chainTier.textContent=FLOW.shield>0?'SHIELDED':(tier>=0?TIERS[tier].name:'DRIFTER');
   DOM.chain.style.color=tier>=0?TIERS[tier].color:'#9fd8e8';
   DOM.chainFill.style.width=(clamp(FLOW.t/FLOW.WINDOW,0,1)*100).toFixed(1)+'%';
 }
@@ -4622,7 +4846,7 @@ function startLevel(i, opts={}){
   /* level card — v6: The Academy lessons get their own kicker + chip */
   DOM.hudLevel.textContent=(def.tut?('LESSON '+ROMAN[i]):('CHAMBER '+ROMAN[i]))+' — '+def.name.toUpperCase();
   DOM.hudObj.textContent=def.objective;
-  if(!SAVE.flowHintSeen && !GAME.qa && !def.tut){
+  if(!SAVE.flowHintSeen && !GAME.qa && !def.tut && !SAVE.chainHintSeen){
     SAVE.flowHintSeen=true; persist();
     toast('CHAIN ARCH PASSES TO RAISE <b>PARADOX</b> — SCORE PAYS ×CHAIN', 4200);
   }
@@ -4668,6 +4892,7 @@ function levelComplete(){
   const last=GAME.levelIndex===LEVELS.length-1;
   const finale=GAME.levelIndex===CAMPAIGN_N-1;   /* the campaign monument (XV) */
   const endless=GAME.levelIndex>=CAMPAIGN_N;     /* generated vaults go deeper forever */
+  const isDaily=!!(LEVELS[GAME.levelIndex]&&LEVELS[GAME.levelIndex].daily);   /* v7 */
   /* ---- v5 flow: completion bonuses, medal, rank, score ---- */
   const pars=LEVELS[GAME.levelIndex].pars;
   const medal=medalFor(GAME.levelIndex, t);
@@ -4682,9 +4907,12 @@ function levelComplete(){
     if(RANK_ORDER.indexOf(rank)>RANK_ORDER.indexOf(SAVE.ranks[GAME.levelIndex]||'')){
       SAVE.ranks[GAME.levelIndex]=rank; rankUp=true;
     }
+    /* v7: the peak tier gets its name on the report — a number alone has no glory */
+    const peakTier=tierFor(FLOW.peak);
     scoreRows=`<div class="row"><span>SCORE</span><b class="gold">${fmtScore(FLOW.run)}</b></div>`
       +`<div class="row"><span>BEST SCORE</span><b>${fmtScore(SAVE.levelScore[GAME.levelIndex]||0)}</b></div>`
-      +`<div class="row"><span>PEAK CHAIN</span><b>×${FLOW.peak}</b></div>`;
+      +`<div class="row"><span>PEAK CHAIN</span><b>×${FLOW.peak}${peakTier>=0?' · <span style="color:'+TIERS[peakTier].color+'">'+TIERS[peakTier].name+'</span>':''}</b></div>`
+      +`<div class="row"><span>FLAWLESS</span><b class="${GAME.deaths===0?'gold':'dim'}">${GAME.deaths===0?'✓ NO DEATHS':'✗ '+GAME.deaths+' DEATH'+(GAME.deaths>1?'S':'')}</b></div>`;
     if(rank==='S'){
       /* confetti pop for the flawless */
       for(let k=0;k<3;k++) PARTS.burst(player.pos.clone().add(V((Math.random()-0.5)*2,k*0.6,(Math.random()-0.5)*2)),
@@ -4695,6 +4923,17 @@ function levelComplete(){
     }
   }
   if(endless) SAVE.bestDepth=Math.max(SAVE.bestDepth||0, GAME.levelIndex+1);
+  /* v7: the Daily Vault keeps its own record — same seed, everyone, one day */
+  let dailyIsBest=false;
+  if(isDaily && !tainted){
+    const today=dailyToday();
+    if(!SAVE.daily || SAVE.daily.date!==today) SAVE.daily={date:today, best:null, plays:0};
+    SAVE.daily.plays=(SAVE.daily.plays||0)+1;
+    if(SAVE.daily.best===null || t<SAVE.daily.best){
+      if(SAVE.daily.best!==null) dailyIsBest=true;
+      SAVE.daily.best=t;
+    }
+  }
   persist();
   ensureLevelsUpTo(GAME.levelIndex+2);             /* the vaults never end */
   if(isBest && prev!==undefined){
@@ -4703,9 +4942,9 @@ function levelComplete(){
     toast('<b style="color:#ffe9ad">NEW RECORD</b> — '+fmtRace(t), 3200);
   }
   DOM.vKick.textContent=(isBest&&prev!==undefined?'NEW RECORD — ':'')+
-    (endless?'DEPTH CLEARED':(finale?'THE MONUMENT YIELDS':'CHAMBER COMPLETE'));
-  DOM.vKick.classList.toggle('rec', isBest&&prev!==undefined);
-  DOM.vTitle.textContent=endless?'The Vault Yields':'Escaped';
+    (isDaily?'THE DAILY VAULT YIELDS':(endless?'DEPTH CLEARED':(finale?'THE MONUMENT YIELDS':'CHAMBER COMPLETE')));
+  DOM.vKick.classList.toggle('rec', (isBest&&prev!==undefined)||dailyIsBest);
+  DOM.vTitle.textContent=isDaily?'Vault of the Day':(endless?'The Vault Yields':'Escaped');
   /* rank medallion */
   if(rank){
     DOM.vRank.classList.remove('hidden');
@@ -4718,6 +4957,9 @@ function levelComplete(){
   if(pars) rows+=`<div class="row"><span>MEDAL · PAR ${fmtRace(pars[0])}</span><b class="${medalClass(medal)}">${medal||'—'}</b></div>`;
   rows+=scoreRows;
   rows+=`<div class="row"><span>BEST</span><b class="gold">${fmtRace(SAVE.best[GAME.levelIndex]??t)}</b></div>`;
+  if(isDaily && SAVE.daily && SAVE.daily.best!==null){
+    rows+=`<div class="row"><span>DAILY BEST</span><b class="gold">${fmtRace(SAVE.daily.best)}</b></div>`;
+  }
   if(prev!==undefined && !tainted){
     const d=t-prev;
     const cls=d<0?'delta-neg':(d>0?'delta-pos':'delta-zero');
@@ -4726,10 +4968,24 @@ function levelComplete(){
   }
   rows+=`<div class="row"><span>DEATHS</span><b>${GAME.deaths}</b></div>`;
   rows+=`<div class="row"><span>JUMPS</span><b>${GAME.jumps}</b></div>`;
+  if(endless && !isDaily){
+    rows+=`<div class="row"><span>BEST DEPTH</span><b class="gold">${ROMAN[(SAVE.bestDepth||1)-1]||('#'+(SAVE.bestDepth||1))}</b></div>`;
+  }
   rows+=`<div class="row"><span>CAMPAIGN</span><b>${fmtRace(GAME.campaignTime)}</b></div>`;
   DOM.vStats.innerHTML=rows;
+  /* v7: rank math in the open — what S demands, and exactly what you missed */
+  if(rank && pars){
+    if(rank==='S'){
+      DOM.vRankHint.innerHTML='S — GOLD PAR '+fmtRace(pars[0])+' · NO DEATHS — <b>PERFECT RUN</b>';
+    }else{
+      const okT=t<=pars[0];
+      DOM.vRankHint.innerHTML='RANK S NEEDS — GOLD '+fmtRace(pars[0])+' '+
+        (okT?'<b class="gold">✓</b>':'<b class="dim">✗ +'+fmtRace(t-pars[0]).slice(3)+'s</b>')+
+        ' · NO DEATHS '+(GAME.deaths===0?'<b class="gold">✓</b>':'<b class="dim">✗ '+GAME.deaths+'</b>');
+    }
+  }else DOM.vRankHint.innerHTML='';
   DOM.btnNext.classList.toggle('hidden', last);
-  DOM.btnNext.textContent=endless?'DESCEND DEEPER':'NEXT CHAMBER';
+  DOM.btnNext.textContent=isDaily?'BACK TO THE VAULTS':(endless?'DESCEND DEEPER':'NEXT CHAMBER');
   DOM.btnBonus.classList.toggle('hidden', !(finale&&LEVELS.length>CAMPAIGN_N));
   showScreen(DOM.victory);
   if(plc && plc.isLocked) plc.unlock();
@@ -4754,6 +5010,7 @@ function campaignVictory(){
   rows+=`<div class="row"><span>DEATHS</span><b>${GAME.totalDeaths||0}</b></div>`;
   rows+=`<div class="row"><span>JUMPS</span><b>${GAME.totalJumps||0}</b></div>`;
   DOM.vStats.innerHTML=rows;
+  DOM.vRankHint.innerHTML='';
   DOM.btnNext.classList.add('hidden');
   DOM.btnBonus.classList.toggle('hidden', LEVELS.length<=15);
   showScreen(DOM.victory);
@@ -5176,8 +5433,9 @@ LEVELS.push({
     LArch(L, 'green', 0, 0.25, 9.6, 'z-');
     /* floor shard — the easy one */
     new Fragment(L, 4, 1.0, 5, {});
-    /* THE blue arch */
-    LArch(L, 'blue', 0, 0, -2, 'z-');
+    /* THE blue arch — v7: a holographic beacon dissolves once you use it */
+    const blueArch=LArch(L, 'blue', 0, 0, -2, 'z-');
+    addGuideBeacon(L, blueArch, ARCH_HEX.blue);
     LText(L, 0, 0.02, 5.6, ['BLUE TURNS THE ROOM SIDEWAYS'], {normal:'y+', up:'z-', w:5.4, h:0.9, size:38, color:ARCH_COLORS.blue, glowColor:ARCH_COLORS.blue});
     LText(L, 0, 0.02, -5.6, ['WALK THROUGH — FALL ONTO THE WALL'], {normal:'y+', up:'z-', w:6.4, h:0.8, size:32, color:'#7d8ba0'});
     /* wall A running board + shards (the whole wall is walkable) */
@@ -5244,7 +5502,7 @@ LEVELS.push({
   objective:'Yellow flips the room over — red leans it the other way',
   hud:'fragments',
   ambient:66,
-  stars:1,
+  stars:2,
   pars:[60,95,150],
   accent:'#e8c15a',
   tut:{ title:'LESSON III — YELLOW & RED',
@@ -5260,10 +5518,10 @@ LEVELS.push({
     L.spawn={pos:V(0, 1.2, 11.5), yaw:0};
     L.respawn={pos:V(0, 1.2, 11.5), yaw:0};
     LArch(L, 'green', 0, 0.25, 10.6, 'z-');
-    /* floor shard + the two teaching arches on the floor */
+    /* floor shard + the two teaching arches on the floor — v7 beacons */
     new Fragment(L, 5, 1.0, 7, {});
-    LArch(L, 'yellow', 0, 0, -3, 'z-');
-    LArch(L, 'red', -7, 0, 4, 'z+');
+    addGuideBeacon(L, LArch(L, 'yellow', 0, 0, -3, 'z-'), ARCH_HEX.yellow);
+    addGuideBeacon(L, LArch(L, 'red', -7, 0, 4, 'z+'), ARCH_HEX.red);
     LText(L, 0, 0.02, 6, ['YELLOW TURNS THE ROOM UPSIDE-DOWN'], {normal:'y+', up:'z-', w:5.8, h:0.9, size:36, color:ARCH_COLORS.yellow, glowColor:ARCH_COLORS.yellow});
     LText(L, -7, 0.02, 6.8, ['RED LEANS THE OTHER WALL — BEHIND YOU'], {normal:'y+', up:'z-', w:5.6, h:0.8, size:28, color:ARCH_COLORS.red, glowColor:ARCH_COLORS.red});
     /* the ceiling garden — pads to stand on while inverted */
@@ -5346,7 +5604,7 @@ LEVELS.push({
   pars:[70,110,170],
   accent:'#54e08a',
   tut:{ title:'LESSON IV — THE ANCHOR',
-    steps:['CROSS THE TALL GREEN GATE','TAKE THE WALL SHARDS','HOP THE VOID STONES','REACH THE GATE'] },
+    steps:['CROSS THE TALL GREEN GATE','CHAIN ARCHES — REACH ×3','TAKE THE WALL SHARDS','HOP THE VOID STONES','REACH THE GATE'] },
   palette:{ trim:0x54e08a, plat:0x5f7a68,
     checkerA:'#8caa98', checkerB:'#5a7864', panel:'#6a8a78', panelLine:'#84a490',
     floorRepX:8, floorRepY:8, wallRepX:5,
@@ -5362,8 +5620,10 @@ LEVELS.push({
     /* THE tall green gate — any plane becomes floor through it */
     const tall=LArch(L, 'green', 0, 0.02, 8.6, 'z-', 'floor', {tall:true});
     L.vars.tallGate=tall;
+    addGuideBeacon(L, tall, ARCH_HEX.green);
     LText(L, 0, 0.02, 10.2, ['THE TALL GATE CATCHES EVERY PLANE'], {normal:'y+', up:'z-', w:6.0, h:0.8, size:32, color:ARCH_COLORS.green, glowColor:ARCH_COLORS.green});
     LText(L, 0, 0.02, 7.4, ['STEP STONES OVER THE VOID'], {normal:'y+', up:'z-', w:5.2, h:0.8, size:34, color:'#7d8ba0'});
+    LText(L, -6.5, 0.02, 5.2, ['EVERY ARCH CHAINS THE PARADOX — 12s TO KEEP IT ALIVE'], {normal:'y+', up:'z-', w:6.4, h:0.7, size:26, color:'#ff9ee0', glowColor:'#ff9ee0'});
     LText(L, 0, 8.2, 0, ['THE VOID FORGIVES — GREEN ANCHORS YOU'], {normal:'y-', up:'z-', w:7.4, h:1.0, size:36, color:'#54e08a', upsideDown:true});
     /* void hop stones + island shard */
     LPlatform(L, 0, 0.9, 4.5, 2.2, 2.2, {mat:'platform'});
@@ -5391,11 +5651,11 @@ LEVELS.push({
     LBox(L, 0, 3.8, -12.4, 4.4, 0.5, 0.6, 'wall', {tag:'gatetop'});
     LText(L, 0, 2.5, -12.0, ['THE GATE'], {normal:'z+', up:'y+', w:2.2, h:0.6, size:42, color:'#7d8ba0'});
     const exit=new ExitVolume(L, 0, 2.0, -12.4, 2.4, 3.0, 1.4, {locked:true, color:0x54e08a,
-      onEnter:()=>{ tutDone(3); levelComplete(); }});
+      onEnter:()=>{ tutDone(4); levelComplete(); }});
     L.vars.status='SHARDS 0 / 3';
     L.onFragment=(f, got)=>{
       L.vars.status=`SHARDS ${got} / 3`;
-      if(f.pos.y>10 && f.pos.x===0 && Math.abs(f.pos.z+0.8)<0.1) tutDone(2);   /* the island stone */
+      if(f.pos.y>10 && f.pos.x===0 && Math.abs(f.pos.z+0.8)<0.1) tutDone(3);   /* the island stone */
       if(got>=3){
         exit.setLocked(false);
         SND.doorOpen();
@@ -5405,8 +5665,12 @@ LEVELS.push({
     /* live coaching */
     L.updaters.push(()=>{
       if(player.pos.z<7.6 && gKey(player.gravityDir)==='0,-1,0' && player.grounded) tutDone(0);
+      /* v7: the paradox chain is taught HERE — three linked flips is natural
+         on this room's route (tall gate -> blue -> yellow) and the checklist
+         proves the player understands the multiplier before the Escape act */
+      if(FLOW.peak>=3) tutDone(1);
       const wallShards=L.fragments.filter(f=>f.collected && Math.abs(f.pos.z)>10).length;
-      if(wallShards>=2) tutDone(1);
+      if(wallShards>=2) tutDone(2);
     });
   },
   qa(ctx){
@@ -5448,7 +5712,7 @@ LEVELS.push({
   pars:[75,115,180],
   accent:'#39d5c8',
   tut:{ title:'THE EXAMINATION',
-    steps:['CHAIN THE FOUR ARCHES','TAKE THE 3 FRAGMENTS','AWAKEN THE HATCH','ASCEND AND ESCAPE'] },
+    steps:['CHAIN ARCH PASSES — LINK THREE','TAKE THE 3 FRAGMENTS','AWAKEN THE HATCH','ASCEND AND ESCAPE'] },
   palette:{ trim:0x39d5c8, plat:0x5a6478,
     checkerA:'#8c94a8', checkerB:'#5a6278', panel:'#6a7488', panelLine:'#8a94ac',
     floorRepX:8, floorRepY:8, wallRepX:5,
@@ -5508,7 +5772,7 @@ LEVELS.push({
       }
     };
     L.vars.status='FRAGMENTS 0 / 3';
-    L.updaters.push(()=>{ if((L.vars.archCount||0)>0) tutDone(0); });
+    L.updaters.push(()=>{ if((L.vars.archCount||0)>=3) tutDone(0); });
   },
   qa(ctx){
     /* collect each fragment by teleporting into range, then verify the hatch
@@ -5655,7 +5919,7 @@ LEVELS.push({
   objective:'Seat a gravity cube on each anchor — the vault will yield',
   hud:'plates',
   ambient:49,
-  stars:2,
+  stars:3,
   pars:[90,140,230],
   accent:'#e0a54d',
   palette:{ trim:0xe0a54d, plat:0x8a7658,
@@ -6846,7 +7110,7 @@ const _l8box={min:V(),max:V()};
 /* ============================================================
    19d. CHEAT CONSOLE — press ` (Backquote) or the ⌁ touch button.
    Commands: help, god, noclip, speed, jump, gravity, level, win,
-   frags, tp, timescale, bright, reset.  Konami code supported.
+   daily, frags, tp, timescale, bright, reset.  Konami code supported.
    ============================================================ */
 const CHEATS={ god:false, noclip:false, speed:1, jump:1, bright:0,
   barOpen:false, any:false };
@@ -6877,6 +7141,7 @@ const CHEAT_CMDS={
       ['gravity <p>','floor | ceil | wallA | wallB'],
       ['level <n>','warp to chamber 1 – '+LEVELS.length+' (vaults generate on demand)'],
       ['win','complete the current chamber'],
+      ['daily','warp to today\'s Daily Vault'],
       ['frags','collect every fragment / core in the chamber'],
       ['tp <x y z>','teleport to coordinates'],
       ['timescale <n>','slow-motion / fast-forward (0.2 – 3)'],
@@ -6921,6 +7186,7 @@ const CHEAT_CMDS={
     if(n>LEVELS.length) return 'usage: level 1–'+LEVELS.length;
     const i=n-1;
     SAVE.unlocked=Math.max(SAVE.unlocked, i+1); persist();
+    DOM.menu.classList.add('hidden');            /* v7: warping from the menu must leave the menu */
     hideScreen(DOM.victory); hideScreen(DOM.failed); hideScreen(DOM.pause);
     DOM.vignette.style.opacity=0;
     startLevel(i, {silent:true});
@@ -6932,6 +7198,16 @@ const CHEAT_CMDS={
     if(GAME.state!=='playing') return 'not playing';
     levelComplete();
     return 'chamber complete';
+  },
+  daily(){
+    const idx=dailyIndex();
+    DOM.menu.classList.add('hidden');            /* v7: warping from the menu must leave the menu */
+    hideScreen(DOM.victory); hideScreen(DOM.failed); hideScreen(DOM.pause);
+    DOM.vignette.style.opacity=0;
+    startLevel(idx, {silent:true});
+    GAME.state='playing';
+    DOM.hud.classList.add('on');
+    return 'warped to THE DAILY VAULT — seed '+dailyToday();
   },
   frags(){
     const L=GAME.level; if(!L) return 'no level';
@@ -6958,16 +7234,18 @@ const CHEAT_CMDS={
   },
   resetbest(){
     SAVE.best={}; SAVE.campaignBest=null; SAVE.score=0; SAVE.levelScore={};
-    SAVE.ranks={}; SAVE.bestDepth=0; persist();
+    SAVE.ranks={}; SAVE.bestDepth=0; SAVE.daily=null; persist();
     return 'records, scores and ranks wiped — clean slate, speedrunner';
   },
   stats(){
     const ranks=Object.keys(SAVE.ranks);
     const s=(SAVE.ranks||{});
     const tally=ranks.reduce((m,r)=>{ m[s[r]]=(m[s[r]]||0)+1; return m; },{});
+    const dl=SAVE.daily;
     return 'LIFETIME '+fmtScore(SAVE.score||0)+' PTS · RANKS '
       +['S','A','B','C'].map(r=>(tally[r]||0)+r).join(' ')
-      +(SAVE.bestDepth>15?' · DEPTH '+(SAVE.bestDepth-15):'');
+      +(SAVE.bestDepth>15?' · DEPTH '+(SAVE.bestDepth-15):'')
+      +(dl&&dl.date===dailyToday()&&dl.best!==null?' · DAILY '+fmtRace(dl.best):'');
   },
   reset(){
     CHEATS.god=false; CHEATS.noclip=false; CHEATS.speed=1; CHEATS.jump=1;
@@ -7124,6 +7402,22 @@ function procLevel(seed, name, sub, palette, ambient, depth=1){
           extra++;
         }
       }
+      /* v7 vault twists — new machines for the deep floors:
+         PULSAR (depth 2+): breathes in the room's heart — its glow swells
+           before its danger does, so the rhythm is readable and fair
+         DRIFT KERBS (depth 2+): footholds that oscillate through the safe
+           lanes between platform cells, and carry you with them
+         ORBITAL (depth 4+): a pillar circling the vault's waist */
+      if(depth>=2){
+        new Sweeper(L, {x:0, y:1.45, z:0, axis:'x', amp:0,
+          speed:0.82+d*0.035, phase:1.1, h:2.0, d:2.0, w:2.0, deadly:true, pulse:true});
+        new DriftKerb(L, 4.7, 0.45, 6.7, 1.9, 1.9, 'z', 3.7, 0.34+d*0.012, {phase:0.7});
+        new DriftKerb(L, 6.7, 0.45, -4.7, 1.9, 1.9, 'x', 3.4, 0.30+d*0.012, {phase:2.4});
+      }
+      if(depth>=4){
+        new Sweeper(L, {x:0, y:7, z:0, axis:'x', amp:7.6, axis2:'z', amp2:7.6,
+          speed:0.4+d*0.015, phase:0.6, h:2.2, d:1.3, w:1.3, deadly:true, orbit:true});
+      }
       /* sentinels stalk the deep vaults (depth 3+) — never near spawn */
       if(depth>=3){
         new Sweeper(L, {x:0, y:1.5, z:-6, axis:'x', amp:6,
@@ -7131,10 +7425,25 @@ function procLevel(seed, name, sub, palette, ambient, depth=1){
         new Sweeper(L, {x:0, y:7, z:0, axis:'z', amp:5,
           speed:0.44+d*0.02, phase:2.4, h:6.0, d:8, deadly:true});
       }
+      /* v7 fix: vault sentinels used to be toothless (no onHazard wired) —
+         now a hit means a soft fail: respawn at the green arch, sigils kept */
+      L.vars.hazCd=0;
+      L.onHazard=(type)=>{
+        if(L.vars.hazCd>0) return;
+        L.vars.hazCd=1.6;
+        SND.detect();
+        failLevel('Detected','RETURNING TO THE GREEN ARCH — SIGILS RETAINED',{soft:true});
+      };
+      L.updaters.push((dt)=>{ L.vars.hazCd=Math.max(0,L.vars.hazCd-dt); });
       /* four fragments across four distinct planes */
       const planeKeys=['FLOOR','CEIL','WALLA','WALLB'];
       for(const key of planeKeys){
-        const list=platforms[key].length?platforms[key]:[{x:0,y:key==='CEIL'?13.55:0.45,z:key==='WALLA'?-14.55:(key==='WALLB'?14.55:0)}];
+        /* fallbacks must sit OUTSIDE the pulsar's heart — the floor fallback
+           rides the spawn platform's edge so it is always collectable */
+        const list=platforms[key].length?platforms[key]:[
+          key==='FLOOR'?{x:0,y:0.45,z:9.5}
+          :key==='CEIL'?{x:0,y:13.55,z:0}
+          :{x:0,y:0.45,z:key==='WALLA'?-14.55:14.55}];
         const p=list[Math.floor(rng()*list.length)];
         const off=0.55;
         const fp = key==='FLOOR' ? V(p.x, p.y+off, p.z)
@@ -7220,8 +7529,8 @@ const DEEP_PALETTES=[
     glassTint:0xc8ffd8, glassOpacity:0.24, frame:0x2e4a38 }
 ];
 function makeDeepLevel(depth){
-  const name=DEEP_NAMES[(depth-3+DEEP_NAMES.length)%DEEP_NAMES.length];
-  const pal=DEEP_PALETTES[(depth-3)%DEEP_PALETTES.length];
+  const name=DEEP_NAMES[((depth-3)%DEEP_NAMES.length+DEEP_NAMES.length)%DEEP_NAMES.length];
+  const pal=DEEP_PALETTES[((depth-3)%DEEP_PALETTES.length+DEEP_PALETTES.length)%DEEP_PALETTES.length];
   const seed=7919*depth+104729;
   return procLevel(seed, name, 'Collect 4 sigils — vault depth '+depth, pal,
     44+((depth*7)%22), depth);
@@ -7232,6 +7541,58 @@ function ensureLevelsUpTo(n, force){
     const depth=LEVELS.length-14;       /* index 15 -> depth 1 */
     LEVELS.push(makeDeepLevel(depth));
   }
+}
+
+/* ============================================================
+   20b. THE DAILY VAULT (v7) — seed of the day
+   ------------------------------------------------------------
+   One generated vault per calendar day: same seed for every player
+   in the world, a fresh room tomorrow. Keeps its own record in SAVE.
+   ============================================================ */
+function dailyToday(){
+  const d=new Date();
+  return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();
+}
+const DAILY_PALETTES=[
+  { trim:0xff9ee0, plat:0x8a6a84, checkerA:'#a8849c', checkerB:'#7c5c74', panel:'#946e88',
+    panelLine:'#b48ea4', floorRepX:7, floorRepY:7, wallRepX:5,
+    glassTint:0xffd0f0, glassOpacity:0.24, frame:0x4a3244 },
+  { trim:0x39d5c8, plat:0x5a7a88, checkerA:'#84b0bc', checkerB:'#547884', panel:'#6a8a98',
+    panelLine:'#8cb0c4', floorRepX:7, floorRepY:7, wallRepX:5,
+    glassTint:0xc8f4ff, glassOpacity:0.24, frame:0x2e4248 },
+  { trim:0xe8c15a, plat:0x8a8062, checkerA:'#a89c7c', checkerB:'#7a7052', panel:'#968a6c',
+    panelLine:'#b0a480', floorRepX:7, floorRepY:7, wallRepX:5,
+    glassTint:0xfff0c0, glassOpacity:0.24, frame:0x584c34 },
+  { trim:0x54e08a, plat:0x5f7a68, checkerA:'#8caa98', checkerB:'#5a7864', panel:'#6a8a78',
+    panelLine:'#84a490', floorRepX:7, floorRepY:7, wallRepX:5,
+    glassTint:0xd0ffd8, glassOpacity:0.24, frame:0x34483c }
+];
+const MONTHS=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+function buildDailyDef(){
+  const today=dailyToday();
+  const pal=DAILY_PALETTES[today%DAILY_PALETTES.length];
+  const def=procLevel(today, 'The Daily Vault',
+    'Seed of the day — collect 4 sigils before the room resets',
+    pal, 50+(today%17), 3);
+  def.daily=true; def.dailyStamp=today; def.accent='#ff9ee0';
+  return def;
+}
+function dailyIndex(){
+  const today=dailyToday();
+  let idx=LEVELS.findIndex(l=>l&&l.daily);
+  if(idx>=0 && LEVELS[idx].dailyStamp!==today){
+    LEVELS.splice(idx,1); idx=-1;       /* yesterday's seed expired */
+  }
+  if(idx<0){
+    ensureLevelsUpTo(CAMPAIGN_N+1);     /* keep the named vaults in place first */
+    LEVELS.push(buildDailyDef());
+    idx=LEVELS.length-1;
+  }
+  return idx;
+}
+function enterDaily(){
+  SND.init(); SND.uiClick();
+  enterGame(dailyIndex());
 }
 
 /* ============================================================
@@ -7311,7 +7672,7 @@ function setupMenu(){
         +(rk?`<span class="rk rk-${rk.toLowerCase()}">${rk}</span>`:'')
         +`<div class="t">${locked?'':lv.name}</div>`
         +`<div class="lvl-meta">${lv.stars?`<span class="stars">${'★'.repeat(lv.stars)}</span>`:''}`
-        +(best!==undefined?`<span class="best">${fmtTime(best)}</span>`:'')
+        +(best!==undefined?`<span class="best">${fmtRace(best)}</span>`:'')
         +(md?`<span style="color:${mdCol}">●</span>`:'')+`</div>`;
       if(!locked) el.onclick=()=>{
         SND.init(); SND.uiClick();
@@ -7327,9 +7688,10 @@ function setupMenu(){
       section('THE ESCAPE — <b>TEN IMPOSSIBLE MACHINES</b>', 'gold');
       for(let i=5;i<Math.min(CAMPAIGN_N,LEVELS.length);i++) tile(LEVELS[i], i);
     }
-    /* THE VAULTS — endless depth */
+    /* THE VAULTS — endless depth (v7: brag with your best floor) */
     if(LEVELS.length>CAMPAIGN_N){
-      section('THE VAULTS — <b>ENDLESS DEPTH</b>');
+      const bf=(SAVE.bestDepth>CAMPAIGN_N)?(' · BEST FLOOR '+(ROMAN[SAVE.bestDepth-1]||('#'+SAVE.bestDepth))):'';
+      section('THE VAULTS — <b>ENDLESS DEPTH</b>'+bf);
       for(let i=CAMPAIGN_N;i<LEVELS.length;i++) tile(LEVELS[i], i);
     }
     /* lifetime line — the number that only goes up */
@@ -7343,6 +7705,17 @@ function setupMenu(){
     }
   };
   rebuild();
+  /* v7: the Daily Vault — seed of the day, its own record, fresh tomorrow */
+  const dailyBtn=$('btn-daily');
+  const syncDaily=()=>{
+    const today=dailyToday();
+    const d=SAVE.daily;
+    const dt=new Date();
+    dailyBtn.textContent='DAILY VAULT · '+MONTHS[dt.getMonth()]+' '+dt.getDate()
+      +(d&&d.date===today&&d.best!==null?' · BEST '+fmtRace(d.best):(d&&d.date===today?' · PLAYED':''));
+  };
+  syncDaily();                                /* toMenu re-runs setupMenu, so the label stays fresh */
+  dailyBtn.onclick=()=>enterDaily();
   $('btn-start').onclick=()=>{
     SND.init(); SND.uiClick();
     enterGame(Math.min(SAVE.unlocked, LEVELS.length)-1);
@@ -8106,6 +8479,89 @@ function qaRun(){
     return true;
   }), 'guide.wired');
 
+  /* 28 — v7 chain shield + decay warning */
+  log(guard(()=>{
+    startLevel(0,{silent:true});
+    GAME.state='playing'; player.frozen=false; player.archCd=0;
+    player.pos.set(0,1.2,3); player.vel.set(0,0,0);
+    flowReset();
+    player.applyArch('blue'); player.update(1.2); player.archCd=0;
+    player.applyArch('red');  player.update(1.2);
+    if(FLOW.chain!==2) return 'precondition: chain should be 2 (got '+FLOW.chain+')';
+    FLOW.t=1.2; flowUpdate(0.05);
+    if(!DOM.chain.classList.contains('warn')) return 'warn class missing below 3.4s';
+    flowUpdate(3.0);
+    if(FLOW.chain===2) return 'chain survived past its window without a shield';
+    /* rebuild the chain, then shield it with a shard */
+    flowReset(); player.archCd=0;
+    player.applyArch('blue'); player.update(1.2); player.archCd=0;
+    player.applyArch('red');  player.update(1.2);
+    if(FLOW.chain!==2) return 'precondition 2 failed (got '+FLOW.chain+')';
+    FLOW.t=0.4;
+    GAME.level.fragments[0].collect();
+    if(FLOW.shield<=0) return 'shard did not shield the chain';
+    if(!DOM.chain.classList.contains('shielded')) return 'shielded class missing';
+    flowUpdate(1.0);
+    if(FLOW.chain!==2) return 'chain died while shielded';
+    flowUpdate(3.0);
+    if(FLOW.chain!==0) return 'chain did not decay after shield lapsed (got '+FLOW.chain+')';
+    flowReset();
+    return true;
+  }), 'flow.shield');
+
+  /* 29 — v7 vault twists: pulsar breathes, orbital circles, kerbs drift */
+  log(guard(()=>{
+    const n0=LEVELS.length;
+    const i3=LEVELS.push(makeDeepLevel(3))-1;
+    startLevel(i3,{silent:true}); GAME.state='playing';
+    const L3g=GAME.level;
+    const pulsar=L3g.sweepers.find(s=>s.pulse);
+    if(!pulsar) return 'depth-3 vault missing a pulsar';
+    if(Math.abs(pulsar.pulseFactor(0)-pulsar.pulseFactor(1.2))<0.05) return 'pulsar does not breathe';
+    if(!L3g.movers.some(m=>m instanceof DriftKerb)) return 'depth-3 vault missing drift kerbs';
+    /* the pulsar must never own a fragment lane */
+    for(const f of L3g.fragments){
+      if(f.pos.y<3 && Math.abs(f.pos.x)<2.5 && Math.abs(f.pos.z)<2.5)
+        return 'fragment parked inside the pulsar\'s heart';
+    }
+    const i4=LEVELS.push(makeDeepLevel(4))-1;
+    startLevel(i4,{silent:true}); GAME.state='playing';
+    const orb=GAME.level.sweepers.find(s=>s.orbit);
+    if(!orb) return 'depth-4 vault missing an orbital';
+    if(orb.center(0).distanceTo(orb.center(1.57))<3) return 'orbital does not circle';
+    const kerb=GAME.level.movers.find(m=>m instanceof DriftKerb);
+    kerb.update(0.016, 0);
+    const z0=kerb.mesh.position.z, x0=kerb.mesh.position.x;
+    kerb.update(0.016, 1.57);
+    if(Math.abs(kerb.mesh.position.z-z0)<0.5 && Math.abs(kerb.mesh.position.x-x0)<0.5)
+      return 'drift kerb does not oscillate';
+    LEVELS.length=n0;                 /* truncate — QA stays deterministic */
+    startLevel(0,{silent:true});
+    return true;
+  }), 'sentinel.twists');
+
+  /* 30 — v7 daily vault: registered, enterable, and record-keeping */
+  log(guard(()=>{
+    const idx=dailyIndex();
+    if(!LEVELS[idx] || !LEVELS[idx].daily) return 'daily vault not registered';
+    if(LEVELS[idx].dailyStamp!==dailyToday()) return 'daily stamp wrong';
+    startLevel(idx,{silent:true}); GAME.state='playing'; player.frozen=false;
+    if(!GAME.level.def.daily) return 'built level is not the daily';
+    GAME.levelTime=42; GAME.deaths=0; GAME.jumps=2;
+    levelComplete();
+    if(!SAVE.daily || SAVE.daily.date!==dailyToday()) return 'daily record not written';
+    if(Math.abs(SAVE.daily.best-42)>0.01) return 'daily best wrong: '+SAVE.daily.best;
+    if(!DOM.vStats.innerHTML.includes('DAILY')) return 'daily row missing on victory';
+    hideScreen(DOM.victory);
+    startLevel(idx,{silent:true}); GAME.state='playing'; player.frozen=false;
+    GAME.levelTime=30; levelComplete();
+    if(Math.abs(SAVE.daily.best-30)>0.01) return 'daily best did not improve';
+    hideScreen(DOM.victory);
+    LEVELS.splice(LEVELS.findIndex(l=>l&&l.daily),1);   /* QA stays deterministic */
+    startLevel(0,{silent:true});
+    return true;
+  }), 'daily.vault');
+
   const pass=results.filter(r=>r.ok).length;
   window.__QA_DONE__={pass, fail:results.length-pass, total:results.length,
     results:results.map(r=>(r.ok?'PASS ':'FAIL ')+r.name+(r.msg?' | '+r.msg:''))};
@@ -8118,7 +8574,7 @@ function qaRun(){
    23. BOOT
    ============================================================ */
 /* companion guide shipped next to this file (opened via the menu button) */
-const HOWTO_VERSION='v6';
+const HOWTO_VERSION='v7';
 function boot(){
   try{
     initRenderer();
