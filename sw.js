@@ -1,11 +1,11 @@
-/* The Impossible Room — service worker (v8)
+/* The Impossible Room — service worker (v9)
    Strategy:
    - Navigations (the game itself): network-first so players always get the
      newest build when online; cache fallback keeps it playable offline.
    - Versioned CDN assets (three.js on unpkg): cache-first, they are immutable.
    - Icons / manifest / guide: cache-first.
    Bump VERSION on every deploy to retire old caches. */
-const VERSION = 'tir-v8';
+const VERSION = 'tir-v9';
 const SHELL = 'tir-shell-v6';
 
 self.addEventListener('install', e => {
