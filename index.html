@@ -1788,6 +1788,7 @@ const WORLD = new THREE.Group();     // per-level content root
 scene = new THREE.Scene();
 scene.add(WORLD);
 camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.08, 400);
+scene.add(camera); // v19: camera must be in scene graph for its child viewmodel (playerBody) to render
 
 function initRenderer(){
   try{
@@ -4152,35 +4153,44 @@ class PlayerBody{
       color: 0x14171f, roughness: 0.88, metalness: 0.0
     });
     this._silMat = silMat; this._bagMat = bagMat;
+    // Helper: mark every mesh so it never gets frustum-culled (body is always
+    // in view by design; culling can drop it on edge frames)
+    const _uncull = m => { m.frustumCulled = false; return m; };
 
     // ---- Legs (visible at bottom of view, swing with bobPhase) ----
+    // Positions tuned for FOV 75: at z=-0.22, visible vertical range is ±0.169,
+    // so y=-0.13 (group) puts the leg-top at screen y≈-0.5 and the shoe bottom
+    // at screen y≈-1.0 — fully visible at the bottom of the screen.
     this.legs = [];
     for(let i=0; i<2; i++){
       const lg = new THREE.Group();
       const thigh = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.05, 0.04, 0.34, 8), silMat);
-      thigh.position.y = -0.18;
+        new THREE.CylinderGeometry(0.045, 0.038, 0.18, 8), silMat);
+      thigh.position.y = -0.09;
       lg.add(thigh);
       const shoe = new THREE.Mesh(
-        new THREE.SphereGeometry(0.06, 10, 7), silMat);
-      shoe.position.set(0, -0.36, 0.04);
+        new THREE.SphereGeometry(0.055, 10, 7), silMat);
+      shoe.position.set(0, -0.20, 0.05);
       shoe.scale.set(1.15, 0.55, 1.55);
       lg.add(shoe);
-      lg.position.set(i===0 ? -0.09 : 0.09, -0.55, -0.28);
+      lg.position.set(i===0 ? -0.07 : 0.07, -0.13, -0.22);
       this.legs.push(lg);
       this.group.add(lg);
     }
 
     // ---- Hood (visible when looking down — smooth silhouette, NO FACE) ----
+    // At default forward look this is off-screen (below). When the player
+    // pitches the camera down ~30°, the hood enters view at screen y≈-0.85.
     const hood = new THREE.Mesh(
-      new THREE.SphereGeometry(0.13, 14, 10), silMat);
-    hood.position.set(0, -0.62, -0.32);
+      new THREE.SphereGeometry(0.12, 14, 10), silMat);
+    hood.position.set(0, -0.35, -0.28);
     hood.scale.set(1.0, 1.1, 1.15);
     this.group.add(hood);
 
     // ---- Mesh bag (LOWER-LEFT of view, slung on left shoulder) ----
+    // At z=-0.35, y=-0.15: screen y ≈ -0.56 (clearly visible lower-left).
     this.bagGroup = new THREE.Group();
-    this.bagGroup.position.set(-0.30, -0.32, -0.42);
+    this.bagGroup.position.set(-0.22, -0.15, -0.35);
     this.bagGroup.rotation.y = 0.35;
     // Strap from shoulder down to bag
     const strap = new THREE.Mesh(
@@ -4230,36 +4240,39 @@ class PlayerBody{
     // ---- Left arm (holds the bag strap, at lower-left of view) ----
     this.leftArm = new THREE.Group();
     const lArm = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.035, 0.035, 0.28, 8), silMat);
-    lArm.position.y = -0.14;
+      new THREE.CylinderGeometry(0.032, 0.032, 0.22, 8), silMat);
+    lArm.position.y = -0.11;
     this.leftArm.add(lArm);
     const lHand = new THREE.Mesh(
-      new THREE.SphereGeometry(0.045, 10, 8), silMat);
-    lHand.position.y = -0.28;
+      new THREE.SphereGeometry(0.042, 10, 8), silMat);
+    lHand.position.y = -0.22;
     this.leftArm.add(lHand);
-    this.leftArm.position.set(-0.22, -0.28, -0.36);
+    this.leftArm.position.set(-0.16, -0.12, -0.30);
     this.leftArm.rotation.z = 0.55;
     this.group.add(this.leftArm);
 
     // ---- Right arm (reaches forward on pickup, lower-right of view) ----
     this.rightArm = new THREE.Group();
     const rArm = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.035, 0.035, 0.30, 8), silMat);
-    rArm.position.y = -0.15;
+      new THREE.CylinderGeometry(0.042, 0.038, 0.24, 10), silMat);
+    rArm.position.y = -0.12;
     this.rightArm.add(rArm);
     const rHand = new THREE.Mesh(
-      new THREE.SphereGeometry(0.048, 10, 8), silMat);
-      rHand.position.y = -0.30;
-      this.rightArm.add(rHand);
-      this.rightArm.position.set(0.24, -0.30, -0.38);
-      this.rightArm.rotation.z = -0.45;
-      this.group.add(this.rightArm);
+      new THREE.SphereGeometry(0.055, 12, 10), silMat);
+    rHand.position.y = -0.24;
+    this.rightArm.add(rHand);
+    this.rightArm.position.set(0.16, -0.12, -0.28);
+    this.rightArm.rotation.z = -0.45;
+    this.group.add(this.rightArm);
 
       // Animation state
       this.reachT = 0;            // 0 = rest, 1 = full reach forward
       this.reachHold = 0;         // brief pause at peak reach
       this.bagCount = 0;
       this.time = 0;
+    // Safety: disable frustum culling on every descendant mesh (body is
+    // always in view by design — culling can drop it on edge frames)
+    this.group.traverse(o => { if(o.isMesh) o.frustumCulled = false; });
     }
 
     /* Called every frame from updateGame after player.update */
