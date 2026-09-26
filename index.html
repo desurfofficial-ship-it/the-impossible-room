@@ -820,7 +820,7 @@ body.touch .hud-br{font-size:11px}
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V17</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V18</span>
   <div class="menu-plate">
     <div class="kicker">AN ESCHER GRAVITY PUZZLE</div>
     <h1>The Impossible Room</h1>
@@ -8218,15 +8218,24 @@ function setupMenu(){
   $('btn-guide').onclick=()=>{ SND.uiClick(); window.open('HOW-TO-PLAY.html','_blank','noopener'); };
   $('btn-settings-back').onclick=()=>{ SND.uiClick(); $('settings').classList.add('hidden'); };
 
-  /* v15: Esc closes open menu modals */
-  addEventListener('keydown', e=>{
-    if(e.code!=='Escape') return;
-    if(!$('menu') || $('menu').classList.contains('hidden')) return;
+  /* v15/v18: Esc or backdrop closes open menu modals */
+  const closeMenuModals=()=>{
     let closed=false;
     ['levels','settings','help'].forEach(id=>{
       const el=$(id); if(el && !el.classList.contains('hidden')){ el.classList.add('hidden'); closed=true; }
     });
-    if(closed){ e.preventDefault(); SND.uiClick&&SND.uiClick(); }
+    return closed;
+  };
+  addEventListener('keydown', e=>{
+    if(e.code!=='Escape') return;
+    if(!$('menu') || $('menu').classList.contains('hidden')) return;
+    if(closeMenuModals()){ e.preventDefault(); SND.uiClick&&SND.uiClick(); }
+  });
+  ['levels','settings','help'].forEach(id=>{
+    const el=$(id); if(!el) return;
+    el.addEventListener('click', e=>{
+      if(e.target===el){ el.classList.add('hidden'); SND.uiClick&&SND.uiClick(); }
+    });
   });
 
   /* settings */
