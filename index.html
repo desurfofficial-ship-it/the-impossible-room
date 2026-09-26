@@ -26,7 +26,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!--
   ============================================================================
-  THE IMPOSSIBLE ROOM — production build (v10 "Ship ready")
+  THE IMPOSSIBLE ROOM — production build (v11 "Access + presence")
   ----------------------------------------------------------------------------
   Single-file, self-contained WebGL game (Three.js r170 via UNPKG CDN).
   Engine highlights:
@@ -126,6 +126,16 @@ button:disabled{opacity:.32;cursor:not-allowed;transform:none;box-shadow:none}
   border:1px solid var(--line);background:rgba(10,14,22,.55);backdrop-filter:blur(6px)}
 .arch-chip i{width:10px;height:10px;border-radius:50%;display:inline-block;
   box-shadow:0 0 12px 2px currentColor}
+/* v11 colorblind-safe markers: shape + color */
+.arch-chip i.shape-blue{border-radius:50%}
+.arch-chip i.shape-red{border-radius:2px}
+.arch-chip i.shape-yellow{
+  width:0;height:0;border-radius:0;background:transparent!important;
+  border-left:6px solid transparent;border-right:6px solid transparent;
+  border-bottom:11px solid currentColor;box-shadow:none}
+.arch-chip i.shape-green{
+  width:9px;height:9px;border-radius:1px;transform:rotate(45deg);
+  box-shadow:0 0 10px 1px currentColor}
 #menu .foot{position:absolute;bottom:26px;font-family:var(--mono);font-size:11px;
   color:var(--ink-faint);letter-spacing:.2em}
 #menu .menu-version{position:absolute;top:22px;right:26px;font-family:var(--mono);
@@ -611,14 +621,14 @@ body.touch #chain-bar{width:64px}
 
 <!-- ===================== MAIN MENU ===================== -->
 <div id="menu" class="screen">
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V10</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V11</span>
   <div class="kicker">AN ESCHER GRAVITY PUZZLE</div>
   <h1>The Impossible Room<span class="narrow">FIFTEEN CHAMBERS · FOUR GRAVITIES · ONE EXIT</span></h1>
   <div class="arch-legend">
-    <span class="arch-chip" style="color:#4da3ff"><i style="color:#4da3ff"></i>BLUE&nbsp;→&nbsp;WALL A</span>
-    <span class="arch-chip" style="color:#ff5468"><i style="color:#ff5468"></i>RED&nbsp;→&nbsp;WALL B</span>
-    <span class="arch-chip" style="color:#e8c15a"><i style="color:#e8c15a"></i>YELLOW&nbsp;→&nbsp;CEILING</span>
-    <span class="arch-chip" style="color:#54e08a"><i style="color:#54e08a"></i>GREEN&nbsp;→&nbsp;FLOOR</span>
+    <span class="arch-chip" style="color:#4da3ff"><i class="shape-blue" style="background:#4da3ff;color:#4da3ff"></i>BLUE&nbsp;→&nbsp;WALL A</span>
+    <span class="arch-chip" style="color:#ff5468"><i class="shape-red" style="background:#ff5468;color:#ff5468"></i>RED&nbsp;→&nbsp;WALL B</span>
+    <span class="arch-chip" style="color:#e8c15a"><i class="shape-yellow" style="color:#e8c15a"></i>YELLOW&nbsp;→&nbsp;CEILING</span>
+    <span class="arch-chip" style="color:#54e08a"><i class="shape-green" style="background:#54e08a;color:#54e08a"></i>GREEN&nbsp;→&nbsp;FLOOR</span>
   </div>
   <div class="tag">Five Academy chambers teach you the room — walk, jump, and bend gravity
     through the colored arches. Then escape ten impossible machines, and the endless
@@ -654,6 +664,7 @@ body.touch #chain-bar{width:64px}
     <div class="set-row"><label>Bloom lighting</label><div class="switch on" id="set-bloom"></div><span></span></div>
     <div class="set-row"><label>Soft shadows</label><div class="switch on" id="set-shadow"></div><span></span></div>
     <div class="set-row"><label>FPS counter</label><div class="switch" id="set-fps"></div><span></span></div>
+    <div class="set-row"><label>Reduce motion</label><div class="switch" id="set-motion"></div><span></span></div>
     <div class="set-row"><label>Speedrun timer</label><div class="switch on" id="set-srt"></div><span></span></div>
     <div class="set-row hidden touch-only" id="row-hap"><label>Vibration</label><div class="switch on" id="set-hap"></div><span></span></div>
     <div class="set-row hidden" id="row-fs"><label>Fullscreen</label><div class="switch" id="set-fs"></div><span></span></div>
@@ -690,7 +701,8 @@ body.touch #chain-bar{width:64px}
       <span><b style="color:#4da3ff">BLUE</b> rotates gravity +90° — you fall onto <b>Wall A</b>.
       <b style="color:#ff5468">RED</b> rotates −90° — <b>Wall B</b>.
       <b style="color:#e8c15a">YELLOW</b> inverts it — the <b>ceiling</b> becomes your floor.
-      <b style="color:#54e08a">GREEN</b> resets to the room floor.</span>
+      <b style="color:#54e08a">GREEN</b> resets to the room floor.
+      Shape key (colorblind-safe): blue ● · red ■ · yellow ▲ · green ◆.</span>
       <span>Arches stack: on Wall A, a blue arch sends you to the ceiling. Watch the gravity
       compass, bottom-left. If you fall into the void you awake at the green arch.</span>
     </div>
@@ -957,7 +969,7 @@ const STORE = {
   save(d){ try{ localStorage.setItem('tir_save', JSON.stringify(d)); }catch(e){} }
 };
 const SAVE = Object.assign({ unlocked:1, best:{}, campaignBest:null,
-  vol:0.7, sens:1.0, invertY:false, bloom:true, shadows:true, fps:false,
+  vol:0.7, sens:1.0, invertY:false, bloom:true, shadows:true, fps:false, reduceMotion:false,
   sfxVol:1.0, ambVol:0.9, speedrun:true, haptics:true,
   score:0, levelScore:{}, ranks:{}, bestDepth:0, flowHintSeen:false,
   daily:null, chainHintSeen:false }, STORE.load());
@@ -3149,8 +3161,10 @@ const player=new Player();
 
 /* camera shake helper */
 let shakeT=0, shakeAmp=0;
-const REDUCE_MOTION = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
-function shake(a){ if(REDUCE_MOTION) return; shakeAmp=Math.max(shakeAmp,a); shakeT=0.35; }
+function wantsReducedMotion(){
+  return !!(SAVE.reduceMotion || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches));
+}
+function shake(a){ if(wantsReducedMotion()) return; shakeAmp=Math.max(shakeAmp,a); shakeT=0.35; }
 function applyShake(dt){
   if(shakeAmp<=0.001){ DOM.shake.style.opacity=0; return; }
   shakeT-=dt; if(shakeT<=0){ shakeAmp=0; DOM.shake.style.opacity=0; return; }
@@ -7766,6 +7780,18 @@ function loop(){
 
 /* ---------------- menu wiring ---------------- */
 const CAMPAIGN_N=15;                     /* v6: fifteen hand-built chambers */
+/* v11: duck audio when the tab is hidden so the room doesn't play forever in the background */
+document.addEventListener('visibilitychange', ()=>{
+  if(!SND.ready || !SND.master) return;
+  const hidden = document.hidden;
+  try{
+    const g = SND.master.gain;
+    const t = SND.ctx.currentTime;
+    g.cancelScheduledValues(t);
+    g.setTargetAtTime(hidden ? 0.0001 : (SAVE.vol||0.7), t, hidden ? 0.08 : 0.15);
+  }catch(e){}
+});
+
 function setupMenu(){
   const grid=$('lvl-grid');
   const rebuild=()=>{
@@ -7878,6 +7904,7 @@ function setupMenu(){
   sw('set-bloom','bloom');
   sw('set-shadow','shadows',()=>{ dirLight.castShadow=SAVE.shadows; });
   sw('set-fps','fps');
+  sw('set-motion','reduceMotion');
   sw('set-srt','speedrun');
   sw('set-hap','haptics');
   /* fullscreen (valuable on phones; wired wherever the API exists) */
