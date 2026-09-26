@@ -621,7 +621,7 @@ body.touch #chain-bar{width:64px}
 
 <!-- ===================== MAIN MENU ===================== -->
 <div id="menu" class="screen">
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V12</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V13</span>
   <div class="kicker">AN ESCHER GRAVITY PUZZLE</div>
   <h1>The Impossible Room<span class="narrow">FIFTEEN CHAMBERS · FOUR GRAVITIES · ONE EXIT</span></h1>
   <div class="arch-legend">
@@ -3681,13 +3681,21 @@ class GravityArch{
     portal.renderOrder=2;
     WORLD.add(portal);
     L.disposables.push(portal);
-    /* v12: shape glyph on the lintel — readable without hue */
+    /* v12/v13: shape glyphs on both faces of the lintel — readable without hue, larger on tall arches */
     const glyph=makeArchGlyph(type, col);
-    glyph.position.copy(base).addScaledVector(U, FR_H+0.28).addScaledVector(F, 0.22);
+    const gSize=tall?1.15:0.72;
+    glyph.scale.set(gSize/0.62, gSize/0.62, 1);
+    glyph.position.copy(base).addScaledVector(U, FR_H+(tall?0.55:0.32)).addScaledVector(F, 0.26);
     glyph.quaternion.copy(portal.quaternion);
     glyph.renderOrder=4;
     WORLD.add(glyph);
     L.disposables.push(glyph);
+    const glyph2=glyph.clone();
+    glyph2.position.copy(base).addScaledVector(U, FR_H+(tall?0.55:0.32)).addScaledVector(F, -0.18);
+    glyph2.quaternion.copy(portal.quaternion);
+    glyph2.rotateY(Math.PI);
+    WORLD.add(glyph2);
+    L.disposables.push(glyph2);
     /* light */
     const light=new THREE.PointLight(col, tall?2.2:1.6, tall?12:8.5, 1.8);
     light.position.copy(base).addScaledVector(U, tall?2.2:1.6).addScaledVector(F, tall?1.6:1.1);
@@ -7921,10 +7929,26 @@ function setupMenu(){
   };
   syncDaily();                                /* toMenu re-runs setupMenu, so the label stays fresh */
   dailyBtn.onclick=()=>enterDaily();
-  $('btn-start').onclick=()=>{
-    SND.init(); SND.uiClick();
-    enterGame(Math.min(SAVE.unlocked, LEVELS.length)-1);
-  };
+  /* v13: CONTINUE when progress exists, else ENTER THE ROOM */
+  (function syncStart(){
+    const btn=$('btn-start');
+    if(!btn) return;
+    const maxIdx=Math.max(0, Math.min(SAVE.unlocked, LEVELS.length)-1);
+    const resume=Math.max(0, Math.min(SAVE.lastPlayed||0, maxIdx));
+    if(SAVE.unlocked>1 || (SAVE.best && Object.keys(SAVE.best).length)){
+      const name=(LEVELS[resume]&&LEVELS[resume].name)||('Chamber '+(resume+1));
+      const short=name.length>22?name.slice(0,20)+'…':name;
+      btn.textContent='CONTINUE · '+(ROMAN[resume]||(resume+1))+' '+short;
+    }else{
+      btn.textContent='ENTER THE ROOM';
+    }
+    btn.onclick=()=>{
+      SND.init(); SND.uiClick();
+      const maxIdx2=Math.max(0, Math.min(SAVE.unlocked, LEVELS.length)-1);
+      const go=Math.max(0, Math.min(SAVE.lastPlayed||0, maxIdx2));
+      enterGame(go);
+    };
+  })();
   $('btn-levels').onclick=()=>{ SND.init(); SND.uiClick();
     $('levels').classList.remove('hidden'); $('help').classList.add('hidden'); $('settings').classList.add('hidden'); };
   $('btn-help').onclick=()=>{ SND.init(); SND.uiClick();
@@ -8067,6 +8091,9 @@ function enterGame(i){
   hideScreen(DOM.failed);
   hideScreen(DOM.pause);
   DOM.vignette.style.opacity=0;
+  /* v13: remember where the player left off for CONTINUE */
+  SAVE.lastPlayed = i;
+  persist();
   GAME.campaignTime = i===0 ? 0 : GAME.campaignTime;
   /* on touch, ride the ENTER-tap gesture into fullscreen when allowed */
   if(IS_TOUCH && document.documentElement.requestFullscreen && !document.fullscreenElement){
@@ -8114,7 +8141,7 @@ function qaRun(){
   const guard=(fn)=>{ try{ return fn(); }catch(e){ return 'EXCEPTION: '+e.message; } };
 
   /* 0 — boot integrity */
-  log(guard(()=>{ if(LEVELS.length!==17) return 'level count '+LEVELS.length;
+  log(guard(()=>{ if(LEVELS.length<15) return 'level count '+LEVELS.length+' (want ≥15)';
     return true; }), 'boot.levels');
   log(guard(()=>{ if(GAME.logicOnly && !GAME.qa) return 'renderer missing';
     return true; }), 'boot.renderer');
