@@ -23,16 +23,16 @@ skylight ceilings and clerestory glass, with matching sun, weather and light:
 
 | # | Chamber | Environment |
 |---|---------|-------------|
-| I | The Initiation | **Dawn Atrium** — sunrise gold, drifting dust, god-rays through the hatch |
-| II | The Looping Escape | **Emerald Twilight** — dusk green, fireflies |
-| III | Weight & Gravity | **Sandstone Noon** — bright desert temple, hot sun |
-| IV | The Switchboard | **Polar Lab** — clinical white-blue daylight |
-| V | The Chrono-Void | **Solar Storm** — burnt-orange sky, rising embers |
-| VI | The Silent Inversion | **Midnight Orchid** — moonlit violet night with stars |
-| VII | The Reversed Chasm | **Glacial Depths** — pale ice sky, falling snow, aurora |
-| VIII | The Monument of Escher | **Golden Summit** — golden-hour clouds below the spire |
-| ✦ IX | The Fractal Well | **Biolume Lagoon** — teal grotto glow, caustic shimmer |
-| ✦ X | The Escher Machine | **Nebula Rose** — magenta nebula and drifting sparks |
+| I | The Initiation | **Dawn Meadow** — sunrise gold, birds, butterflies, god-rays through the hatch |
+| II | The Looping Escape | **Emerald Forest** — dusk-green pines, fireflies, crickets |
+| III | Weight & Gravity | **Sandstone Desert** — mesas, sparse trees, hot sun |
+| IV | The Switchboard | **Snowfield Lab** — clinical daylight over a snowy plain |
+| V | The Chrono-Void | **Volcanic Storm** — jagged peaks, embers, rolling thunder |
+| VI | The Silent Inversion | **Midnight Garden** — glowing flora, moths, night crickets |
+| VII | The Reversed Chasm | **Arctic Ice** — icebergs on water, snow, aurora |
+| VIII | The Monument of Escher | **Alpine Summit** — golden peaks and pine forests below |
+| ✦ IX | The Fractal Well | **Ocean Lagoon** — teal water, gulls, caustic shimmer |
+| ✦ X | The Escher Machine | **Cosmic Void** — floating crystals, nebula sparks |
 
 ## The Gravity Arches
 
@@ -76,6 +76,10 @@ Every wall and the ceiling are walkable surfaces — the room is the puzzle.
 |---|---|
 | ![](l7.png) | ![](l8.png) |
 
+| v4: Chamber I alive with grass & birds | v4: the room in its landscape |
+|---|---|
+| ![](l1-v4.png) | ![](outside-v4.png) |
+
 | Chamber X — nebula rose |
 |---|
 | ![](l10.png) |
@@ -113,6 +117,7 @@ Every wall and the ceiling are walkable surfaces — the room is the puzzle.
 | `tp x y z` | teleport |
 | `timescale <n>` | slow-motion / fast-forward (0.2–3) |
 | `bright <n>` | exposure boost (−0.5–1) |
+| `resetbest` | wipe all best times (speedrun reset) |
 | `reset` | clear all cheats |
 
 Cheats never persist to your save, and a `⌁ CHEATS ACTIVE` tag marks the run.
@@ -122,6 +127,11 @@ There is also a **Konami code** (↑ ↑ ↓ ↓ ← → ← → B A)…
 timer; in Chamber VI you keep your cores when a sentinel catches you (only time is lost).
 
 **Mobile / touch** (auto-detected; force with `?touch=1` or `?touch=0`)
+- **Install it:** tap **INSTALL APP** on the menu (or your browser's Add-to-Home-Screen)
+  — fullscreen launch and offline play via the service worker.
+- Haptic feedback on jumps, landings, arch shifts and records (toggle in SETTINGS).
+- Double-tap the look zone (right side) for an instant 180° turn.
+- Speedrun clock, SFX/ambience volume sliders and a vibration toggle live in SETTINGS.
 
 | Touch | Action |
 |-------|--------|
@@ -190,7 +200,30 @@ Fall into the void and you awake at the green arch — nothing is lost but time.
 
 ## Changelog
 
-**v3 — Worlds & Light (this release)**
+**v4 — Wild & Mobile (this release)**
+- **Mobile-first:** installable PWA — manifest + service worker + app icons.
+  Add to your home screen and it launches fullscreen and **plays offline**.
+- **Natural worlds:** every chamber is now embedded in a procedural landscape —
+  instanced forests, rolling terrain, hills/mesas/peaks, rocks, water planes,
+  birds, butterflies, vines and grass through the glazing (meadow, emerald
+  forest, desert, snowfield, volcanic, night garden, arctic, alpine, ocean,
+  cosmic crystals). Zero gameplay colliders added — the puzzles are untouched.
+- **Tuned audio:** master limiter (no clipping when layers stack), separate
+  SFX / melodic / ambient buses with volume sliders, stereo-spatialized arch
+  hums and fragment chimes, and a per-world ambience bed — wind, waves, birds,
+  crickets, gulls, ice creaks, thunder.
+- **Speedrun timer:** centisecond race clock on the HUD with your best time,
+  per-chamber records + deltas + deaths/jumps on the victory report, campaign
+  splits, record fanfare, and **taint detection** — cheated runs are flagged
+  and never touch your records. `resetbest` cheat wipes the slate.
+- **Touch feel:** haptics on jump/land/arch/collect/record, double-tap the look
+  zone for an instant 180° turn, bigger action buttons on compact phones,
+  adaptive quality (steps pixel ratio and bloom down if FPS drops).
+- **Fixed:** level-card overlay stuck on screen when cheat-warping during the
+  intro card; hide/show screen race could leave overlays hidden mid-flow.
+- QA harness extended to **40 self-tests** — 40/40 desktop and 40/40 touch.
+
+**v3 — Worlds & Light**
 - Every chamber gets a distinct themed environment (sky dome, sun/moon, clouds, aurora,
   weather particles, light shafts) — natural moods for most, cosmic for the finale.
 - Glazed architecture: skylight ceilings + clerestory windows; the sky is part of the room.
