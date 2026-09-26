@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Impossible Room — Claim Loop · v19</title>
+<style>
+  /* === Design tokens (locked to The Impossible Room palette) ============= */
+  /* Void → walls → floor; neon accents magenta/green/gold match the game. */
+  :root {
+    --void:        #0a0d1a;
+    --wall-dark:   #1c2434;
+    --wall-mid:    #2a3540;
+    --wall-light:  #3d4a5c;
+    --floor-dark:  #131826;
+    --floor-light: #1f2638;
+    --ink:         #f2eee6;
+    --ink-dim:     #9aa3b5;
+    --silhouette:  #000000;
+    --silhouette-2:#0a0d1a;
+    --magenta:     #ff9ee0;
+    --green:       #54e08a;
+    --gold:        #ffd76a;
+    --blue:        #4da3ff;
+    --red:         #ff5468;
+    --cyan:        #39d5c8;
+    --bag-canvas:  #1a1f2e;
+    --bag-edge:    #3a4252;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    background: var(--void);
+    min-height: 100vh;
+    font-family: 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+    color: var(--ink-dim);
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 28px 20px;
+    gap: 18px;
+  }
+
+  .stage {
+    width: 100%;
+    max-width: 1200px;
+    aspect-ratio: 16 / 9;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    background: var(--void);
+    box-shadow:
+      0 30px 80px rgba(0,0,0,0.7),
+      0 0 0 1px rgba(255,255,255,0.06),
+      inset 0 0 120px rgba(0,0,0,0.5);
+  }
+  .stage svg { display: block; width: 100%; height: 100%; }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 22px;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #4a4a4a;
+  }
+  .meta span { display: inline-flex; align-items: center; gap: 7px; }
+  .meta .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--magenta);
+    box-shadow: 0 0 10px var(--magenta);
+  }
+
+  /* === Keyframes (8s loop, single timeline per element) ================ */
+
+  @keyframes traverse {
+    0%   { transform: translate(-200px, 0); }
+    15%  { transform: translate(200px, 0); }
+    25%  { transform: translate(200px, 0); }
+    40%  { transform: translate(500px, 0); }
+    50%  { transform: translate(500px, 0); }
+    65%  { transform: translate(800px, 0); }
+    75%  { transform: translate(800px, 0); }
+    100% { transform: translate(1400px, 0); }
+  }
+
+  @keyframes leg-front-swing {
+    0%      { transform: rotate(0deg); }
+    1.875%  { transform: rotate(28deg); }
+    3.75%   { transform: rotate(0deg); }
+    5.625%  { transform: rotate(-28deg); }
+    7.5%    { transform: rotate(0deg); }
+    9.375%  { transform: rotate(28deg); }
+    11.25%  { transform: rotate(0deg); }
+    13.125% { transform: rotate(-28deg); }
+    15%     { transform: rotate(0deg); }
+    17.5%   { transform: rotate(-12deg); }
+    22.5%   { transform: rotate(-12deg); }
+    25%     { transform: rotate(0deg); }
+    26.875% { transform: rotate(28deg); }
+    28.75%  { transform: rotate(0deg); }
+    30.625% { transform: rotate(-28deg); }
+    32.5%   { transform: rotate(0deg); }
+    34.375% { transform: rotate(28deg); }
+    36.25%  { transform: rotate(0deg); }
+    38.125% { transform: rotate(-28deg); }
+    40%     { transform: rotate(0deg); }
+    42.5%   { transform: rotate(-12deg); }
+    47.5%   { transform: rotate(-12deg); }
+    50%     { transform: rotate(0deg); }
+    51.875% { transform: rotate(28deg); }
+    53.75%  { transform: rotate(0deg); }
+    55.625% { transform: rotate(-28deg); }
+    57.5%   { transform: rotate(0deg); }
+    59.375% { transform: rotate(28deg); }
+    61.25%  { transform: rotate(0deg); }
+    63.125% { transform: rotate(-28deg); }
+    65%     { transform: rotate(0deg); }
+    67.5%   { transform: rotate(-12deg); }
+    72.5%   { transform: rotate(-12deg); }
+    75%     { transform: rotate(0deg); }
+    76.875% { transform: rotate(28deg); }
+    78.75%  { transform: rotate(0deg); }
+    80.625% { transform: rotate(-28deg); }
+    82.5%   { transform: rotate(0deg); }
+    84.375% { transform: rotate(28deg); }
+    86.25%  { transform: rotate(0deg); }
+    88.125% { transform: rotate(-28deg); }
+    90%     { transform: rotate(0deg); }
+    91.875% { transform: rotate(28deg); }
+    93.75%  { transform: rotate(0deg); }
+    95.625% { transform: rotate(-28deg); }
+    97.5%   { transform: rotate(0deg); }
+    100%    { transform: rotate(0deg); }
+  }
+
+  @keyframes leg-back-swing {
+    0%      { transform: rotate(0deg); }
+    1.875%  { transform: rotate(-28deg); }
+    3.75%   { transform: rotate(0deg); }
+    5.625%  { transform: rotate(28deg); }
+    7.5%    { transform: rotate(0deg); }
+    9.375%  { transform: rotate(-28deg); }
+    11.25%  { transform: rotate(0deg); }
+    13.125% { transform: rotate(28deg); }
+    15%     { transform: rotate(0deg); }
+    17.5%   { transform: rotate(10deg); }
+    22.5%   { transform: rotate(10deg); }
+    25%     { transform: rotate(0deg); }
+    26.875% { transform: rotate(-28deg); }
+    28.75%  { transform: rotate(0deg); }
+    30.625% { transform: rotate(28deg); }
+    32.5%   { transform: rotate(0deg); }
+    34.375% { transform: rotate(-28deg); }
+    36.25%  { transform: rotate(0deg); }
+    38.125% { transform: rotate(28deg); }
+    40%     { transform: rotate(0deg); }
+    42.5%   { transform: rotate(10deg); }
+    47.5%   { transform: rotate(10deg); }
+    50%     { transform: rotate(0deg); }
+    51.875% { transform: rotate(-28deg); }
+    53.75%  { transform: rotate(0deg); }
+    55.625% { transform: rotate(28deg); }
+    57.5%   { transform: rotate(0deg); }
+    59.375% { transform: rotate(-28deg); }
+    61.25%  { transform: rotate(0deg); }
+    63.125% { transform: rotate(28deg); }
+    65%     { transform: rotate(0deg); }
+    67.5%   { transform: rotate(10deg); }
+    72.5%   { transform: rotate(10deg); }
+    75%     { transform: rotate(0deg); }
+    76.875% { transform: rotate(-28deg); }
+    78.75%  { transform: rotate(0deg); }
+    80.625% { transform: rotate(28deg); }
+    82.5%   { transform: rotate(0deg); }
+    84.375% { transform: rotate(-28deg); }
+    86.25%  { transform: rotate(0deg); }
+    88.125% { transform: rotate(28deg); }
+    90%     { transform: rotate(0deg); }
+    91.875% { transform: rotate(-28deg); }
+    93.75%  { transform: rotate(0deg); }
+    95.625% { transform: rotate(28deg); }
+    97.5%   { transform: rotate(0deg); }
+    100%    { transform: rotate(0deg); }
+  }
+
+  @keyframes body-action {
+    0%      { transform: translateY(0) rotate(0deg); }
+    1.875%  { transform: translateY(-3px) rotate(0deg); }
+    3.75%   { transform: translateY(0) rotate(0deg); }
+    5.625%  { transform: translateY(-3px) rotate(0deg); }
+    7.5%    { transform: translateY(0) rotate(0deg); }
+    9.375%  { transform: translateY(-3px) rotate(0deg); }
+    11.25%  { transform: translateY(0) rotate(0deg); }
+    13.125% { transform: translateY(-3px) rotate(0deg); }
+    15%     { transform: translateY(0) rotate(0deg); }
+    17.5%   { transform: translateY(8px) rotate(18deg); }
+    22.5%   { transform: translateY(8px) rotate(18deg); }
+    25%     { transform: translateY(0) rotate(0deg); }
+    26.875% { transform: translateY(-3px) rotate(0deg); }
+    28.75%  { transform: translateY(0) rotate(0deg); }
+    30.625% { transform: translateY(-3px) rotate(0deg); }
+    32.5%   { transform: translateY(0) rotate(0deg); }
+    34.375% { transform: translateY(-3px) rotate(0deg); }
+    36.25%  { transform: translateY(0) rotate(0deg); }
+    38.125% { transform: translateY(-3px) rotate(0deg); }
+    40%     { transform: translateY(0) rotate(0deg); }
+    42.5%   { transform: translateY(8px) rotate(18deg); }
+    47.5%   { transform: translateY(8px) rotate(18deg); }
+    50%     { transform: translateY(0) rotate(0deg); }
+    51.875% { transform: translateY(-3px) rotate(0deg); }
+    53.75%  { transform: translateY(0) rotate(0deg); }
+    55.625% { transform: translateY(-3px) rotate(0deg); }
+    57.5%   { transform: translateY(0) rotate(0deg); }
+    59.375% { transform: translateY(-3px) rotate(0deg); }
+    61.25%  { transform: translateY(0) rotate(0deg); }
+    63.125% { transform: translateY(-3px) rotate(0deg); }
+    65%     { transform: translateY(0) rotate(0deg); }
+    67.5%   { transform: translateY(8px) rotate(18deg); }
+    72.5%   { transform: translateY(8px) rotate(18deg); }
+    75%     { transform: translateY(0) rotate(0deg); }
+    76.875% { transform: translateY(-3px) rotate(0deg); }
+    78.75%  { transform: translateY(0) rotate(0deg); }
+    80.625% { transform: translateY(-3px) rotate(0deg); }
+    82.5%   { transform: translateY(0) rotate(0deg); }
+    84.375% { transform: translateY(-3px) rotate(0deg); }
+    86.25%  { transform: translateY(0) rotate(0deg); }
+    88.125% { transform: translateY(-3px) rotate(0deg); }
+    90%     { transform: translateY(0) rotate(0deg); }
+    91.875% { transform: translateY(-3px) rotate(0deg); }
+    93.75%  { transform: translateY(0) rotate(0deg); }
+    95.625% { transform: translateY(-3px) rotate(0deg); }
+    97.5%   { transform: translateY(0) rotate(0deg); }
+    100%    { transform: translateY(0) rotate(0deg); }
+  }
+
+  @keyframes arm-front-action {
+    0%      { transform: rotate(0deg); }
+    1.875%  { transform: rotate(-26deg); }
+    3.75%   { transform: rotate(0deg); }
+    5.625%  { transform: rotate(26deg); }
+    7.5%    { transform: rotate(0deg); }
+    9.375%  { transform: rotate(-26deg); }
+    11.25%  { transform: rotate(0deg); }
+    13.125% { transform: rotate(26deg); }
+    15%     { transform: rotate(0deg); }
+    17.5%   { transform: rotate(-50deg); }
+    18.5%   { transform: rotate(-50deg); }
+    20%     { transform: rotate(-30deg); }
+    22.5%   { transform: rotate(-10deg); }
+    25%     { transform: rotate(0deg); }
+    26.875% { transform: rotate(-26deg); }
+    28.75%  { transform: rotate(0deg); }
+    30.625% { transform: rotate(26deg); }
+    32.5%   { transform: rotate(0deg); }
+    34.375% { transform: rotate(-26deg); }
+    36.25%  { transform: rotate(0deg); }
+    38.125% { transform: rotate(26deg); }
+    40%     { transform: rotate(0deg); }
+    42.5%   { transform: rotate(-50deg); }
+    43.5%   { transform: rotate(-50deg); }
+    45%     { transform: rotate(-30deg); }
+    47.5%   { transform: rotate(-10deg); }
+    50%     { transform: rotate(0deg); }
+    51.875% { transform: rotate(-26deg); }
+    53.75%  { transform: rotate(0deg); }
+    55.625% { transform: rotate(26deg); }
+    57.5%   { transform: rotate(0deg); }
+    59.375% { transform: rotate(-26deg); }
+    61.25%  { transform: rotate(0deg); }
+    63.125% { transform: rotate(26deg); }
+    65%     { transform: rotate(0deg); }
+    67.5%   { transform: rotate(-50deg); }
+    68.5%   { transform: rotate(-50deg); }
+    70%     { transform: rotate(-30deg); }
+    72.5%   { transform: rotate(-10deg); }
+    75%     { transform: rotate(0deg); }
+    76.875% { transform: rotate(-26deg); }
+    78.75%  { transform: rotate(0deg); }
+    80.625% { transform: rotate(26deg); }
+    82.5%   { transform: rotate(0deg); }
+    84.375% { transform: rotate(-26deg); }
+    86.25%  { transform: rotate(0deg); }
+    88.125% { transform: rotate(26deg); }
+    90%     { transform: rotate(0deg); }
+    91.875% { transform: rotate(-26deg); }
+    93.75%  { transform: rotate(0deg); }
+    95.625% { transform: rotate(26deg); }
+    97.5%   { transform: rotate(0deg); }
+    100%    { transform: rotate(0deg); }
+  }
+
+  @keyframes arm-back-swing {
+    0%      { transform: rotate(0deg); }
+    1.875%  { transform: rotate(26deg); }
+    3.75%   { transform: rotate(0deg); }
+    5.625%  { transform: rotate(-26deg); }
+    7.5%    { transform: rotate(0deg); }
+    9.375%  { transform: rotate(26deg); }
+    11.25%  { transform: rotate(0deg); }
+    13.125% { transform: rotate(-26deg); }
+    15%     { transform: rotate(0deg); }
+    17.5%   { transform: rotate(15deg); }
+    22.5%   { transform: rotate(15deg); }
+    25%     { transform: rotate(0deg); }
+    26.875% { transform: rotate(26deg); }
+    28.75%  { transform: rotate(0deg); }
+    30.625% { transform: rotate(-26deg); }
+    32.5%   { transform: rotate(0deg); }
+    34.375% { transform: rotate(26deg); }
+    36.25%  { transform: rotate(0deg); }
+    38.125% { transform: rotate(-26deg); }
+    40%     { transform: rotate(0deg); }
+    42.5%   { transform: rotate(15deg); }
+    47.5%   { transform: rotate(15deg); }
+    50%     { transform: rotate(0deg); }
+    51.875% { transform: rotate(26deg); }
+    53.75%  { transform: rotate(0deg); }
+    55.625% { transform: rotate(-26deg); }
+    57.5%   { transform: rotate(0deg); }
+    59.375% { transform: rotate(26deg); }
+    61.25%  { transform: rotate(0deg); }
+    63.125% { transform: rotate(-26deg); }
+    65%     { transform: rotate(0deg); }
+    67.5%   { transform: rotate(15deg); }
+    72.5%   { transform: rotate(15deg); }
+    75%     { transform: rotate(0deg); }
+    76.875% { transform: rotate(26deg); }
+    78.75%  { transform: rotate(0deg); }
+    80.625% { transform: rotate(-26deg); }
+    82.5%   { transform: rotate(0deg); }
+    84.375% { transform: rotate(26deg); }
+    86.25%  { transform: rotate(0deg); }
+    88.125% { transform: rotate(-26deg); }
+    90%     { transform: rotate(0deg); }
+    91.875% { transform: rotate(26deg); }
+    93.75%  { transform: rotate(0deg); }
+    95.625% { transform: rotate(-26deg); }
+    97.5%   { transform: rotate(0deg); }
+    100%    { transform: rotate(0deg); }
+  }
+
+  @keyframes sack-swing {
+    0%      { transform: translate(50px, 360px) rotate(0deg); }
+    1.875%  { transform: translate(50px, 360px) rotate(3deg); }
+    3.75%   { transform: translate(50px, 360px) rotate(0deg); }
+    5.625%  { transform: translate(50px, 360px) rotate(-3deg); }
+    7.5%    { transform: translate(50px, 360px) rotate(0deg); }
+    9.375%  { transform: translate(50px, 360px) rotate(3deg); }
+    11.25%  { transform: translate(50px, 360px) rotate(0deg); }
+    13.125% { transform: translate(50px, 360px) rotate(-3deg); }
+    15%     { transform: translate(50px, 360px) rotate(0deg); }
+    17.5%   { transform: translate(50px, 360px) rotate(8deg); }
+    22.5%   { transform: translate(50px, 360px) rotate(8deg); }
+    25%     { transform: translate(50px, 360px) rotate(0deg); }
+    26.875% { transform: translate(50px, 360px) rotate(3deg); }
+    28.75%  { transform: translate(50px, 360px) rotate(0deg); }
+    30.625% { transform: translate(50px, 360px) rotate(-3deg); }
+    32.5%   { transform: translate(50px, 360px) rotate(0deg); }
+    34.375% { transform: translate(50px, 360px) rotate(3deg); }
+    36.25%  { transform: translate(50px, 360px) rotate(0deg); }
+    38.125% { transform: translate(50px, 360px) rotate(-3deg); }
+    40%     { transform: translate(50px, 360px) rotate(0deg); }
+    42.5%   { transform: translate(50px, 360px) rotate(8deg); }
+    47.5%   { transform: translate(50px, 360px) rotate(8deg); }
+    50%     { transform: translate(50px, 360px) rotate(0deg); }
+    51.875% { transform: translate(50px, 360px) rotate(4deg); }
+    53.75%  { transform: translate(50px, 360px) rotate(0deg); }
+    55.625% { transform: translate(50px, 360px) rotate(-4deg); }
+    57.5%   { transform: translate(50px, 360px) rotate(0deg); }
+    59.375% { transform: translate(50px, 360px) rotate(4deg); }
+    61.25%  { transform: translate(50px, 360px) rotate(0deg); }
+    63.125% { transform: translate(50px, 360px) rotate(-4deg); }
+    65%     { transform: translate(50px, 360px) rotate(0deg); }
+    67.5%   { transform: translate(50px, 360px) rotate(8deg); }
+    72.5%   { transform: translate(50px, 360px) rotate(8deg); }
+    75%     { transform: translate(50px, 360px) rotate(0deg); }
+    76.875% { transform: translate(50px, 360px) rotate(5deg); }
+    78.75%  { transform: translate(50px, 360px) rotate(0deg); }
+    80.625% { transform: translate(50px, 360px) rotate(-5deg); }
+    82.5%   { transform: translate(50px, 360px) rotate(0deg); }
+    84.375% { transform: translate(50px, 360px) rotate(5deg); }
+    86.25%  { transform: translate(50px, 360px) rotate(0deg); }
+    88.125% { transform: translate(50px, 360px) rotate(-5deg); }
+    90%     { transform: translate(50px, 360px) rotate(0deg); }
+    91.875% { transform: translate(50px, 360px) rotate(5deg); }
+    93.75%  { transform: translate(50px, 360px) rotate(0deg); }
+    95.625% { transform: translate(50px, 360px) rotate(-5deg); }
+    97.5%   { transform: translate(50px, 360px) rotate(0deg); }
+    100%    { transform: translate(50px, 360px) rotate(0deg); }
+  }
+
+  /* Orb states — pop away when claimed */
+  @keyframes orb-1-state {
+    0%, 17.5%  { opacity: 1; transform: translate(200px, 510px) scale(1) translateY(0); }
+    19%        { opacity: 0; transform: translate(200px, 510px) scale(0.3) translateY(-30px); }
+    100%       { opacity: 0; transform: translate(200px, 510px) scale(0.3) translateY(-30px); }
+  }
+  @keyframes orb-2-state {
+    0%, 42.5%  { opacity: 1; transform: translate(500px, 510px) scale(1) translateY(0); }
+    44%        { opacity: 0; transform: translate(500px, 510px) scale(0.3) translateY(-30px); }
+    100%       { opacity: 0; transform: translate(500px, 510px) scale(0.3) translateY(-30px); }
+  }
+  @keyframes orb-3-state {
+    0%, 67.5%  { opacity: 1; transform: translate(800px, 510px) scale(1) translateY(0); }
+    69%        { opacity: 0; transform: translate(800px, 510px) scale(0.3) translateY(-30px); }
+    100%       { opacity: 0; transform: translate(800px, 510px) scale(0.3) translateY(-30px); }
+  }
+
+  /* Sack orbs — pop into the bag as claimed, glow through mesh */
+  @keyframes sack-orb-1-state {
+    0%, 19%   { opacity: 0; transform: scale(0); }
+    21%       { opacity: 1; transform: scale(1); }
+    100%      { opacity: 1; transform: scale(1); }
+  }
+  @keyframes sack-orb-2-state {
+    0%, 44%   { opacity: 0; transform: scale(0); }
+    46%       { opacity: 1; transform: scale(1); }
+    100%      { opacity: 1; transform: scale(1); }
+  }
+  @keyframes sack-orb-3-state {
+    0%, 69%   { opacity: 0; transform: scale(0); }
+    71%       { opacity: 1; transform: scale(1); }
+    100%      { opacity: 1; transform: scale(1); }
+  }
+
+  /* Subtle pulsing glow on the floor orbs (calling the player) */
+  @keyframes orb-pulse-magenta {
+    0%, 100% { filter: drop-shadow(0 0 6px #ff9ee0) drop-shadow(0 0 12px rgba(255,158,224,0.5)); }
+    50%      { filter: drop-shadow(0 0 12px #ff9ee0) drop-shadow(0 0 24px rgba(255,158,224,0.8)); }
+  }
+  @keyframes orb-pulse-green {
+    0%, 100% { filter: drop-shadow(0 0 6px #54e08a) drop-shadow(0 0 12px rgba(84,224,138,0.5)); }
+    50%      { filter: drop-shadow(0 0 12px #54e08a) drop-shadow(0 0 24px rgba(84,224,138,0.8)); }
+  }
+  @keyframes orb-pulse-gold {
+    0%, 100% { filter: drop-shadow(0 0 6px #ffd76a) drop-shadow(0 0 12px rgba(255,215,106,0.5)); }
+    50%      { filter: drop-shadow(0 0 12px #ffd76a) drop-shadow(0 0 24px rgba(255,215,106,0.8)); }
+  }
+
+  /* Distant arch glow breathing */
+  @keyframes arch-breathe-magenta {
+    0%, 100% { opacity: 0.55; }
+    50%      { opacity: 0.85; }
+  }
+  @keyframes arch-breathe-green {
+    0%, 100% { opacity: 0.5; }
+    50%      { opacity: 0.8; }
+  }
+  @keyframes arch-breathe-gold {
+    0%, 100% { opacity: 0.5; }
+    50%      { opacity: 0.8; }
+  }
+
+  /* === Element bindings ================================================ */
+
+  #character     { animation: traverse 8s infinite linear; }
+
+  #leg-front,
+  #leg-back      { transform-box: fill-box; transform-origin: 50% 0%; }
+  #leg-front     { animation: leg-front-swing 8s infinite linear; }
+  #leg-back      { animation: leg-back-swing  8s infinite linear; }
+
+  #body          { transform-box: fill-box; transform-origin: 50% 100%;
+                   animation: body-action 8s infinite linear; }
+
+  #arm-front,
+  #arm-back      { transform-box: fill-box; transform-origin: 50% 0%; }
+  #arm-front     { animation: arm-front-action 8s infinite linear; }
+  #arm-back      { animation: arm-back-swing  8s infinite linear; }
+
+  #sack          { transform-box: fill-box; transform-origin: 13px 0px;
+                   animation: sack-swing 8s infinite linear; }
+
+  .ground-orb    { transform-box: fill-box; transform-origin: center; }
+  #orb-1         { animation: orb-1-state 8s infinite linear, orb-pulse-magenta 1.8s infinite ease-in-out; }
+  #orb-2         { animation: orb-2-state 8s infinite linear, orb-pulse-green 1.8s infinite ease-in-out; }
+  #orb-3         { animation: orb-3-state 8s infinite linear, orb-pulse-gold 1.8s infinite ease-in-out; }
+
+  .sack-orb      { transform-box: fill-box; transform-origin: center; }
+  #sack-orb-1    { animation: sack-orb-1-state 8s infinite linear; }
+  #sack-orb-2    { animation: sack-orb-2-state 8s infinite linear; }
+  #sack-orb-3    { animation: sack-orb-3-state 8s infinite linear; }
+
+  .arch-glow-magenta { animation: arch-breathe-magenta 3.2s infinite ease-in-out; }
+  .arch-glow-green   { animation: arch-breathe-green   3.7s infinite ease-in-out; animation-delay: -1s; }
+  .arch-glow-gold    { animation: arch-breathe-gold    3.4s infinite ease-in-out; animation-delay: -2s; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <svg viewBox="0 0 1200 675" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+
+    <defs>
+      <!-- Void (top half) gradient -->
+      <linearGradient id="voidGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#050810"/>
+        <stop offset="100%" stop-color="#0a0d1a"/>
+      </linearGradient>
+
+      <!-- Floor (bottom half) gradient -->
+      <linearGradient id="floorGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#131826"/>
+        <stop offset="100%" stop-color="#1f2638"/>
+      </linearGradient>
+
+      <!-- Wall gradient (with perspective hint at sides) -->
+      <linearGradient id="wallGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%"   stop-color="#1c2434"/>
+        <stop offset="100%" stop-color="#2a3540"/>
+      </linearGradient>
+
+      <!-- Magenta arch glow (radial) -->
+      <radialGradient id="archGlowMagenta" cx="0.5" cy="0.5" r="0.6">
+        <stop offset="0%"   stop-color="#ff9ee0" stop-opacity="0.9"/>
+        <stop offset="50%"  stop-color="#ff9ee0" stop-opacity="0.4"/>
+        <stop offset="100%" stop-color="#ff9ee0" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="archGlowGreen" cx="0.5" cy="0.5" r="0.6">
+        <stop offset="0%"   stop-color="#54e08a" stop-opacity="0.9"/>
+        <stop offset="50%"  stop-color="#54e08a" stop-opacity="0.4"/>
+        <stop offset="100%" stop-color="#54e08a" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="archGlowGold" cx="0.5" cy="0.5" r="0.6">
+        <stop offset="0%"   stop-color="#ffd76a" stop-opacity="0.9"/>
+        <stop offset="50%"  stop-color="#ffd76a" stop-opacity="0.4"/>
+        <stop offset="100%" stop-color="#ffd76a" stop-opacity="0"/>
+      </radialGradient>
+
+      <!-- Orb radial gradients (bright center, fading) -->
+      <radialGradient id="orbMagenta" cx="0.35" cy="0.35" r="0.7">
+        <stop offset="0%"   stop-color="#ffffff"/>
+        <stop offset="30%"  stop-color="#ffd1ef"/>
+        <stop offset="70%"  stop-color="#ff9ee0"/>
+        <stop offset="100%" stop-color="#c84fa8"/>
+      </radialGradient>
+      <radialGradient id="orbGreen" cx="0.35" cy="0.35" r="0.7">
+        <stop offset="0%"   stop-color="#ffffff"/>
+        <stop offset="30%"  stop-color="#b8f5cd"/>
+        <stop offset="70%"  stop-color="#54e08a"/>
+        <stop offset="100%" stop-color="#2a9d54"/>
+      </radialGradient>
+      <radialGradient id="orbGold" cx="0.35" cy="0.35" r="0.7">
+        <stop offset="0%"   stop-color="#ffffff"/>
+        <stop offset="30%"  stop-color="#fff0c4"/>
+        <stop offset="70%"  stop-color="#ffd76a"/>
+        <stop offset="100%" stop-color="#c69b2e"/>
+      </radialGradient>
+
+      <!-- Mesh pattern for the sack -->
+      <pattern id="meshPattern" x="0" y="0" width="9" height="9" patternUnits="userSpaceOnUse">
+        <path d="M 0,0 L 9,9 M 9,0 L 0,9"
+              stroke="rgba(255,255,255,0.10)" stroke-width="0.8" fill="none"/>
+      </pattern>
+
+      <!-- Vignette -->
+      <radialGradient id="vignette" cx="0.5" cy="0.5" r="0.8">
+        <stop offset="55%" stop-color="#000000" stop-opacity="0"/>
+        <stop offset="100%" stop-color="#000000" stop-opacity="0.55"/>
+      </radialGradient>
+
+      <!-- Reusable orb symbol (just the bright ball, glow added via filter in CSS) -->
+      <symbol id="orb-magenta" viewBox="-22 -22 44 44">
+        <circle r="14" fill="url(#orbMagenta)"/>
+        <circle r="6" cx="-4" cy="-4" fill="rgba(255,255,255,0.7)"/>
+      </symbol>
+      <symbol id="orb-green" viewBox="-22 -22 44 44">
+        <circle r="14" fill="url(#orbGreen)"/>
+        <circle r="6" cx="-4" cy="-4" fill="rgba(255,255,255,0.7)"/>
+      </symbol>
+      <symbol id="orb-gold" viewBox="-22 -22 44 44">
+        <circle r="14" fill="url(#orbGold)"/>
+        <circle r="6" cx="-4" cy="-4" fill="rgba(255,255,255,0.7)"/>
+      </symbol>
+    </defs>
+
+    <!-- === Background: void + walls + checkered floor =============== -->
+
+    <!-- Top half: void -->
+    <rect width="1200" height="340" fill="url(#voidGrad)"/>
+
+    <!-- Distant arches silhouettes (left, center, right) with breathing glow -->
+    <!-- Magenta arch (back-left) -->
+    <g class="arch-glow-magenta">
+      <ellipse cx="180" cy="280" rx="100" ry="60" fill="url(#archGlowMagenta)"/>
+      <path d="M 130,340 L 130,200 Q 180,160 230,200 L 230,340"
+            fill="none" stroke="#ff9ee0" stroke-width="3" opacity="0.85"/>
+      <path d="M 145,340 L 145,210 Q 180,180 215,210 L 215,340"
+            fill="none" stroke="#ff9ee0" stroke-width="1.5" opacity="0.4"/>
+    </g>
+    <!-- Green arch (back-center) -->
+    <g class="arch-glow-green">
+      <ellipse cx="600" cy="290" rx="120" ry="70" fill="url(#archGlowGreen)"/>
+      <path d="M 540,340 L 540,180 Q 600,140 660,180 L 660,340"
+            fill="none" stroke="#54e08a" stroke-width="3" opacity="0.85"/>
+      <path d="M 558,340 L 558,195 Q 600,165 642,195 L 642,340"
+            fill="none" stroke="#54e08a" stroke-width="1.5" opacity="0.4"/>
+    </g>
+    <!-- Gold arch (back-right) -->
+    <g class="arch-glow-gold">
+      <ellipse cx="1020" cy="280" rx="100" ry="60" fill="url(#archGlowGold)"/>
+      <path d="M 970,340 L 970,200 Q 1020,160 1070,200 L 1070,340"
+            fill="none" stroke="#ffd76a" stroke-width="3" opacity="0.85"/>
+      <path d="M 985,340 L 985,210 Q 1020,180 1055,210 L 1055,340"
+            fill="none" stroke="#ffd76a" stroke-width="1.5" opacity="0.4"/>
+    </g>
+
+    <!-- Horizon line (where wall meets floor) -->
+    <line x1="0" y1="340" x2="1200" y2="340" stroke="#3d4a5c" stroke-width="1" opacity="0.5"/>
+
+    <!-- Side wall hints (trapezoids suggesting perspective) -->
+    <polygon points="0,0 0,675 240,540 240,180" fill="url(#wallGrad)" opacity="0.5"/>
+    <polygon points="1200,0 1200,675 960,540 960,180" fill="url(#wallGrad)" opacity="0.5"/>
+
+    <!-- Floor (bottom half) -->
+    <rect y="340" width="1200" height="335" fill="url(#floorGrad)"/>
+
+    <!-- Checkered floor pattern (with subtle perspective via shrinking squares) -->
+    <g id="checker-floor" opacity="0.18">
+      <!-- Row 1 (far, smaller) at y=340-380 -->
+      <g>
+        <rect x="0"    y="340" width="60" height="20" fill="#000"/>
+        <rect x="120"  y="340" width="60" height="20" fill="#000"/>
+        <rect x="240"  y="340" width="60" height="20" fill="#000"/>
+        <rect x="360"  y="340" width="60" height="20" fill="#000"/>
+        <rect x="480"  y="340" width="60" height="20" fill="#000"/>
+        <rect x="600"  y="340" width="60" height="20" fill="#000"/>
+        <rect x="720"  y="340" width="60" height="20" fill="#000"/>
+        <rect x="840"  y="340" width="60" height="20" fill="#000"/>
+        <rect x="960"  y="340" width="60" height="20" fill="#000"/>
+        <rect x="1080" y="340" width="60" height="20" fill="#000"/>
+      </g>
+      <!-- Row 2 (mid) at y=380-440 -->
+      <g>
+        <rect x="0"    y="380" width="80" height="30" fill="#000"/>
+        <rect x="160"  y="380" width="80" height="30" fill="#000"/>
+        <rect x="320"  y="380" width="80" height="30" fill="#000"/>
+        <rect x="480"  y="380" width="80" height="30" fill="#000"/>
+        <rect x="640"  y="380" width="80" height="30" fill="#000"/>
+        <rect x="800"  y="380" width="80" height="30" fill="#000"/>
+        <rect x="960"  y="380" width="80" height="30" fill="#000"/>
+        <rect x="1120" y="380" width="80" height="30" fill="#000"/>
+      </g>
+      <!-- Row 3 (closer) at y=410-485 -->
+      <g>
+        <rect x="0"    y="410" width="100" height="40" fill="#000"/>
+        <rect x="200"  y="410" width="100" height="40" fill="#000"/>
+        <rect x="400"  y="410" width="100" height="40" fill="#000"/>
+        <rect x="600"  y="410" width="100" height="40" fill="#000"/>
+        <rect x="800"  y="410" width="100" height="40" fill="#000"/>
+        <rect x="1000" y="410" width="100" height="40" fill="#000"/>
+      </g>
+      <!-- Row 4 (closest) at y=450-540 -->
+      <g>
+        <rect x="0"    y="450" width="120" height="50" fill="#000"/>
+        <rect x="240"  y="450" width="120" height="50" fill="#000"/>
+        <rect x="480"  y="450" width="120" height="50" fill="#000"/>
+        <rect x="720"  y="450" width="120" height="50" fill="#000"/>
+        <rect x="960"  y="450" width="120" height="50" fill="#000"/>
+      </g>
+      <!-- Row 5 (foreground) at y=500-675 -->
+      <g>
+        <rect x="0"    y="500" width="150" height="60" fill="#000"/>
+        <rect x="300"  y="500" width="150" height="60" fill="#000"/>
+        <rect x="600"  y="500" width="150" height="60" fill="#000"/>
+        <rect x="900"  y="500" width="150" height="60" fill="#000"/>
+        <rect x="150"  y="560" width="180" height="70" fill="#000"/>
+        <rect x="510"  y="560" width="180" height="70" fill="#000"/>
+        <rect x="870"  y="560" width="180" height="70" fill="#000"/>
+        <rect x="0"    y="560" width="150" height="70" fill="#000"/>
+        <rect x="330"  y="560" width="180" height="70" fill="#000"/>
+        <rect x="690"  y="560" width="180" height="70" fill="#000"/>
+        <rect x="1050" y="560" width="150" height="70" fill="#000"/>
+      </g>
+    </g>
+
+    <!-- === Ground orbs (3 neon claimable items: magenta, green, gold) === -->
+
+    <g id="orb-1" class="ground-orb">
+      <!-- Floor shadow -->
+      <ellipse cx="0" cy="22" rx="22" ry="4" fill="rgba(0,0,0,0.5)"/>
+      <use href="#orb-magenta" width="40" height="40" x="-20" y="-20"/>
+    </g>
+    <g id="orb-2" class="ground-orb">
+      <ellipse cx="0" cy="22" rx="22" ry="4" fill="rgba(0,0,0,0.5)"/>
+      <use href="#orb-green" width="40" height="40" x="-20" y="-20"/>
+    </g>
+    <g id="orb-3" class="ground-orb">
+      <ellipse cx="0" cy="22" rx="22" ry="4" fill="rgba(0,0,0,0.5)"/>
+      <use href="#orb-gold" width="40" height="40" x="-20" y="-20"/>
+    </g>
+
+    <!-- === Character: featureless black silhouette (matches game) ====== -->
+
+    <g id="character">
+
+      <!-- Ground shadow (under feet) -->
+      <ellipse cx="0" cy="555" rx="58" ry="6" fill="rgba(0,0,0,0.55)"/>
+
+      <!-- LEGS (drawn back-to-front) -->
+      <g id="legs">
+        <!-- Back leg -->
+        <g id="leg-back">
+          <rect x="-13" y="430" width="22" height="100" fill="#050810" rx="3"/>
+          <ellipse cx="-2" cy="535" rx="18" ry="9" fill="#000000"/>
+        </g>
+        <!-- Front leg -->
+        <g id="leg-front">
+          <rect x="-9" y="430" width="22" height="100" fill="#000000" rx="3"/>
+          <ellipse cx="2" cy="535" rx="18" ry="9" fill="#0a0d1a"/>
+        </g>
+      </g>
+
+      <!-- BODY -->
+      <g id="body">
+
+        <!-- Torso (smooth silhouette) -->
+        <path d="M -30,295 Q -34,285 -26,280 L 26,280 Q 34,285 30,295 L 34,430 L -34,430 Z"
+              fill="#000000"/>
+
+        <!-- Head: smooth oval, NO FACE, NO HOOD (game's featureless silhouette) -->
+        <ellipse cx="0" cy="240" rx="36" ry="44" fill="#000000"/>
+
+        <!-- SACK (dark canvas, slung over right shoulder) -->
+        <g id="sack">
+          <!-- Strap from shoulder to sack -->
+          <path d="M -10,-10 Q -22,-50 -15,-78"
+                fill="none" stroke="#3a4252" stroke-width="5" stroke-linecap="round"/>
+
+          <!-- Sack body (dark canvas) -->
+          <path d="M -25,-15 Q -32,15 -28,42 Q -15,52 0,54 Q 15,52 28,42 Q 32,15 25,-15 Q 0,-22 -25,-15 Z"
+                fill="#1a1f2e" stroke="#3a4252" stroke-width="2"/>
+          <!-- Mesh overlay -->
+          <path d="M -25,-15 Q -32,15 -28,42 Q -15,52 0,54 Q 15,52 28,42 Q 32,15 25,-15 Q 0,-22 -25,-15 Z"
+                fill="url(#meshPattern)"/>
+          <!-- Sack opening (top edge) -->
+          <ellipse cx="0" cy="-15" rx="25" ry="6" fill="#3a4252"/>
+          <ellipse cx="0" cy="-15" rx="22" ry="4" fill="#0a0d1a"/>
+
+          <!-- Collected orbs inside sack (glow through mesh) -->
+          <g id="sack-orbs">
+            <g id="sack-orb-1" class="sack-orb">
+              <circle cx="0"  cy="35" r="12" fill="url(#orbMagenta)" opacity="0.85"/>
+              <circle cx="0"  cy="35" r="20" fill="#ff9ee0" opacity="0.18"/>
+            </g>
+            <g id="sack-orb-2" class="sack-orb">
+              <circle cx="-7" cy="20" r="12" fill="url(#orbGreen)" opacity="0.85"/>
+              <circle cx="-7" cy="20" r="20" fill="#54e08a" opacity="0.18"/>
+            </g>
+            <g id="sack-orb-3" class="sack-orb">
+              <circle cx="7"  cy="5"  r="12" fill="url(#orbGold)" opacity="0.85"/>
+              <circle cx="7"  cy="5"  r="20" fill="#ffd76a" opacity="0.18"/>
+            </g>
+          </g>
+        </g>
+
+        <!-- ARMS -->
+        <g id="arms">
+          <!-- Back arm -->
+          <g id="arm-back">
+            <rect x="-38" y="295" width="18" height="80" fill="#050810" rx="9"/>
+            <circle cx="-29" cy="380" r="9" fill="#000000"/>
+          </g>
+          <!-- Front arm — reaches for orbs -->
+          <g id="arm-front">
+            <rect x="20" y="295" width="18" height="80" fill="#000000" rx="9"/>
+            <circle cx="29" cy="380" r="10" fill="#0a0d1a"/>
+          </g>
+        </g>
+
+      </g>
+    </g>
+
+    <!-- === Overlays ======================================================= -->
+
+    <!-- Vignette -->
+    <rect x="0" y="0" width="1200" height="675" fill="url(#vignette)" pointer-events="none"/>
+
+    <!-- v19 badge (top-left, matches game HUD style) -->
+    <g transform="translate(40, 40)">
+      <rect x="0" y="0" width="68" height="24" rx="3"
+            fill="rgba(10,13,26,0.7)"
+            stroke="rgba(255,158,224,0.6)" stroke-width="1"/>
+      <text x="34" y="16" font-family="monospace" font-size="11" font-weight="600"
+            fill="#ff9ee0" text-anchor="middle" letter-spacing="0.12em">v19</text>
+    </g>
+
+    <!-- Top-right brand label -->
+    <g transform="translate(1160, 50)">
+      <text x="0" y="0"  font-family="monospace" font-size="10"
+            fill="rgba(242,238,230,0.65)" text-anchor="end" letter-spacing="0.18em">THE·IMPOSSIBLE·ROOM</text>
+      <text x="0" y="14" font-family="monospace" font-size="9"
+            fill="rgba(242,238,230,0.35)" text-anchor="end" letter-spacing="0.12em">CLAIM·LOOP</text>
+    </g>
+
+  </svg>
+</div>
+
+<div class="meta">
+  <span><span class="dot"></span> Loop · 8.0s</span>
+  <span>3 orbs claimed</span>
+  <span>Featureless silhouette</span>
+  <span>Magenta · Green · Gold</span>
+  <span>The Impossible Room</span>
+</div>
+
+</body>
+</html>
