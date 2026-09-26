@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#05060a">
+<title>How to Play — The Impossible Room</title>
+<meta name="description" content="The complete player's guide to The Impossible Room: gravity arches, the Paradox Chain, medals, ranks, speedrunning, and the endless vaults.">
+<style>
+:root{
+  --ink:#e8ecf4; --dim:#9aa3b5; --faint:#5d6577;
+  --accent:#39d5c8; --gold:#e8c15a; --red:#ff5468; --blue:#4da3ff;
+  --green:#54e08a; --violet:#a97bff; --pink:#ff9ee0;
+  --line:rgba(255,255,255,.1); --line2:rgba(255,255,255,.22);
+  --glass:rgba(13,16,24,.62);
+  --mono:ui-monospace,"Cascadia Mono","JetBrains Mono",Menlo,Consolas,monospace;
+  --serif:"Iowan Old Style",Palatino,"Palatino Linotype","Book Antiqua",Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:#05060a;color:var(--ink);font-family:var(--sans);
+  line-height:1.65;-webkit-font-smoothing:antialiased;
+  background-image:
+    radial-gradient(1100px 500px at 85% -5%,rgba(57,213,200,.09),transparent 60%),
+    radial-gradient(900px 500px at 0% 30%,rgba(169,123,255,.07),transparent 60%),
+    radial-gradient(900px 600px at 100% 75%,rgba(232,193,90,.05),transparent 60%);}
+.wrap{max-width:880px;margin:0 auto;padding:0 22px 90px}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+kbd{font-family:var(--mono);font-size:.82em;background:rgba(255,255,255,.08);
+  border:1px solid var(--line2);border-bottom-width:2px;border-radius:4px;
+  padding:1px 7px;color:var(--ink);white-space:nowrap}
+/* hero */
+header{padding:74px 0 34px;text-align:center}
+.kicker{font-family:var(--mono);font-size:12px;letter-spacing:.5em;color:var(--dim);
+  text-transform:uppercase}
+h1{font-family:var(--serif);font-style:italic;font-weight:600;
+  font-size:clamp(38px,7vw,68px);line-height:1.05;margin:14px 0 10px;
+  background:linear-gradient(180deg,#fff 25%,#8fe6dd 60%,#39d5c8);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 30px rgba(57,213,200,.25))}
+.sub{color:var(--dim);font-size:15.5px;max-width:640px;margin:0 auto}
+.badges{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:22px}
+.badge{font-family:var(--mono);font-size:11px;letter-spacing:.14em;padding:7px 14px;
+  border-radius:999px;border:1px solid var(--line);background:rgba(255,255,255,.03);
+  color:var(--dim)}
+.badge b{color:var(--ink);font-weight:600}
+/* sections */
+section{margin-top:56px}
+h2{font-family:var(--serif);font-style:italic;font-weight:600;font-size:clamp(24px,4vw,34px);
+  color:#fff;display:flex;align-items:baseline;gap:14px}
+h2 .no{font-family:var(--mono);font-style:normal;font-size:12px;color:var(--accent);
+  letter-spacing:.3em;transform:translateY(-4px)}
+h3{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--accent);
+  text-transform:uppercase;margin:26px 0 10px}
+p{color:var(--dim);margin:12px 0;font-size:15px}
+p b,li b{color:var(--ink);font-weight:600}
+.lead{font-size:16.5px;color:var(--ink)}
+/* cards + tables */
+.card{background:var(--glass);border:1px solid var(--line);border-radius:14px;
+  padding:22px 26px;margin:18px 0;backdrop-filter:blur(8px)}
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px}
+th{font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--faint);
+  text-transform:uppercase;text-align:left;padding:9px 10px;border-bottom:1px solid var(--line2)}
+td{padding:10px;border-bottom:1px solid var(--line);color:var(--dim);vertical-align:top}
+td:first-child{color:var(--ink);white-space:nowrap}
+tr:last-child td{border-bottom:none}
+.chip{display:inline-flex;align-items:center;gap:7px;font-family:var(--mono);
+  font-size:11.5px;letter-spacing:.1em;padding:5px 12px;border-radius:999px;
+  border:1px solid var(--line);background:rgba(255,255,255,.03);margin:3px 4px 3px 0;
+  white-space:nowrap}
+.chip i{width:9px;height:9px;border-radius:50%;display:inline-block;
+  box-shadow:0 0 12px 2px currentColor}
+/* arch grid */
+.arches{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:18px 0}
+.arch{border:1px solid var(--line);border-radius:12px;padding:16px 16px 14px;
+  background:rgba(255,255,255,.025)}
+.arch .a-name{font-family:var(--mono);font-size:12px;letter-spacing:.2em;font-weight:700}
+.arch .a-rot{font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:6px;line-height:1.5}
+.arch .a-plane{font-family:var(--serif);font-style:italic;font-size:21px;margin-top:8px;color:#fff}
+/* tier ladder */
+.tiers{margin:18px 0}
+.tier{display:flex;align-items:center;gap:16px;padding:11px 16px;border-radius:10px;
+  border:1px solid var(--line);margin:7px 0;background:rgba(255,255,255,.02)}
+.tier .t-mult{font-family:var(--mono);font-size:19px;font-weight:700;width:56px;
+  text-shadow:0 0 16px currentColor}
+.tier .t-name{font-family:var(--mono);font-size:11px;letter-spacing:.3em;width:120px}
+.tier .t-desc{font-size:13px;color:var(--dim)}
+/* rank row */
+.ranks{display:flex;gap:12px;flex-wrap:wrap;margin:18px 0}
+.rank{flex:1;min-width:150px;text-align:center;border:1px solid var(--line);
+  border-radius:12px;padding:18px 12px;background:rgba(255,255,255,.02)}
+.rank .r-letter{font-family:var(--serif);font-style:italic;font-weight:700;font-size:52px;line-height:1}
+.rank .r-name{font-family:var(--mono);font-size:9.5px;letter-spacing:.26em;color:var(--dim);
+  text-transform:uppercase;margin-top:8px}
+.rank .r-how{font-size:12px;color:var(--faint);margin-top:6px;line-height:1.5}
+.rk-s{color:var(--pink);text-shadow:0 0 26px rgba(255,158,224,.6)}
+.rk-a{color:var(--gold);text-shadow:0 0 22px rgba(232,193,90,.5)}
+.rk-b{color:var(--green);text-shadow:0 0 20px rgba(84,224,138,.45)}
+.rk-c{color:var(--dim)}
+/* callouts */
+.note{border-left:3px solid var(--accent);padding:12px 18px;margin:18px 0;
+  background:rgba(57,213,200,.06);border-radius:0 10px 10px 0;font-size:14px;color:var(--dim)}
+.note b{color:var(--ink)}
+.note.gold{border-color:var(--gold);background:rgba(232,193,90,.06)}
+.note.red{border-color:var(--red);background:rgba(255,84,104,.06)}
+ul,ol{margin:12px 0 12px 22px;color:var(--dim);font-size:15px}
+li{margin:7px 0}
+.stars{color:var(--gold);letter-spacing:2px;font-size:13px;white-space:nowrap}
+.medal-G{color:var(--gold)} .medal-S{color:#d7dde8} .medal-B{color:#d09a6a}
+details{border:1px solid var(--line);border-radius:12px;padding:14px 20px;margin:14px 0;
+  background:rgba(255,255,255,.02)}
+summary{cursor:pointer;font-family:var(--mono);font-size:12px;letter-spacing:.2em;
+  color:var(--pink);text-transform:uppercase;list-style:none}
+summary::before{content:'▸ ';} details[open] summary::before{content:'▾ ';}
+footer{margin-top:70px;padding-top:24px;border-top:1px solid var(--line);
+  text-align:center;font-family:var(--mono);font-size:11px;color:var(--faint);
+  letter-spacing:.2em;line-height:2}
+@media (max-width:640px){
+  td:first-child{white-space:normal}
+  .tier{flex-wrap:wrap;gap:8px}
+  .tier .t-name{width:auto}
+}
+@media print{
+  body{background:#fff;color:#111}
+  .card,.arch,.tier,.rank{border-color:#ccc;background:#fafafa}
+  p,h3,td,li{color:#222}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="kicker">The Complete Player's Guide</div>
+  <h1>How to Play<br>The Impossible Room</h1>
+  <p class="sub">A walkable M.C. Escher atrium where gravity is a suggestion. Walk the walls,
+    fall up the staircases, chain paradoxes, and escape — then go deeper.</p>
+  <div class="badges">
+    <span class="badge"><b>FREE</b> · NO ADS · NO ACCOUNT</span>
+    <span class="badge"><b>8</b> CHAMBERS + ENDLESS VAULTS</span>
+    <span class="badge"><b>DESKTOP</b> + <b>MOBILE</b></span>
+    <span class="badge">SINGLE FILE · RUNS OFFLINE</span>
+  </div>
+</header>
+
+<!-- ============ 1. ONE MINUTE ============ -->
+<section id="quick">
+  <h2><span class="no">01</span>The One-Minute Version</h2>
+  <div class="card">
+    <ol>
+      <li><b>You are inside an impossible room.</b> Every surface — floor, walls, ceiling — can become your floor.</li>
+      <li><b>Walk through colored arches to rotate gravity.</b> Blue → one wall, Red → the other, Yellow → the ceiling, Green → back to the floor.</li>
+      <li><b>Collect the glowing fragments</b> scattered across all four planes. They are often on the ceiling or the walls — that's what the arches are for.</li>
+      <li><b>Escape through the exit</b> that awakens once you've collected everything.</li>
+      <li><b>Move fast and keep flipping</b> — every arch you pass chains a score multiplier (up to ×12) that decays in 12 seconds and dies with you.</li>
+    </ol>
+  </div>
+  <div class="note"><b>Fallen into the void?</b> You wake at the green arch with your fragments
+    kept. The room forgives persistence — it does not forgive standing still.</div>
+</section>
+
+<!-- ============ 2. CONTROLS ============ -->
+<section id="controls">
+  <h2><span class="no">02</span>Controls</h2>
+
+  <h3>Desktop — mouse &amp; keyboard</h3>
+  <table>
+    <tr><th>Input</th><th>Action</th></tr>
+    <tr><td><kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd></td><td>Move — always relative to your view on the current plane (no inversion, ever)</td></tr>
+    <tr><td><kbd>Mouse</kbd></td><td>Look around (the game holds the pointer; <kbd>ESC</kbd> releases)</td></tr>
+    <tr><td><kbd>Space</kbd></td><td>Jump <b>away</b> from your current surface</td></tr>
+    <tr><td><kbd>Shift</kbd></td><td>Sprint</td></tr>
+    <tr><td><kbd>E</kbd></td><td>Interact — pick up / drop gravity cubes, rotate mirrors, insert the Core Matrix</td></tr>
+    <tr><td><kbd>R</kbd></td><td>Restart the current chamber</td></tr>
+    <tr><td><kbd>ESC</kbd></td><td>Pause</td></tr>
+    <tr><td><kbd>`</kbd> (backquote)</td><td>Cheat console — see <a href="#secrets">Secrets</a></td></tr>
+  </table>
+
+  <h3>Mobile — touch</h3>
+  <table>
+    <tr><th>Touch</th><th>Action</th></tr>
+    <tr><td><b>Left thumb</b></td><td>Virtual joystick appears where you touch — drag to move; push to the rim to sprint</td></tr>
+    <tr><td><b>Right thumb</b></td><td>Drag anywhere on the right to look around</td></tr>
+    <tr><td><b>Double-tap (right side)</b></td><td>Instant 180° turn</td></tr>
+    <tr><td><b>JUMP button</b></td><td>Leap away from your current surface</td></tr>
+    <tr><td><b>USE button</b></td><td>Interact — its label always shows the current verb</td></tr>
+    <tr><td><b>II button</b></td><td>Pause</td></tr>
+  </table>
+  <div class="note gold"><b>Phones:</b> landscape gives the widest view of the room, and you can
+    <b>INSTALL APP</b> from the menu to keep the game on your home screen — it runs fully offline
+    once loaded.</div>
+</section>
+
+<!-- ============ 3. ARCHES ============ -->
+<section id="arches">
+  <h2><span class="no">03</span>The Four Arches</h2>
+  <p>Arches are the entire language of the game. Step through one and gravity rotates —
+    the whole world pivots around you over half a second, then you fall toward the new floor.</p>
+  <div class="arches">
+    <div class="arch" style="border-color:rgba(77,163,255,.4)">
+      <div class="a-name" style="color:#4da3ff">◼ BLUE</div>
+      <div class="a-rot">rotates gravity +90°</div>
+      <div class="a-plane">→ Wall A</div>
+    </div>
+    <div class="arch" style="border-color:rgba(255,84,104,.4)">
+      <div class="a-name" style="color:#ff5468">◼ RED</div>
+      <div class="a-rot">rotates gravity −90°</div>
+      <div class="a-plane">→ Wall B</div>
+    </div>
+    <div class="arch" style="border-color:rgba(232,193,90,.4)">
+      <div class="a-name" style="color:#e8c15a">◼ YELLOW</div>
+      <div class="a-rot">inverts gravity (a view-axis roll, heading preserved)</div>
+      <div class="a-plane">→ Ceiling</div>
+    </div>
+    <div class="arch" style="border-color:rgba(84,224,138,.4)">
+      <div class="a-name" style="color:#54e08a">◼ GREEN</div>
+      <div class="a-rot">resets to normal</div>
+      <div class="a-plane">→ Floor</div>
+    </div>
+  </div>
+  <ul>
+    <li><b>Arches stack.</b> On Wall A, a blue arch takes you to the ceiling. The room's puzzles assume you'll chain them.</li>
+    <li><b>Green arches are safety.</b> They never disturb puzzle sequences, and the void always returns you to one.</li>
+    <li><b>Watch the compass</b> (bottom-left): it always shows which plane is currently "down".</li>
+    <li><b>Cooldown:</b> arches can only trigger once per second — you cannot double-flip by accident.</li>
+  </ul>
+</section>
+
+<!-- ============ 4. FLOW ============ -->
+<section id="flow">
+  <h2><span class="no">04</span>Flow — the Paradox Chain</h2>
+  <p class="lead">This is the heart of scoring, and the reason to take the risky route.</p>
+  <p>Every arch you pass raises your <b>chain</b>: ×2, ×3, ×4… all the way to <b>×12</b>.
+    Everything you collect pays out <b>multiplied by your chain</b>. But the chain is alive —
+    it <b>decays to zero if you don't flip again within 12 seconds</b>, and it <b>shatters
+    instantly when you die</b>. The meter at the bottom of the screen shows the countdown.</p>
+  <div class="tiers">
+    <div class="tier"><span class="t-mult" style="color:#9fd8e8">×2</span>
+      <span class="t-name" style="color:#9fd8e8">WALKER</span>
+      <span class="t-desc">The chain begins. Fragments now pay double.</span></div>
+    <div class="tier"><span class="t-mult" style="color:#4da3ff">×3</span>
+      <span class="t-name" style="color:#4da3ff">INVERTED</span>
+      <span class="t-desc">You're living on the walls now. Keep it up.</span></div>
+    <div class="tier"><span class="t-mult" style="color:#e8c15a">×5</span>
+      <span class="t-name" style="color:#e8c15a">IMPOSSIBLE</span>
+      <span class="t-desc">Five links. The room starts paying attention.</span></div>
+    <div class="tier"><span class="t-mult" style="color:#ff9ee0">×8</span>
+      <span class="t-name" style="color:#ff9ee0">PARADOX</span>
+      <span class="t-desc">Eight links held. Fragments pay eightfold.</span></div>
+    <div class="tier"><span class="t-mult" style="color:#ff9ee0">×12</span>
+      <span class="t-name" style="color:#ff9ee0">ESCHER</span>
+      <span class="t-desc">The maximum. The meter goes rainbow. You are the architecture.</span></div>
+  </div>
+  <ul>
+    <li>Each flip also plays <b>the next note of a rising melody</b> — a kept chain literally sounds like climbing music.</li>
+    <li>Tier-ups (×2, ×3, ×5, ×8, ×12) pay bonus score and flash the screen.</li>
+    <li>Dying with a chain of ×3 or more shows the chain you lost. Let that sting. Then go again.</li>
+  </ul>
+  <div class="note red"><b>Design intent:</b> the safe route (walk everywhere, flip rarely) always
+    works — but the <b>flow route</b> (constant flips, planned arch loops, controlled free-fall)
+    doubles your score. Greed is the intended playstyle.</div>
+</section>
+
+<!-- ============ 5. SCORE ============ -->
+<section id="score">
+  <h2><span class="no">05</span>Score, Medals &amp; Ranks</h2>
+
+  <h3>Where points come from</h3>
+  <table>
+    <tr><th>Event</th><th>Points</th></tr>
+    <tr><td>Gravity flip</td><td>25 × chain</td></tr>
+    <tr><td>Tier crossed (×2/×3/×5/×8/×12)</td><td>120 × chain</td></tr>
+    <tr><td>Orb fragment</td><td>400 × chain</td></tr>
+    <tr><td>Energy core</td><td>700 × chain</td></tr>
+    <tr><td>Sequence resonance step</td><td>150 × chain</td></tr>
+    <tr><td>Chamber escaped</td><td>1,500 flat</td></tr>
+    <tr><td>Speed bonus</td><td>up to ~2× the gold par in seconds × 10</td></tr>
+    <tr><td>Flawless (no deaths)</td><td>+750</td></tr>
+    <tr><td>Peak chain bonus</td><td>peak × 100</td></tr>
+  </table>
+
+  <h3>Medals — beat the par time</h3>
+  <p>Every chamber has a <b>par time</b>. Escape under it for <b class="medal-G">GOLD</b>,
+    under 1.5× par for <b class="medal-S">SILVER</b>, under ~2.5× par for
+    <b class="medal-B">BRONZE</b>. The par for the chamber you're in is shown on the level
+    intro card and beside your best time in the HUD.</p>
+
+  <h3>Ranks — the letter that stays</h3>
+  <div class="ranks">
+    <div class="rank"><div class="r-letter rk-s">S</div><div class="r-name">Flawless</div>
+      <div class="r-how">GOLD time<br>+ zero deaths</div></div>
+    <div class="rank"><div class="r-letter rk-a">A</div><div class="r-name">Escaped Clean</div>
+      <div class="r-how">SILVER time<br>+ at most 1 death</div></div>
+    <div class="rank"><div class="r-letter rk-b">B</div><div class="r-name">Survivor</div>
+      <div class="r-how">BRONZE time<br>+ at most 3 deaths</div></div>
+    <div class="rank"><div class="r-letter rk-c">C</div><div class="r-name">Escaped</div>
+      <div class="r-how">any completion<br>counts</div></div>
+  </div>
+  <p>Ranks only ever <b>improve</b> — replay a chamber as many times as you like to climb
+    C → B → A → S. Your best rank shows as a badge in the chamber select grid, and your
+    <b>lifetime score</b> (shown on the main menu) only goes up. Cheated runs are flagged
+    <b style="color:#ff9ee0">⌁ TAINTED</b> and never touch records, scores, or ranks.</p>
+</section>
+
+<!-- ============ 6. SPEEDRUN ============ -->
+<section id="speedrun">
+  <h2><span class="no">06</span>Speedrunning</h2>
+  <ul>
+    <li>The <b>race clock</b> (top-right) shows minutes:seconds.<b>centiseconds</b>.</li>
+    <li>Your <b>per-chamber best</b> is saved forever; the victory screen shows your delta
+      versus it — green means faster.</li>
+    <li>Finishing Chamber I through VIII in one sitting records a <b>campaign total</b>
+      (shown at the end, with every split).</li>
+    <li><b>NEW RECORD</b> moments come with their own fanfare. So do
+      <b>lifetime milestones</b> at 5,000 / 10,000 / 25,000 / 50,000 / 100,000 points.</li>
+    <li>Timer display can be toggled in <b>SETTINGS → Speedrun timer</b>.</li>
+  </ul>
+  <div class="note"><b>Pro reset:</b> the console command <span style="font-family:var(--mono)">resetbest</span>
+    wipes all times, scores and ranks for a clean slate.</div>
+</section>
+
+<!-- ============ 7. CHAMBERS ============ -->
+<section id="chambers">
+  <h2><span class="no">07</span>The Eight Chambers</h2>
+  <p>Difficulty rises on a curve — each chamber introduces something the previous ones
+    didn't have, and none of the old tricks get retired.</p>
+  <table>
+    <tr><th>#</th><th>Chamber</th><th>Difficulty</th><th>Gold · Silver · Bronze</th><th>What's new</th></tr>
+    <tr><td>I</td><td>The Initiation</td><td class="stars">★</td>
+      <td>1:00 · 1:35 · 2:40</td><td>Walking, jumping, the four arches, fragments on three planes</td></tr>
+    <tr><td>II</td><td>The Looping Escape</td><td class="stars">★★</td>
+      <td>1:15 · 1:55 · 3:10</td><td>An endless corridor — the exit is a lie until you break the painted sequence (clue is upside-down on the ceiling)</td></tr>
+    <tr><td>III</td><td>Weight &amp; Gravity</td><td class="stars">★★</td>
+      <td>1:30 · 2:20 · 3:50</td><td>Carry gravity cubes across planes; seat them on wall &amp; ceiling pressure plates to open the vault</td></tr>
+    <tr><td>IV</td><td>The Switchboard</td><td class="stars">★★★</td>
+      <td>1:50 · 2:50 · 4:40</td><td>Laser physics — rotate three mirror pillars (on three different planes) to feed a sensor for 2 seconds</td></tr>
+    <tr><td>V</td><td>The Chrono-Void</td><td class="stars">★★★★</td>
+      <td>1:10 · 1:20 · 1:27</td><td><b>90-second collapse timer</b> and gravity <b>rotates every 16 seconds</b> — green safe zones on the corner landings anchor you through a shift</td></tr>
+    <tr><td>VI</td><td>The Silent Inversion</td><td class="stars">★★★★</td>
+      <td>1:30 · 2:15 · 3:40</td><td>Deadly sentinel beams sweep the room — and they <b>speed up 32% per core</b> you take. Touch nothing red</td></tr>
+    <tr><td>VII</td><td>The Reversed Chasm</td><td class="stars">★★★★</td>
+      <td>2:00 · 3:05 · 5:10</td><td>Bridge segments exist <b>only for certain gravity planes</b> — the floor you need depends on where you stand</td></tr>
+    <tr><td>VIII</td><td>The Monument of Escher</td><td class="stars">★★★★★</td>
+      <td>2:30 · 3:50 · 6:20</td><td>The finale: sequence lock + laser lock + resonance pad + the Core Matrix — all four, then the crown</td></tr>
+  </table>
+
+  <h3>After Chamber VIII — the endless vaults</h3>
+  <p>Escape the Monument and the game keeps going: <b>Chamber IX, X, and then vaults forever.</b>
+    Every vault beyond the second is <b>generated</b> — four sigils across four planes — and
+    every depth makes the room meaner:</p>
+  <ul>
+    <li><b>Depth 1–2:</b> the two hand-seeded vaults (The Fractal Well, The Escher Machine) — generous footholds.</li>
+    <li><b>Every depth:</b> platforms get sparser and smaller, bonus arches rarer, par times longer.</li>
+    <li><b>Depth 3+:</b> sentinel beams join the vaults, and they gain speed each depth.</li>
+    <li>Your <b>deepest chamber</b> is saved and shown on the menu. Falling upward has no floor.</li>
+  </ul>
+</section>
+
+<!-- ============ 8. TIPS ============ -->
+<section id="tips">
+  <h2><span class="no">08</span>Ten Tips From the Playtester</h2>
+  <div class="card">
+    <ol>
+      <li><b>Look up. Always look up.</b> Half the fragments and most of the routes are on the ceiling or a wall. The compass tells you where "down" is — your eyes should be everywhere else.</li>
+      <li><b>Jump before you flip.</b> A jump followed by an arch pass gives you air control during the gravity transition — the smoothest way to land exactly where you aimed.</li>
+      <li><b>Chain green arches into your route.</b> They're free chain links on your way back to the start of a loop, and they never disturb puzzle sequences.</li>
+      <li><b>Free-fall is a tool.</b> Falling "down" a wall onto a far platform is faster than any staircase. The void only claims you if you leave the room entirely.</li>
+      <li><b>In Chamber II, read the ceiling from the ceiling.</b> The order is painted upside-down for a reason — invert first, then read it right-side-up.</li>
+      <li><b>Chamber V: memorize the four safe zones</b> (green-marked corner landings) and be standing on one when the shift comes. 16 seconds is enough if you climb with intent.</li>
+      <li><b>Chamber VI: take the cores in one flowing loop.</b> The sentinels quicken 32% per core — three separate trips means fighting a 64%-faster room at the end.</li>
+      <li><b>Mirrors rotate 45° per interact.</b> In laser chambers, work from the emitter outward; the beam preview updates live and is safe to watch.</li>
+      <li><b>Bank the chain before the exit.</b> The completion bonus is flat, but fragments on the final stretch pay ×12 if you arrive flowing. Route your last pickups through arches.</li>
+      <li><b>Death costs less than hesitation.</b> You keep fragments, you keep your best time, you lose only the chain. The room rewards restarts-per-minute, not caution.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============ 9. SECRETS ============ -->
+<section id="secrets">
+  <h2><span class="no">09</span>Secrets</h2>
+  <details>
+    <summary>The cheat console (spoilers)</summary>
+    <p>Press <kbd>`</kbd> (or the <b style="color:#ff9ee0">⌁</b> button on touch) to open the
+      console. Commands: <span style="font-family:var(--mono)">god · noclip · speed &lt;n&gt; ·
+      jump &lt;n&gt; · gravity &lt;plane&gt; · level &lt;n&gt; · win · frags · tp x y z ·
+      timescale &lt;n&gt; · bright &lt;n&gt; · stats · resetbest · reset</span></p>
+    <p>Cheats are for exploring and practicing: any run with a cheat active is marked
+      <b style="color:#ff9ee0">⌁ TAINTED</b> and will never overwrite a record, score, or rank.</p>
+  </details>
+  <details>
+    <summary>The Konami code (bigger spoilers)</summary>
+    <p><kbd>↑</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd><kbd>←</kbd><kbd>→</kbd><kbd>B</kbd><kbd>A</kbd>
+      — unseals every chamber, grants god mode and ×1.6 speed. The room notices. It always notices.</p>
+  </details>
+</section>
+
+<!-- ============ 10. INSTALL ============ -->
+<section id="install">
+  <h2><span class="no">10</span>Install &amp; Play Anywhere</h2>
+  <ul>
+    <li><b>Play:</b> open <a href="./index.html">index.html</a> in any modern browser — or the live site.</li>
+    <li><b>Install:</b> on Android/desktop, tap <b>INSTALL APP</b> in the menu; on iOS, Share →
+      <b>Add to Home Screen</b>. The game is a PWA and works offline.</li>
+    <li><b>Everything is local:</b> progress, records, and scores live in your browser's storage.
+      Settings → everything is tunable (volumes, sensitivity, bloom, shadows, speedrun timer, vibration).</li>
+    <li><b>Built-in QA:</b> append <span style="font-family:var(--mono)">?qa=1</span> to the URL
+      to watch the game test itself (47 scripted checks).</li>
+  </ul>
+  <div class="note"><b>Privacy:</b> no accounts, no ads, no analytics, no network calls after the
+    3D engine loads from its CDN (cached for offline). Your saves never leave the device.</div>
+</section>
+
+<footer>
+  THE IMPOSSIBLE ROOM · A GRAVITY ESCAPE<br>
+  SINGLE FILE · THREE.JS · WEB AUDIO SYNTH · PROCEDURAL WORLDS<br>
+  GUIDE v5 — MATCHES GAME BUILD v5 “FLOW &amp; FURY”
+</footer>
+
+</div>
+</body>
+</html>

@@ -385,6 +385,91 @@ body.touch .ctl-grid kbd{display:none}
   body.touch .hud-tl{max-width:170px}
   #hud-obj{font-size:16px}
 }
+
+/* ============ v5 FLOW — paradox chain meter ============ */
+#chain{position:fixed;left:50%;bottom:calc(30px + env(safe-area-inset-bottom,0px));
+  transform:translateX(-50%);z-index:15;display:flex;align-items:center;gap:12px;
+  background:var(--glass);border:1px solid var(--line);border-radius:999px;
+  padding:9px 20px;backdrop-filter:blur(8px);opacity:0;transition:opacity .25s;
+  pointer-events:none;box-shadow:0 10px 34px rgba(0,0,0,.45)}
+#chain.on{opacity:1}
+#chain.pop{animation:chainPop .32s cubic-bezier(.2,1.4,.4,1)}
+@keyframes chainPop{0%{transform:translateX(-50%) scale(1.22)}100%{transform:translateX(-50%) scale(1)}}
+#chain-mult{font-family:var(--mono);font-size:22px;font-weight:700;color:#9fd8e8;
+  text-shadow:0 0 18px currentColor;min-width:44px;text-align:center}
+#chain-txt{display:flex;flex-direction:column;gap:3px}
+#chain-tier{font-family:var(--mono);font-size:9px;letter-spacing:.3em;color:var(--ink-dim);
+  text-transform:uppercase}
+#chain-bar{width:84px;height:4px;border-radius:2px;background:rgba(255,255,255,.12);
+  overflow:hidden}
+#chain-fill{display:block;height:100%;background:currentColor;width:100%;
+  border-radius:2px}
+#chain.escher #chain-mult{animation:hueSpin 1.1s linear infinite}
+@keyframes hueSpin{to{filter:hue-rotate(360deg)}}
+body.touch #chain{bottom:calc(258px + env(safe-area-inset-bottom,0px));padding:7px 16px;
+  gap:9px}
+body.touch #chain-mult{font-size:18px;min-width:36px}
+body.touch #chain-bar{width:64px}
+@media (max-height:560px){ body.touch #chain{bottom:calc(210px + env(safe-area-inset-bottom,0px))} }
+
+/* score HUD line */
+#hud-score{font-family:var(--mono);font-size:12px;color:var(--gold);letter-spacing:.06em;
+  margin-top:3px;text-shadow:0 1px 8px rgba(0,0,0,.8)}
+
+/* floating score popups */
+#popups{position:fixed;inset:0;z-index:16;pointer-events:none;overflow:hidden}
+.score-pop{position:absolute;transform:translate(-50%,-50%);font-family:var(--mono);
+  font-size:15px;font-weight:700;color:#ffe9ad;text-shadow:0 2px 10px rgba(0,0,0,.95);
+  animation:popFloat 1.05s ease-out forwards;white-space:nowrap}
+.score-pop.big{font-size:19px;color:#54e08a}
+.score-pop.chain{color:#9fd8e8;font-size:11.5px;font-weight:400}
+.score-pop.chain b{color:#fff}
+@keyframes popFloat{0%{opacity:0;transform:translate(-50%,-30%) scale(.7)}
+  14%{opacity:1;transform:translate(-50%,-55%) scale(1.14)}
+  100%{opacity:0;transform:translate(-50%,-170%) scale(.95)}}
+
+/* victory rank medallion */
+#v-rank{display:flex;align-items:center;gap:20px;min-height:86px}
+#v-rank-letter{font-family:var(--serif);font-style:italic;font-weight:700;
+  font-size:clamp(56px,9vw,84px);line-height:1;
+  animation:rankIn .55s cubic-bezier(.2,1.7,.35,1) both .15s}
+@keyframes rankIn{0%{transform:scale(0) rotate(-14deg);opacity:0}
+  100%{transform:scale(1) rotate(0);opacity:1}}
+#v-rank-name{font-family:var(--mono);font-size:11px;letter-spacing:.34em;
+  color:var(--ink-dim);text-transform:uppercase}
+.rk-s{color:#ff9ee0;text-shadow:0 0 34px rgba(255,158,224,.75)}
+.rk-a{color:#ffd76a;text-shadow:0 0 30px rgba(255,215,106,.6)}
+.rk-b{color:#54e08a;text-shadow:0 0 28px rgba(84,224,138,.55)}
+.rk-c{color:#9aa3b5}
+#v-rank-letter.shimmer{background:linear-gradient(115deg,#ff9ee0,#ffd76a,#54e08a,#4da3ff,#ff9ee0);
+  background-size:300% 100%;-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+  animation:shimmerSlide 2.2s linear infinite}
+@keyframes shimmerSlide{to{background-position:300% 0}}
+.stat-rows .row b.medal-gold{color:#ffd76a}
+.stat-rows .row b.medal-silver{color:#d7dde8}
+.stat-rows .row b.medal-bronze{color:#d09a6a}
+.stat-rows .row span.rec-tag{color:#ff9ee0}
+
+/* chamber select: rank badges + medal dots + scroll for the deep vaults */
+.lvl{position:relative}
+.lvl .rk{position:absolute;top:5px;right:9px;font-family:var(--serif);font-style:italic;
+  font-size:16px;font-weight:700;line-height:1}
+.lvl-grid{max-height:46vh;overflow-y:auto;padding-right:4px;scrollbar-width:thin;
+  scrollbar-color:rgba(255,255,255,.18) transparent}
+.lvl-grid::-webkit-scrollbar{width:6px}
+.lvl-grid::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}
+.lvl .b .mG{color:#ffd76a}.lvl .b .mS{color:#d7dde8}.lvl .b .mB{color:#d09a6a}
+
+/* menu lifetime stats line */
+#menu-stats{font-family:var(--mono);font-size:11px;letter-spacing:.22em;
+  color:var(--gold);opacity:.9}
+#menu-stats b{color:#ffe9ad}
+
+/* full-guide button inside the help panel */
+#btn-guide{border-color:rgba(232,193,90,.5);color:var(--gold);font-size:13px}
+#btn-guide:active{border-color:var(--gold)}
+
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -408,6 +493,7 @@ body.touch .ctl-grid kbd{display:none}
     <button id="btn-settings">SETTINGS</button>
     <button id="btn-install" class="hidden">INSTALL APP</button>
   </div>
+  <div id="menu-stats"></div>
   <div class="panel hidden" id="levels">
     <div class="h2">Select Chamber</div>
     <div class="lvl-grid" id="lvl-grid"></div>
@@ -462,7 +548,24 @@ body.touch .ctl-grid kbd{display:none}
       <span>Arches stack: on Wall A, a blue arch sends you to the ceiling. Watch the gravity
       compass, bottom-left. If you fall into the void you awake at the green arch.</span>
     </div>
-    <div class="btn-row" style="margin-top:16px"><button id="btn-help-back">BACK</button></div>
+    <div class="h2">Flow — the Paradox Chain</div>
+    <div class="ctl-grid" style="grid-template-columns:1fr">
+      <span>Every gravity arch you pass <b>chains</b>: ×2 ×3 ×4… up to <b>×12</b>.
+      The chain pays out on everything you collect and it <b>decays in 12 seconds</b> —
+      keep moving between planes to hold it. Dying drops it to zero.
+      Tiers: <b style="color:#9fd8e8">WALKER ×2</b> · <b style="color:#4da3ff">INVERTED ×3</b> ·
+      <b style="color:#e8c15a">IMPOSSIBLE ×5</b> · <b style="color:#ff9ee0">PARADOX ×8</b> ·
+      <b style="color:#ff9ee0">ESCHER ×12</b>.</span>
+      <span>Escaping scores a <b>medal</b> (GOLD / SILVER / BRONZE vs the chamber's par time)
+      and a <b>rank</b> — <b style="color:#ff9ee0">S</b> flawless ·
+      <b style="color:#ffd76a">A</b> clean · <b style="color:#54e08a">B</b> survivor ·
+      <b style="color:#9aa3b5">C</b> escaped. Chase the S.</span>
+      <span>Beyond Chamber X the vaults keep going — <b>endless generated depth</b>,
+      thinner platforms, faster sentinels. How deep can you fall upward?</span>
+    </div>
+    <div class="btn-row" style="margin-top:16px">
+      <button id="btn-guide">OPEN THE FULL GUIDE ↗</button>
+      <button id="btn-help-back">BACK</button></div>
   </div>
   <div class="foot">SINGLE FILE · THREE.JS · WEB AUDIO SYNTH · DESKTOP &amp; MOBILE</div>
 </div>
@@ -502,11 +605,19 @@ body.touch .ctl-grid kbd{display:none}
       <div class="txt"><div class="lbl">GRAVITY</div><div class="plane" id="compass-plane">FLOOR</div></div>
     </div>
   </div>
-  <div class="hud-br"><span id="hud-time">0:00.00</span><br><span id="hud-best" class="hud-best"></span><span id="hud-fps"></span></div>
+  <div class="hud-br"><span id="hud-time">0:00.00</span><br><span id="hud-best" class="hud-best"></span><span id="hud-fps"></span><div id="hud-score"></div></div>
   <div id="cheat-tag">⌁ CHEATS ACTIVE</div>
   <div id="reticle"><div class="ring"></div><div class="dot"></div></div>
   <div id="prompt"><b>E</b>&nbsp;<span id="prompt-txt"></span></div>
 </div>
+
+<!-- paradox chain meter + floating score popups (v5 flow layer) -->
+<div id="chain">
+  <div id="chain-mult">×2</div>
+  <div id="chain-txt"><div id="chain-tier">WALKER</div>
+    <div id="chain-bar"><i id="chain-fill"></i></div></div>
+</div>
+<div id="popups"></div>
 
 <!-- ===================== SCREENS ===================== -->
 <div id="levelcard" class="screen off">
@@ -530,6 +641,8 @@ body.touch .ctl-grid kbd{display:none}
 <div id="victory" class="screen hidden">
   <div class="kicker" id="v-kick">CHAMBER COMPLETE</div>
   <div class="big-title" id="v-title">Escaped</div>
+  <div id="v-rank" class="hidden"><span id="v-rank-letter">A</span>
+    <span id="v-rank-name">ESCAPED CLEAN</span></div>
   <div class="panel"><div class="stat-rows" id="v-stats"></div></div>
   <div class="btn-row">
     <button id="btn-next" class="primary">NEXT CHAMBER</button>
@@ -605,7 +718,9 @@ const lerp = (a,b,t)=>a+(b-a)*t;
 const damp = (a,b,l,dt)=>lerp(a,b,1-Math.exp(-l*dt));
 const easeInOut = t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
 const easeOut = t=>1-Math.pow(1-t,3);
-const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X'];
+const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X',
+  'XI','XII','XIII','XIV','XV','XVI','XVII','XVIII','XIX','XX'];
+for(let _r=20; _r<30; _r++) ROMAN.push('X'+ROMAN[_r-10]);   /* XXI..XXX for the deep vaults */
 
 function mulberry32(seed){
   let a = seed>>>0;
@@ -630,6 +745,35 @@ const fmtRace = s=>{
   const m = Math.floor(s/60), r = s-m*60;
   return m+':'+(r<10?'0':'')+r.toFixed(2);
 };
+/* score with thin separators — 12480 -> "12,480" */
+const fmtScore = n=>Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+const pick = a=>a[Math.floor(Math.random()*a.length)];
+/* witty void lines — failure should sting, then make you smile */
+const DEATH_LINES=[
+  'DOWN IS ONLY A HABIT',
+  'THE STAIRS RECONSIDER YOU',
+  'GRAVITY FILES A COMPLAINT',
+  'RELATIVITY 1 — YOU 0',
+  'ESCHER LAUGHS, GENTLY',
+  'THAT STEP WAS OPTIONAL',
+  'THE VOID IS PATIENT',
+  'THE ROOM REMEMBERS',
+  'FALLING IS JUST UNSCHEDULED FLYING',
+  'GEOMETRY: 1 — CONFIDENCE: 0'
+];
+/* paradox chain tiers — the names escalate like the rooms do */
+const TIERS=[
+  {n:2,  name:'WALKER',     color:'#9fd8e8'},
+  {n:3,  name:'INVERTED',   color:'#4da3ff'},
+  {n:5,  name:'IMPOSSIBLE', color:'#e8c15a'},
+  {n:8,  name:'PARADOX',    color:'#ff9ee0'},
+  {n:12, name:'ESCHER',     color:'#ff9ee0'}
+];
+const tierFor = chain=>{
+  let t=-1;
+  for(let i=0;i<TIERS.length;i++) if(chain>=TIERS[i].n) t=i;
+  return t;
+};
 
 /* ---- haptics (mobile-first feedback) ---- */
 const HAPTIC={ ok:('vibrate' in navigator), calls:0 };
@@ -651,7 +795,8 @@ const STORE = {
 };
 const SAVE = Object.assign({ unlocked:1, best:{}, campaignBest:null,
   vol:0.7, sens:1.0, invertY:false, bloom:true, shadows:true, fps:false,
-  sfxVol:1.0, ambVol:0.9, speedrun:true, haptics:true }, STORE.load());
+  sfxVol:1.0, ambVol:0.9, speedrun:true, haptics:true,
+  score:0, levelScore:{}, ranks:{}, bestDepth:0, flowHintSeen:false }, STORE.load());
 /* fresh installs on phones/tablets: start with bloom off for smooth framerates */
 if(IS_TOUCH){ try{ if(!localStorage.getItem('tir_save')) SAVE.bloom=false; }catch(e){} }
 
@@ -670,6 +815,10 @@ const DOM = {
   reticle:$('reticle'), prompt:$('prompt'), promptTxt:$('prompt-txt'),
   lcNum:$('lc-num'), lcName:$('lc-name'), lcObj:$('lc-obj'),
   vKick:$('v-kick'), vTitle:$('v-title'), vStats:$('v-stats'),
+  vRank:$('v-rank'), vRankLetter:$('v-rank-letter'), vRankName:$('v-rank-name'),
+  chain:$('chain'), chainMult:$('chain-mult'), chainTier:$('chain-tier'),
+  chainFill:$('chain-fill'), hudScore:$('hud-score'), popups:$('popups'),
+  menuStats:$('menu-stats'),
   btnNext:$('btn-next'), btnReplay:$('btn-replay'), btnBonus:$('btn-bonus'),
   fTitle:$('f-title'), fSub:$('f-sub')
 };
@@ -923,6 +1072,38 @@ class AudioEngine{
     this.blip({type:'sine',f0:1318,f1:1760,d:0.7,g:0.05,at:0.42,bus:this.music});
   }
   uiSwoosh(){ this.noise({f0:600,f1:2400,d:0.16,g:0.04,q:1.2}); }
+  /* ============ v5 FLOW — dopamine ladder ============
+     chainNote: each chained flip plays the NEXT note of a rising pentatonic
+     ladder, so a kept chain literally becomes an ascending melody (the
+     Crossy-Road/Peggle trick — the reward for not dropping it). */
+  chainNote(n){
+    const steps=[0,2,4,7,9,12,14,16,19,21,24,26];
+    const s=steps[Math.max(0,Math.min(n-1,steps.length-1))];
+    const f=392*Math.pow(2,s/12);
+    this.blip({type:'triangle',f0:f,f1:f*1.004,d:0.3,g:0.1,bus:this.music});
+    this.blip({type:'sine',f0:f*2,d:0.22,g:0.035,bus:this.music});
+  }
+  tierUp(t){                       // chain tier crossed — power chord, pitch rises with tier
+    const base=294*Math.pow(2,t*0.7);
+    [0,7,12].forEach((s,i)=>this.blip({type:'sawtooth',f0:base*Math.pow(2,s/12),
+      d:0.5,g:0.045,at:i*0.03,bus:this.music}));
+    this.noise({f0:2200,f1:8200,d:0.55,g:0.02,at:0.04});
+  }
+  chainLost(){                     // the multiplier slips away
+    this.blip({type:'sawtooth',f0:520,f1:130,d:0.42,g:0.08,bus:this.music});
+    this.blip({type:'sine',f0:196,f1:98,d:0.4,g:0.06,at:0.05,bus:this.music});
+  }
+  rankSting(rank){
+    if(rank==='S'){ this.winBig(); return; }
+    const base={A:523,B:392,C:330}[rank]||392;
+    [0,4,7,12].forEach((s,i)=>this.blip({type:'triangle',
+      f0:base*Math.pow(2,s/12),d:0.42,g:0.09,at:i*0.08,bus:this.music}));
+  }
+  milestone(){                     // lifetime score threshold crossed
+    [0,7,12,19].forEach((s,i)=>this.blip({type:'sine',
+      f0:587*Math.pow(2,s/12),d:0.6,g:0.08,at:i*0.1,bus:this.music}));
+    this.noise({f0:3200,f1:9500,d:0.9,g:0.02,at:0.1});
+  }
   /* ---- natural ambience one-shots (panned) ---- */
   birdChirp(pan=0){
     const n=1+Math.floor(Math.random()*3);
@@ -2379,6 +2560,7 @@ class Player{
     const qTo=this.computeArchQuaternion(type);
     if(!qTo) return false;
     this.archCd = opts.cooldown ?? 1.0;      // mandated 1.0s double-trigger guard
+    flowFlip(type);                          // v5: player-driven flips feed the chain
     this.startTransition(qTo, {
       dur: opts.dur ?? 0.5, color: opts.color, fling: opts.fling, safeSnap: opts.safeSnap,
       pos: opts.pos
@@ -2535,6 +2717,7 @@ class Player{
       SND.land(clamp(this.fallVel/16,0.2,1));
       buzz(Math.round(clamp(this.fallVel, 5, 16)));
       this.landDip=Math.min(0.16, this.fallVel*0.011);
+      if(this.fallVel>13) shake(clamp((this.fallVel-13)/38, 0, 0.3));  // v5: heavy landings thump
       PARTS.burst(this.pos.clone().addScaledVector(this.up,-HALF_H+0.06),
         new THREE.Color(0x8fa4b8), Math.round(clamp(this.fallVel*1.4,6,20)), 2.2, 1.6, 0.35);
     }
@@ -3247,6 +3430,9 @@ class Fragment{
     PARTS.burst(this.mesh.position, new THREE.Color(this.isCore?0xa97bff:0xffd76a),
       36, 4.5, 3.0, 0.9);
     flashScreen(this.isCore?'#a97bff':'#e8c15a', 0.28);
+    /* v5 flow: fragments pay out through the paradox chain */
+    awardScore((this.isCore?700:400)*Math.max(1,FLOW.chain), this.mesh.position,
+      {big:true, label:(this.isCore?'CORE +':'FRAGMENT +')});
     this.L.onFragment && this.L.onFragment(this, got);
   }
   reset(){
@@ -3853,6 +4039,7 @@ class Sequence{
       SND.seqNote(this.progress);
       toast('RESONANCE &nbsp;<b>'+this.progress+' / '+this.colors.length+'</b>');
       PARTS.burst(arch.center, new THREE.Color(ARCH_HEX[c]), 26, 3.4, 2.2, 0.8);
+      awardScore(150*Math.max(1,FLOW.chain), arch.center, {label:'RESONANCE +'});  // v5 flow
       if(this.progress>=this.colors.length){
         this.done=true;
         this.onDone && this.onDone();
@@ -4019,6 +4206,145 @@ function updateFade(dt){
   DOM.fade.style.opacity=FADE.v.toFixed(3);
 }
 
+/* ============================================================
+   16b. FLOW — the paradox chain, score, medals, ranks (v5)
+   ------------------------------------------------------------
+   The dopamine loop: every arch you pass chains (×2…×12) and pays
+   out on everything you collect. The chain decays after 12s and
+   shatters on death — so the optimal play IS the risky play: keep
+   falling sideways, keep the melody rising. Escapes are graded
+   with medals (vs par time) and ranks S/A/B/C.
+   ============================================================ */
+const FLOW={
+  chain:0, t:0, WINDOW:12, peak:0, run:0, tier:-1, lastNote:0
+};
+const _FLIP_FWD=V();   /* scratch for popup placement (see flowFlip) */
+function flowReset(){
+  FLOW.chain=0; FLOW.t=0; FLOW.peak=0; FLOW.run=0; FLOW.tier=-1;
+  DOM.chain.classList.remove('on','escher','pop');
+  if(DOM.popups) DOM.popups.innerHTML='';
+}
+function flowFlip(type){
+  if(GAME.state!=='playing') return;
+  FLOW.chain=Math.min(12, FLOW.chain+1);
+  FLOW.t=FLOW.WINDOW;
+  FLOW.peak=Math.max(FLOW.peak, FLOW.chain);
+  const tier=tierFor(FLOW.chain);
+  const col=(tier>=0?TIERS[tier].color:'#9fd8e8');
+  /* popups must float AHEAD of the camera — the camera sits inside the
+     player's head, so player.pos itself projects outside the frustum */
+  const popPos=player.pos.clone().addScaledVector(player.planeForward(_FLIP_FWD), 1.7)
+    .addScaledVector(player.up, 0.25);
+  /* arch-colored particle streak along the player */
+  PARTS.burst(player.pos.clone().addScaledVector(player.up, 0.2),
+    new THREE.Color(ARCH_HEX[type]||0x9fd8e8), 16+FLOW.chain*2, 3.6, 2.4, 0.7,
+    player.up.clone());
+  if(tier>FLOW.tier){
+    FLOW.tier=tier;
+    SND.tierUp(tier);
+    flashScreen(col, 0.3);
+    buzz([12,30,12]);
+    toast('<b style="color:'+col+'">'+TIERS[tier].name+' ×'+FLOW.chain+'</b>', 2000);
+    awardScore(120*FLOW.chain, popPos, {label:'TIER +'});
+  }else{
+    SND.chainNote(FLOW.chain);
+    awardScore(25*FLOW.chain, popPos, {cls:'chain', label:'×'+FLOW.chain});
+  }
+  DOM.chain.classList.add('pop');
+  setTimeout(()=>DOM.chain.classList.remove('pop'), 340);
+}
+function flowBreak(silent){
+  if(FLOW.chain>=3 && !silent){
+    SND.chainLost();
+    toast('CHAIN LOST — <b>×'+FLOW.chain+'</b> GONE', 2200, true);
+    buzz([40,30,40]);
+  }
+  FLOW.chain=0; FLOW.t=0; FLOW.tier=-1;
+  DOM.chain.classList.remove('on','escher');
+}
+function flowUpdate(dt){
+  if(FLOW.chain<=0) return;
+  FLOW.t-=dt;
+  if(FLOW.t<=0){ flowBreak(); return; }
+  /* meter */
+  const tier=tierFor(FLOW.chain);
+  DOM.chain.classList.toggle('on', FLOW.chain>=2);
+  DOM.chain.classList.toggle('escher', tier>=TIERS.length-1);
+  DOM.chainMult.textContent='×'+FLOW.chain;
+  DOM.chainTier.textContent=tier>=0?TIERS[tier].name:'DRIFTER';
+  DOM.chain.style.color=tier>=0?TIERS[tier].color:'#9fd8e8';
+  DOM.chainFill.style.width=(clamp(FLOW.t/FLOW.WINDOW,0,1)*100).toFixed(1)+'%';
+}
+/* ---- score popups (DOM, projected from world) ---- */
+function scorePopup(worldPos, html, cls=''){ 
+  if(!DOM.popups || !camera) return;
+  /* default: float near screen center — used when the world point is at /
+     behind the camera (e.g. a fragment you walked into, or the player's own
+     position). Never eat a popup just because projection fell outside. */
+  let x=innerWidth*0.5, y=innerHeight*0.44;
+  if(worldPos){
+    const v=worldPos.clone().project(camera);
+    if(v.z>-1 && v.z<1){
+      x=(v.x*0.5+0.5)*innerWidth;
+      y=(-v.y*0.5+0.5)*innerHeight;
+      /* keep it on-screen even when the projection is extreme */
+      x=clamp(x, 60, innerWidth-60);
+      y=clamp(y, 70, innerHeight-90);
+    }
+  }
+  const el=document.createElement('div');
+  el.className='score-pop'+(cls?' '+cls:'');
+  el.innerHTML=html;
+  el.style.left=x.toFixed(0)+'px';
+  el.style.top=y.toFixed(0)+'px';
+  DOM.popups.appendChild(el);
+  setTimeout(()=>{ if(el.parentNode) el.remove(); }, 1100);
+  while(DOM.popups.children.length>14) DOM.popups.firstChild.remove();
+}
+/* ---- score awarding + lifetime milestones ---- */
+const MILESTONES=[5000,10000,25000,50000,100000,250000];
+function awardScore(pts, worldPos, o={}){
+  if(!isFinite(pts) || pts<=0) return;
+  if(GAME.state!=='playing') return;
+  FLOW.run+=pts;
+  if(worldPos){
+    scorePopup(worldPos, (o.label||'+')+fmtScore(pts), o.cls||'');
+  }
+}
+function commitScore(idx){
+  /* called once from levelComplete — lifetime + per-level best */
+  const total=FLOW.run;
+  const before=SAVE.score||0;
+  SAVE.score=before+total;
+  if(total>(SAVE.levelScore[idx]||0)) SAVE.levelScore[idx]=Math.round(total);
+  for(const m of MILESTONES){
+    if(before<m && SAVE.score>=m){
+      SND.milestone();
+      toast('<b>THE ROOM TAKES NOTICE</b> — '+fmtScore(m)+' LIFETIME SCORE', 3400);
+      PARTS.burst(player.pos, new THREE.Color(0xffd76a), 40, 4.5, 3, 1.2);
+      break;
+    }
+  }
+}
+/* ---- medals + ranks ---- */
+function medalFor(i, t){
+  const p=LEVELS[i] && LEVELS[i].pars;
+  if(!p) return null;
+  return t<=p[0]?'GOLD':(t<=p[1]?'SILVER':(t<=p[2]?'BRONZE':null));
+}
+const RANK_ORDER=['C','B','A','S'];
+const RANK_INFO={ S:{name:'FLAWLESS', cls:'rk-s'}, A:{name:'ESCAPED CLEAN', cls:'rk-a'},
+  B:{name:'SURVIVOR', cls:'rk-b'}, C:{name:'ESCAPED', cls:'rk-c'} };
+function rankFor(i, t, deaths){
+  const p=LEVELS[i] && LEVELS[i].pars;
+  if(!p) return 'C';
+  if(t<=p[0] && deaths===0) return 'S';
+  if(t<=p[1] && deaths<=1) return 'A';
+  if(t<=p[2] && deaths<=3) return 'B';
+  return 'C';
+}
+function medalClass(m){ return m?('medal-'+m.toLowerCase()):''; }
+
 function startLevel(i, opts={}){
   GAME.levelIndex=i;
   const def=LEVELS[i];
@@ -4026,6 +4352,7 @@ function startLevel(i, opts={}){
   natureDetachInside();               /* inside flora belongs to the old level */
   for(const b of BEAM_POOL) if(b) b.visible=false;
   _laserLevel=0; SND.laserHum(0);       // kill any laser hum leaking from the previous chamber
+  flowReset();                          // v5: fresh chain, fresh run score
   const L=new LevelContext(GAME, def);
   GAME.level=L;
   const pal=def.palette;
@@ -4062,10 +4389,14 @@ function startLevel(i, opts={}){
   /* level card */
   DOM.hudLevel.textContent='CHAMBER '+ROMAN[i];
   DOM.hudObj.textContent=def.objective;
+  if(!SAVE.flowHintSeen && !GAME.qa){
+    SAVE.flowHintSeen=true; persist();
+    toast('CHAIN ARCH PASSES TO RAISE <b>PARADOX</b> — SCORE PAYS ×CHAIN', 4200);
+  }
   if(!opts.silent){
-    DOM.lcNum.textContent='CHAMBER '+ROMAN[i];
+    DOM.lcNum.textContent='CHAMBER '+ROMAN[i]+(def.stars?' · '+'★'.repeat(def.stars):'');
     DOM.lcName.textContent=def.name;
-    DOM.lcObj.textContent=def.objective;
+    DOM.lcObj.textContent=def.objective+(def.pars?'  ·  PAR '+fmtRace(def.pars[0]):'');
     showScreen(DOM.levelcard);
     GAME.state='levelcard';
     GAME.cardT=0;
@@ -4090,22 +4421,61 @@ function levelComplete(){
   const isBest=!tainted && (!prev || t<prev);
   if(isBest) SAVE.best[GAME.levelIndex]=t;
   SAVE.unlocked=Math.max(SAVE.unlocked, Math.min(GAME.levelIndex+2, LEVELS.length));
-  persist();
   GAME.levelTimes[GAME.levelIndex]=t;
   GAME.totalDeaths=(GAME.totalDeaths||0)+GAME.deaths;
   GAME.totalJumps=(GAME.totalJumps||0)+GAME.jumps;
   const last=GAME.levelIndex===LEVELS.length-1;
-  const campaignDone=GAME.levelIndex>=7;
+  const finale=GAME.levelIndex===7;               /* the campaign monument */
+  const endless=GAME.levelIndex>=8;               /* generated vaults go deeper forever */
+  /* ---- v5 flow: completion bonuses, medal, rank, score ---- */
+  const pars=LEVELS[GAME.levelIndex].pars;
+  const medal=medalFor(GAME.levelIndex, t);
+  let rank=null, rankUp=false, scoreRows='';
+  if(!tainted){
+    const timeBonus=pars?Math.max(0, Math.round((pars[0]*2-t)*10)) : 0;
+    const deathBonus=GAME.deaths===0?750:0;
+    const chainBonus=FLOW.peak*100;
+    awardScore(1500+timeBonus+deathBonus+chainBonus, null);
+    commitScore(GAME.levelIndex);
+    rank=rankFor(GAME.levelIndex, t, GAME.deaths);
+    if(RANK_ORDER.indexOf(rank)>RANK_ORDER.indexOf(SAVE.ranks[GAME.levelIndex]||'')){
+      SAVE.ranks[GAME.levelIndex]=rank; rankUp=true;
+    }
+    scoreRows=`<div class="row"><span>SCORE</span><b class="gold">${fmtScore(FLOW.run)}</b></div>`
+      +`<div class="row"><span>BEST SCORE</span><b>${fmtScore(SAVE.levelScore[GAME.levelIndex]||0)}</b></div>`
+      +`<div class="row"><span>PEAK CHAIN</span><b>×${FLOW.peak}</b></div>`;
+    if(rank==='S'){
+      /* confetti pop for the flawless */
+      for(let k=0;k<3;k++) PARTS.burst(player.pos.clone().add(V((Math.random()-0.5)*2,k*0.6,(Math.random()-0.5)*2)),
+        new THREE.Color([0xffd76a,0xff9ee0,0x54e08a,0x4da3ff][k]), 26, 5, 3, 1.3);
+    }
+    if(medal!=='GOLD' && pars && t<=pars[0]*1.12){
+      toast('<b>SO CLOSE</b> — GOLD BY '+fmtRace(t-pars[0]).slice(3)+'s', 3200);
+    }
+  }
+  if(endless) SAVE.bestDepth=Math.max(SAVE.bestDepth||0, GAME.levelIndex+1);
+  persist();
+  ensureLevelsUpTo(GAME.levelIndex+2);             /* the vaults never end */
   if(isBest && prev!==undefined){
     SND.record();
     buzz([20,40,20,40,70]);
     toast('<b style="color:#ffe9ad">NEW RECORD</b> — '+fmtRace(t), 3200);
   }
   DOM.vKick.textContent=(isBest&&prev!==undefined?'NEW RECORD — ':'')+
-    (campaignDone?'THE MONUMENT YIELDS':'CHAMBER COMPLETE');
+    (endless?'DEPTH CLEARED':(finale?'THE MONUMENT YIELDS':'CHAMBER COMPLETE'));
   DOM.vKick.classList.toggle('rec', isBest&&prev!==undefined);
-  DOM.vTitle.textContent=campaignDone?'The Dimension Releases You':'Escaped';
+  DOM.vTitle.textContent=endless?'The Vault Yields':'Escaped';
+  /* rank medallion */
+  if(rank){
+    DOM.vRank.classList.remove('hidden');
+    DOM.vRankLetter.textContent=rank;
+    DOM.vRankLetter.className=(rank==='S'?'shimmer ':'')+RANK_INFO[rank].cls;
+    DOM.vRankName.textContent=RANK_INFO[rank].name+(rankUp&&prev!==undefined?' — NEW':'');
+    SND.rankSting(rank);
+  }else DOM.vRank.classList.add('hidden');
   let rows=`<div class="row"><span>${LEVELS[GAME.levelIndex].name}${tainted?' <span class="rec-tag">⌁ TAINTED</span>':''}</span><b>${fmtRace(t)}</b></div>`;
+  if(pars) rows+=`<div class="row"><span>MEDAL · PAR ${fmtRace(pars[0])}</span><b class="${medalClass(medal)}">${medal||'—'}</b></div>`;
+  rows+=scoreRows;
   rows+=`<div class="row"><span>BEST</span><b class="gold">${fmtRace(SAVE.best[GAME.levelIndex]??t)}</b></div>`;
   if(prev!==undefined && !tainted){
     const d=t-prev;
@@ -4117,11 +4487,13 @@ function levelComplete(){
   rows+=`<div class="row"><span>JUMPS</span><b>${GAME.jumps}</b></div>`;
   rows+=`<div class="row"><span>CAMPAIGN</span><b>${fmtRace(GAME.campaignTime)}</b></div>`;
   DOM.vStats.innerHTML=rows;
-  DOM.btnNext.classList.toggle('hidden', campaignDone);
-  DOM.btnBonus.classList.toggle('hidden', !(campaignDone&&LEVELS.length>8));
+  DOM.btnNext.classList.toggle('hidden', finale);
+  DOM.btnNext.textContent=endless?'DESCEND DEEPER':'NEXT CHAMBER';
+  DOM.btnBonus.classList.toggle('hidden', !(finale&&LEVELS.length>8));
   showScreen(DOM.victory);
   if(plc && plc.isLocked) plc.unlock();
   DOM.hud.classList.remove('on');
+  DOM.chain.classList.remove('on','escher');
 }
 function campaignVictory(){
   GAME.state='victory';
@@ -4160,10 +4532,11 @@ function failLevel(title, sub, opts={}){
   GAME.failT=1.7;
   GAME.deaths=(GAME.deaths||0)+1;
   player.frozen=true;
+  flowBreak();                       /* v5: the chain shatters with you */
   SND.fail();
   buzz([60,50,60]);
   DOM.fTitle.textContent=title;
-  DOM.fSub.textContent=sub;
+  DOM.fSub.textContent=pick(DEATH_LINES)+' — '+sub;
   showScreen(DOM.failed);
   DOM.vignette.style.opacity=1;
   if(plc && plc.isLocked) plc.unlock();
@@ -4172,6 +4545,7 @@ function voidRespawn(){
   const L=GAME.level;
   const r=L.respawn||L.spawn;
   GAME.deaths=(GAME.deaths||0)+1;
+  flowBreak();                       /* v5: the void eats multipliers */
   SND.whoosh(false);
   buzz([50,40,50]);
   flashScreen('#0b0e14', 0.75);
@@ -4180,7 +4554,7 @@ function voidRespawn(){
   player.snapTo(r.pos, r.yaw??0, new THREE.Quaternion());
   player.vel.set(0,0,0);
   player.frozen=false;
-  toast('THE VOID RETURNS YOU TO THE <b>GREEN ARCH</b>');
+  toast(pick(DEATH_LINES)+' — <b>BACK TO THE GREEN ARCH</b>');
 }
 
 function showScreen(el){ if(el._hideT){ clearTimeout(el._hideT); el._hideT=null; }
@@ -4260,13 +4634,15 @@ function hudSetStage(i, txt){
 }
 function updateHUD(dt){
   const L=GAME.level; if(!L) return;
-  /* speedrun clock + best line */
+  /* speedrun clock + best line (with the medal target when pars exist) */
   const showRace=SAVE.speedrun!==false;
   DOM.hudTime.textContent=(showRace?fmtRace(GAME.levelTime):fmtTime(GAME.levelTime));
   DOM.hudTime.classList.toggle('race', showRace);
   DOM.hudTime.classList.toggle('tainted', cheatActive());
+  const par=LEVELS[GAME.levelIndex] && LEVELS[GAME.levelIndex].pars;
   DOM.hudBest.textContent=(showRace && SAVE.best[GAME.levelIndex]!==undefined)
-    ? 'BEST '+fmtRace(SAVE.best[GAME.levelIndex]) : '';
+    ? 'BEST '+fmtRace(SAVE.best[GAME.levelIndex])+(par?' · GOLD '+fmtRace(par[0]):'') : '';
+  DOM.hudScore.textContent=FLOW.run>0?fmtScore(FLOW.run)+' PTS':'';
   DOM.hudFps.textContent=SAVE.fps?`${Math.round(FPS.avg)} FPS`:'';
   /* compass */
   const gCam=V().copy(player.gravityDir).applyQuaternion(camera.quaternion.clone().invert());
@@ -4389,6 +4765,7 @@ function updateGame(dt){
   if(playing){
     GAME.campaignTime+=dt;
     GAME.levelTime+=dt;
+    flowUpdate(dt);                   /* v5: paradox chain decay */
   }
   if(!L){ PARTS.update(dt); return; }
   /* failed-state restart (game-clock driven so it pauses and QA-steps cleanly) */
@@ -4454,6 +4831,8 @@ LEVELS.push({
   objective:'Collect 3 orb fragments — the ceiling hatch awakens',
   hud:'fragments',
   ambient:55,
+  stars:1,
+  pars:[60,95,160],
   palette:{ trim:0x39d5c8, plat:0x5a6478,
     checkerA:'#8c94a8', checkerB:'#5a6278', panel:'#6a7488', panelLine:'#8a94ac',
     floorRepX:8, floorRepY:8, wallRepX:5,
@@ -4541,6 +4920,8 @@ LEVELS.push({
   objective:'Break the sequence — read the inverted paint',
   hud:'sequence',
   ambient:65.4,
+  stars:2,
+  pars:[75,115,190],
   palette:{ trim:0x7dc98f, plat:0x54644f,
     checkerA:'#64746a', checkerB:'#46524a', panel:'#54624f', panelLine:'#68786a',
     floorRepX:26, floorRepY:4, wallRepX:14, wallRepY:1.4,
@@ -4662,6 +5043,8 @@ LEVELS.push({
   objective:'Seat a gravity cube on each anchor — the vault will yield',
   hud:'plates',
   ambient:49,
+  stars:2,
+  pars:[90,140,230],
   palette:{ trim:0xe0a54d, plat:0x8a7658,
     checkerA:'#a89478', checkerB:'#7a6a52', panel:'#96826a', panelLine:'#b09a7e',
     floorRepX:7, floorRepY:7, wallRepX:5,
@@ -4765,6 +5148,8 @@ LEVELS.push({
   objective:'Rotate the mirror pillars — feed the sensor for 2 seconds',
   hud:'laser',
   ambient:58.3,
+  stars:3,
+  pars:[110,170,280],
   palette:{ trim:0x4da3ff, plat:0x8a96ac,
     checkerA:'#a8b4c8', checkerB:'#78849a', panel:'#96a2b8', panelLine:'#b0bcd0',
     floorRepX:8, floorRepY:8, wallRepX:5,
@@ -4853,6 +5238,8 @@ LEVELS.push({
   objective:'Ascend to the spire crown before stabilization collapses',
   hud:'timer',
   ambient:43.6,
+  stars:4,
+  pars:[70,80,87],
   palette:{ trim:0xe8633c, plat:0x8a6048,
     checkerA:'#a87858', checkerB:'#7a543c', panel:'#96684c', panelLine:'#b07a58',
     floorRepX:6, floorRepY:6, wallRepX:4,
@@ -4861,8 +5248,8 @@ LEVELS.push({
   build(L){
     LShell(L, {w:26, h:34, d:26, topTrim:false, glaze:{wall:0.32, ceil:true}});
     L.vars.timeLimit=90;
-    L.vars.shiftEvery=20;
-    L.vars.nextShift=20;
+    L.vars.shiftEvery=16;          /* v5: was 20 — the room destabilizes faster now */
+    L.vars.nextShift=16;
     L.vars.safe=false;
     L.spawn={pos:V(0, 1.2, 10.5), yaw:0};
     L.respawn={pos:V(0, 1.2, 10.5), yaw:0};
@@ -4913,7 +5300,7 @@ LEVELS.push({
     ring.position.set(0, 31.6, 0);
     WORLD.add(ring); L.disposables.push(ring);
     L.vars.status='ALTITUDE 0 / 31';
-    LText(L, 0, 0.02, 6, ['CLIMB — 90 SECONDS — GREEN ZONES ANCHOR GRAVITY'], {normal:'y+', up:'z-', w:7.5, h:0.9, size:36, color:'#7d8ba0'});
+    LText(L, 0, 0.02, 6, ['CLIMB — 90 SECONDS — SHIFTS EVERY 16s — GREEN ZONES ANCHOR'], {normal:'y+', up:'z-', w:8.6, h:0.9, size:32, color:'#7d8ba0'});
   },
   update(L, dt, t){
     const v=L.vars;
@@ -4947,7 +5334,10 @@ LEVELS.push({
   },
   qa(ctx){
     const L5=L_FIX();
-    /* gravity rotates on the 20s mark */
+    /* gravity rotates on the 16s mark — stand in open floor like a real
+       climber (standing at spawn would fling you back through the green
+       arch, which honestly recovers you — but this test wants the raw shift) */
+    ctx.warp(10, 1.2, 5);
     ctx.steps(20.8, 1/20);
     if(gKey(player.gravityDir)!=='0,0,-1') return 'auto-shift did not rotate gravity to WALL A (got '+gKey(player.gravityDir)+')';
     /* safe zone anchoring — shelter on the first corner landing */
@@ -4975,6 +5365,8 @@ LEVELS.push({
   objective:'Take 3 energy cores — touch nothing red',
   hud:'cores',
   ambient:73.4,
+  stars:4,
+  pars:[90,135,220],
   palette:{ trim:0xa97bff, plat:0x7c6e9c,
     checkerA:'#9c8cb8', checkerB:'#6a5c8c', panel:'#8a7aa8', panelLine:'#a292c0',
     floorRepX:7, floorRepY:7, wallRepX:5,
@@ -4991,11 +5383,11 @@ LEVELS.push({
     new Fragment(L, -11, 0.45, -11, {core:true});
     new Fragment(L, 0, 6.5, -14.45, {core:true});
     new Fragment(L, 0, 11.3, 4, {core:true});
-    /* sentinel sweepers */
-    new Sweeper(L, {x:0, y:1.5, z:-6, axis:'x', amp:6, speed:0.6, phase:0, h:3.0, d:9, deadly:true});
-    new Sweeper(L, {x:0, y:1.5, z:6, axis:'x', amp:6, speed:0.66, phase:2.1, h:3.0, d:9, deadly:true});
-    new Sweeper(L, {x:0, y:10.5, z:0, axis:'x', amp:6, speed:0.5, phase:1.0, h:3.0, d:9, deadly:true});
-    new Sweeper(L, {x:0, y:6, z:0, axis:'z', amp:5, speed:0.42, phase:3.0, h:6.0, d:8, deadly:true});
+    /* sentinel sweepers (v5: base speeds raised — chamber VI does not forgive) */
+    new Sweeper(L, {x:0, y:1.5, z:-6, axis:'x', amp:6, speed:0.68, phase:0, h:3.0, d:9, deadly:true});
+    new Sweeper(L, {x:0, y:1.5, z:6, axis:'x', amp:6, speed:0.74, phase:2.1, h:3.0, d:9, deadly:true});
+    new Sweeper(L, {x:0, y:10.5, z:0, axis:'x', amp:6, speed:0.58, phase:1.0, h:3.0, d:9, deadly:true});
+    new Sweeper(L, {x:0, y:6, z:0, axis:'z', amp:5, speed:0.5, phase:3.0, h:6.0, d:8, deadly:true});
     /* hazard stripes marking the sweep lanes */
     const stripeMat=L.palette.glow(0xff2233, 0.7);
     for(const sz of [-6, 6]){
@@ -5014,7 +5406,8 @@ LEVELS.push({
       onEnter:()=>levelComplete()});
     L.onFragment=(f, got)=>{
       L.vars.status=`CORES ${got} / 3` + (got<3?'':' — DESCEND');
-      for(const sw of L.sweepers) sw.speedMul=1+got*0.18;
+      for(const sw of L.sweepers) sw.speedMul=1+got*0.32;   /* v5: quickens 32% per core */
+      if(got>0 && got<3) toast('THE SENTINELS <b>QUICKEN</b> — '+Math.round(got*32)+'% FASTER', 2200, true);
       if(got>=3){
         L.hatch.openUp();
         exit.setLocked(false);
@@ -5066,6 +5459,8 @@ LEVELS.push({
   objective:'Cross the bridge of the worthy plane — ride the void elevator',
   hud:'escape',
   ambient:61.7,
+  stars:4,
+  pars:[120,185,310],
   palette:{ trim:0x39d5c8, plat:0x8a9cb4,
     checkerA:'#a8bcd0', checkerB:'#7894ac', panel:'#96a8c0', panelLine:'#b0c4d8',
     floorRepX:8, floorRepY:8, wallRepX:5,
@@ -5168,6 +5563,8 @@ LEVELS.push({
   objective:'Rebuild the Core Anchor — sequence, light, resonance, socket',
   hud:'final',
   ambient:36.7,
+  stars:5,
+  pars:[150,230,380],
   palette:{ trim:0xe8c15a, plat:0x8a7a58,
     checkerA:'#a89878', checkerB:'#786848', panel:'#96866a', panelLine:'#b09e7e',
     floorRepX:10, floorRepY:10, wallRepX:6,
@@ -5458,13 +5855,14 @@ const CHEAT_CMDS={
       ['speed <n>','movement speed multiplier (0.5 – 6)'],
       ['jump <n>','jump power multiplier (0.5 – 5)'],
       ['gravity <p>','floor | ceil | wallA | wallB'],
-      ['level <n>','warp to chamber 1 – 10'],
+      ['level <n>','warp to chamber 1 – '+LEVELS.length+' (vaults generate on demand)'],
       ['win','complete the current chamber'],
       ['frags','collect every fragment / core in the chamber'],
       ['tp <x y z>','teleport to coordinates'],
       ['timescale <n>','slow-motion / fast-forward (0.2 – 3)'],
       ['bright <n>','exposure boost (-0.5 – 1)'],
-      ['resetbest','wipe all best times (speedrun reset)'],
+      ['stats','lifetime score, ranks, depth report'],
+      ['resetbest','wipe all best times, scores and ranks (speedrun reset)'],
       ['reset','clear all cheats'] ];
     toast('CHEATS — <b>`</b> closes · ' + rows.map(r=>'<b>'+r[0]+'</b>').join(' · '), 9000);
     console.log('%c THE IMPOSSIBLE ROOM — CHEAT SHEET ', 'background:#2a1e3a;color:#ff9ee0;font-weight:bold');
@@ -5498,7 +5896,9 @@ const CHEAT_CMDS={
   },
   level(a){
     const n=Math.round(parseFloat(a[0]));
-    if(!n||n<1||n>LEVELS.length) return 'usage: level 1–'+LEVELS.length;
+    if(!n||n<1) return 'usage: level 1–∞ (vaults generate on demand)';
+    ensureLevelsUpTo(n);
+    if(n>LEVELS.length) return 'usage: level 1–'+LEVELS.length;
     const i=n-1;
     SAVE.unlocked=Math.max(SAVE.unlocked, i+1); persist();
     hideScreen(DOM.victory); hideScreen(DOM.failed); hideScreen(DOM.pause);
@@ -5506,7 +5906,7 @@ const CHEAT_CMDS={
     startLevel(i, {silent:true});
     GAME.state='playing';
     DOM.hud.classList.add('on');
-    return 'warped to CHAMBER '+ROMAN[i]+' — '+LEVELS[i].name;
+    return 'warped to CHAMBER '+(ROMAN[i]||('#'+(i+1)))+' — '+LEVELS[i].name;
   },
   win(){
     if(GAME.state!=='playing') return 'not playing';
@@ -5537,18 +5937,23 @@ const CHEAT_CMDS={
     return v===0?'exposure reset':'exposure '+(v>0?'+':'')+v.toFixed(2);
   },
   resetbest(){
-    SAVE.best={}; SAVE.campaignBest=null; persist();
-    return 'records wiped — clean slate, speedrunner';
+    SAVE.best={}; SAVE.campaignBest=null; SAVE.score=0; SAVE.levelScore={};
+    SAVE.ranks={}; SAVE.bestDepth=0; persist();
+    return 'records, scores and ranks wiped — clean slate, speedrunner';
+  },
+  stats(){
+    const ranks=Object.keys(SAVE.ranks);
+    const s=(SAVE.ranks||{});
+    const tally=ranks.reduce((m,r)=>{ m[s[r]]=(m[s[r]]||0)+1; return m; },{});
+    return 'LIFETIME '+fmtScore(SAVE.score||0)+' PTS · RANKS '
+      +['S','A','B','C'].map(r=>(tally[r]||0)+r).join(' ')
+      +(SAVE.bestDepth>10?' · DEPTH '+(SAVE.bestDepth-10):'');
   },
   reset(){
     CHEATS.god=false; CHEATS.noclip=false; CHEATS.speed=1; CHEATS.jump=1;
     CHEATS.bright=0; GAME.timeScale=1;
     applyTheme(GAME.levelIndex);
     return 'all cheats cleared';
-  },
-  resetbest(){
-    SAVE.best={}; SAVE.campaignBest=null; persist();
-    return 'records wiped — clean slate, speedrunner';
   }
 };
 function executeCheat(line){
@@ -5612,11 +6017,25 @@ function setupCheats(){
 }
 
 /* ============================================================
-   20. PROCEDURAL BONUS LEVELS (Level 9+, seeded)
+   20. PROCEDURAL VAULTS (Chamber IX+, seeded — endless)
+   ------------------------------------------------------------
+   Depth scales everything: fewer footholds, smaller kerbs,
+   rarer bonus arches, and from depth 3 the sentinels arrive.
+   The vaults never run out — how deep can you fall upward?
    ============================================================ */
-function procLevel(seed, name, sub, palette, ambient){
+function procLevel(seed, name, sub, palette, ambient, depth=1){
+  /* difficulty knobs — tighten with every vault descended */
+  const d=depth-1;
+  const FLOOR_P=Math.max(0.34, 0.62-d*0.06);
+  const CEIL_P =Math.max(0.32, 0.50-d*0.045);
+  const FIN_P  =Math.max(0.32, 0.50-d*0.045);
+  const PLAT_S =Math.max(1.5,  2.20-d*0.14);
+  const PLAT_V =Math.max(0.70, 1.40-d*0.12);
+  const ARCH_P =Math.max(0.05, 0.18-d*0.03);
   return {
     name, objective:sub, hud:'fragments', ambient,
+    stars:Math.min(5, 1+depth),
+    pars:[90+6*d, 140+8*d, 230+10*d],
     palette, shadowExt:{x:17,z:17,y:14},
     build(L){
       const rng=mulberry32(seed);
@@ -5625,33 +6044,37 @@ function procLevel(seed, name, sub, palette, ambient){
       L.respawn={pos:V(0, 1.2, 11.5), yaw:0};
       LPlatform(L, 0, 0.25, 10.2, 3.4, 3.4, {mat:'platform'});
       LArch(L, 'green', 0, 0.25, 9.3, 'z-');
-      LText(L, 0, 0.02, 6.8, ['GENERATED VAULT — EVERY PLANE WALKS'], {normal:'y+', up:'z-', w:6.2, h:0.9, size:36, color:'#7d8ba0'});
+      LText(L, 0, 0.02, 6.8, depth>1
+        ? ['VAULT DEPTH '+depth+' — THE ROOM THINS']
+        : ['GENERATED VAULT — EVERY PLANE WALKS'],
+        {normal:'y+', up:'z-', w:6.2, h:0.9, size:36, color:'#7d8ba0'});
       const cells=[-9.5, 0, 9.5];
       const platforms={FLOOR:[], CEIL:[], WALLA:[], WALLB:[]};
       /* floor kerbs */
       for(const gx of cells) for(const gz of cells){
         if(gx===0 && gz===0) continue;
-        if(rng()<0.62){
-          const w=2.2+rng()*1.4, d=2.2+rng()*1.4;
+        if(rng()<FLOOR_P){
+          const w=PLAT_S+rng()*PLAT_V, d2=PLAT_S+rng()*PLAT_V;
           const x=gx+(rng()*2-1)*1.2, z=gz+(rng()*2-1)*1.2;
-          LPlatform(L, x, 0.45, z, w, d, {mat:'platform'});
+          LPlatform(L, x, 0.45, z, w, d2, {mat:'platform'});
           platforms.FLOOR.push({x, y:0.45, z});
         }
       }
       /* ceiling kerbs (recessed panels) */
       for(const gx of cells) for(const gz of cells){
-        if(rng()<0.5){
-          const w=2.2+rng()*1.4, d=2.2+rng()*1.4;
+        if(rng()<CEIL_P){
+          const w=PLAT_S+rng()*PLAT_V, d2=PLAT_S+rng()*PLAT_V;
           const x=gx+(rng()*2-1)*1.2, z=gz+(rng()*2-1)*1.2;
-          LBox(L, x, 13.75, z, w, 0.4, d, 'platform', {tag:'ceilplat'});
+          LBox(L, x, 13.75, z, w, 0.4, d2, 'platform', {tag:'ceilplat'});
           platforms.CEIL.push({x, y:13.55, z});
         }
       }
       /* wall fins — kerbs on WALL A / WALL B */
       for(const side of [-14.8, 14.8]){
         for(const gy of [2.5, 6, 9.5]) for(const gx of cells){
-          if(rng()<0.5){
-            const w=2.2+rng()*1.2, h=2.2+rng()*1.2;
+          if(rng()<FIN_P){
+            const w=PLAT_S+rng()*Math.max(0.6,1.2-d*0.08);
+            const h=PLAT_S+rng()*Math.max(0.6,1.2-d*0.08);
             const x=gx+(rng()*2-1)*1.0, y=gy+(rng()*2-1)*0.8;
             LBox(L, x, y, side, w, h, 0.5, 'platform', {tag:'fin'});
             const key=side<0?'WALLA':'WALLB';
@@ -5668,7 +6091,7 @@ function procLevel(seed, name, sub, palette, ambient){
       let extra=0;
       for(const p of platforms.WALLA){
         if(extra>=2) break;
-        if(rng()<0.18){
+        if(rng()<ARCH_P){
           LArch(L, rng()<0.5?'blue':'yellow', p.x, p.y-0.6, -14.6, 'x+', 'wallA');
           extra++;
         }
@@ -5676,10 +6099,17 @@ function procLevel(seed, name, sub, palette, ambient){
       extra=0;
       for(const p of platforms.WALLB){
         if(extra>=2) break;
-        if(rng()<0.18){
+        if(rng()<ARCH_P){
           LArch(L, rng()<0.5?'red':'yellow', p.x, p.y-0.6, 14.6, 'x-', 'wallB');
           extra++;
         }
+      }
+      /* sentinels stalk the deep vaults (depth 3+) — never near spawn */
+      if(depth>=3){
+        new Sweeper(L, {x:0, y:1.5, z:-6, axis:'x', amp:6,
+          speed:0.5+d*0.02, phase:0, h:3.0, d:9, deadly:true});
+        new Sweeper(L, {x:0, y:7, z:0, axis:'z', amp:5,
+          speed:0.44+d*0.02, phase:2.4, h:6.0, d:8, deadly:true});
       }
       /* four fragments across four distinct planes */
       const planeKeys=['FLOOR','CEIL','WALLA','WALLB'];
@@ -5699,7 +6129,7 @@ function procLevel(seed, name, sub, palette, ambient){
       const exit=new ExitVolume(L, 0, 14.75, 0, 2.2, 1.5, 2.2, {locked:true,
         onEnter:()=>levelComplete()});
       L.onFragment=(f, got)=>{
-        L.vars.status=`SIGILS ${got} / 4` + (got<4?'':' — THE HATCH AWAKENS');
+        L.vars.status=`SIGILS ${got} / 4 · DEPTH ${depth}` + (got<4?'':' — THE HATCH AWAKENS');
         if(got>=4){
           L.hatch.openUp();
           exit.setLocked(false);
@@ -5707,7 +6137,7 @@ function procLevel(seed, name, sub, palette, ambient){
           toast('THE HATCH <b>AWAKENS</b>');
         }
       };
-      L.vars.status='SIGILS 0 / 4';
+      L.vars.status='SIGILS 0 / 4 · DEPTH '+depth;
     },
     qa(ctx){
       const Lp=L_FIX();
@@ -5745,13 +6175,45 @@ LEVELS.push(procLevel(20260926, 'The Fractal Well',
   { trim:0x2fd4b0, plat:0x5a8a80,
     checkerA:'#5e8e84', checkerB:'#41645c', panel:'#4a746c', panelLine:'#5e8e84',
     floorRepX:7, floorRepY:7, wallRepX:5,
-    glassTint:0xa8ffe8, glassOpacity:0.24, frame:0x2a423e }, 51.9));
+    glassTint:0xa8ffe8, glassOpacity:0.24, frame:0x2a423e }, 51.9, 1));
 LEVELS.push(procLevel(31415926, 'The Escher Machine',
   'Collect 4 sigils in the generated vault',
   { trim:0xd455c8, plat:0x8e749a,
     checkerA:'#9c84a8', checkerB:'#6e547c', panel:'#866e94', panelLine:'#a488b0',
     floorRepX:7, floorRepY:7, wallRepX:5,
-    glassTint:0xe8c0ff, glassOpacity:0.24, frame:0x423252 }, 46.2));
+    glassTint:0xe8c0ff, glassOpacity:0.24, frame:0x423252 }, 46.2, 2));
+
+/* ---- the endless tail: vaults generate on demand as you descend ---- */
+const DEEP_NAMES=['The Hollow Frame','The Silent Rotor','The Mirror Orchard','The Long Fall',
+  'The Penrose Vault','The Aerial Garden','The Iron Spiral','The Echo Chamber'];
+const DEEP_PALETTES=[
+  { trim:0xe0a54d, plat:0x8a7658, checkerA:'#a89478', checkerB:'#7a6a52', panel:'#96826a',
+    panelLine:'#b09a7e', floorRepX:7, floorRepY:7, wallRepX:5,
+    glassTint:0xf0d8b0, glassOpacity:0.24, frame:0x5a4c38 },
+  { trim:0xe8633c, plat:0x8a6048, checkerA:'#a87858', checkerB:'#7a543c', panel:'#96684c',
+    panelLine:'#b07a58', floorRepX:6, floorRepY:6, wallRepX:4,
+    glassTint:0xffc890, glassOpacity:0.24, frame:0x5a3c2a },
+  { trim:0x54c8ff, plat:0x6a8aa8, checkerA:'#84a8c0', checkerB:'#54748c', panel:'#6a8aa0',
+    panelLine:'#8cb4cc', floorRepX:7, floorRepY:7, wallRepX:5,
+    glassTint:0xc8ecff, glassOpacity:0.24, frame:0x3a4c5e },
+  { trim:0x54e08a, plat:0x6a9a78, checkerA:'#84b898', checkerB:'#548060', panel:'#6a9a80',
+    panelLine:'#8cbca0', floorRepX:7, floorRepY:7, wallRepX:5,
+    glassTint:0xc8ffd8, glassOpacity:0.24, frame:0x2e4a38 }
+];
+function makeDeepLevel(depth){
+  const name=DEEP_NAMES[(depth-3+DEEP_NAMES.length)%DEEP_NAMES.length];
+  const pal=DEEP_PALETTES[(depth-3)%DEEP_PALETTES.length];
+  const seed=7919*depth+104729;
+  return procLevel(seed, name, 'Collect 4 sigils — vault depth '+depth, pal,
+    44+((depth*7)%22), depth);
+}
+function ensureLevelsUpTo(n, force){
+  if(GAME.qa && !force) return;         /* QA harness must stay deterministic (10 levels) */
+  while(LEVELS.length<n){
+    const depth=LEVELS.length-7;        /* index 8 -> depth 1 */
+    LEVELS.push(makeDeepLevel(depth));
+  }
+}
 
 /* ============================================================
    21. MAIN LOOP, MENUS, BOOT
@@ -5814,15 +6276,27 @@ function setupMenu(){
       const el=document.createElement('div');
       el.className='lvl'+(locked?' locked':'');
       const bonus=i>=8;
-      el.innerHTML=`<div class="n">${bonus?'✦'+ROMAN[i]:ROMAN[i]}</div>
-        <div class="t">${locked?'':lv.name}</div>
-        <div class="b">${SAVE.best[i]!==undefined?fmtTime(SAVE.best[i]):''}</div>`;
+      const rk=SAVE.ranks[i];
+      const best=SAVE.best[i];
+      const md=best!==undefined?medalFor(i,best):null;
+      el.innerHTML=`<div class="n">${bonus?'✦':''}${ROMAN[i]||('#'+(i+1))}</div>`
+        +(rk?`<span class="rk rk-${rk.toLowerCase()}">${rk}</span>`:'')
+        +`<div class="t">${locked?'':lv.name}</div>`
+        +`<div class="b">${best!==undefined?fmtTime(best):''}${md?` <span class="m${md[0]}">●</span>`:''}</div>`;
       if(!locked) el.onclick=()=>{
         SND.init(); SND.uiClick();
         enterGame(i);
       };
       grid.appendChild(el);
     });
+    /* lifetime line — the number that only goes up */
+    const ranksN=Object.keys(SAVE.ranks).length;
+    if(SAVE.score>0){
+      DOM.menuStats.innerHTML=`LIFETIME <b>${fmtScore(SAVE.score)}</b> PTS · ${ranksN} RANK${ranksN===1?'':'S'} CLIMBED`
+        +(SAVE.bestDepth>10?` · DEPTH <b>${SAVE.bestDepth-10}</b>`:'');
+    }else{
+      DOM.menuStats.textContent='EIGHT CHAMBERS · THEN THE VAULTS GO DEEP FOREVER';
+    }
   };
   rebuild();
   $('btn-start').onclick=()=>{
@@ -5837,6 +6311,7 @@ function setupMenu(){
     $('settings').classList.remove('hidden'); $('levels').classList.add('hidden'); $('help').classList.add('hidden'); };
   $('btn-levels-back').onclick=()=>{ SND.uiClick(); $('levels').classList.add('hidden'); };
   $('btn-help-back').onclick=()=>{ SND.uiClick(); $('help').classList.add('hidden'); };
+  $('btn-guide').onclick=()=>{ SND.uiClick(); window.open('HOW-TO-PLAY.html','_blank','noopener'); };
   $('btn-settings-back').onclick=()=>{ SND.uiClick(); $('settings').classList.add('hidden'); };
   /* settings */
   const vol=$('set-vol'), sens=$('set-sens');
@@ -5912,6 +6387,7 @@ function setupMenu(){
   $('btn-bonus').onclick=()=>{ SND.uiClick(); hideScreen(DOM.victory);
     DOM.vignette.style.opacity=0;
     const nxt=(GAME.levelIndex>=8 && GAME.levelIndex<LEVELS.length-1)?GAME.levelIndex+1:8;
+    ensureLevelsUpTo(nxt+1);
     enterGame(nxt); };
   $('btn-vmenu').onclick=()=>{ SND.uiClick(); hideScreen(DOM.victory);
     DOM.vignette.style.opacity=0; toMenu(); };
@@ -6430,6 +6906,121 @@ function qaRun(){
     return true;
   }), 'audio.ambience');
 
+  /* 22 — paradox chain: flips chain, pay score, decay, and shatter on death */
+  log(guard(()=>{
+    startLevel(0,{silent:true});
+    GAME.state='playing'; player.frozen=false; player.archCd=0;
+    player.pos.set(0,1.2,0); player.vel.set(0,0,0);
+    flowReset();
+    if(!player.applyArch('blue')) return 'arch 1 refused';
+    player.update(1.2);                       // finish transition + cooldown
+    player.archCd=0;
+    if(!player.applyArch('red')) return 'arch 2 refused';
+    if(FLOW.chain!==2) return 'chain not 2 after two flips (got '+FLOW.chain+')';
+    if(FLOW.peak!==2) return 'peak not tracked (got '+FLOW.peak+')';
+    if(FLOW.run<=0) return 'chain flips paid no score (run='+FLOW.run+')';
+    if(DOM.popups.children.length<1) return 'no score popup spawned';
+    /* decay: run the window out */
+    flowUpdate(FLOW.WINDOW+0.1);
+    if(FLOW.chain!==0) return 'chain did not decay (got '+FLOW.chain+')';
+    /* death shatters the chain */
+    player.applyArch('blue'); player.update(1.2); player.archCd=0;
+    player.applyArch('red'); player.update(1.2);
+    if(FLOW.chain<2) return 'precondition: chain should be >=2';
+    const runBefore=FLOW.run;
+    voidRespawn();
+    if(FLOW.chain!==0) return 'death did not break the chain (got '+FLOW.chain+')';
+    if(FLOW.run!==runBefore) return 'death should not erase banked run score';
+    flowReset();
+    return true;
+  }), 'flow.chain');
+
+  /* 23 — medals, ranks, and score persistence on victory */
+  log(guard(()=>{
+    delete SAVE.best[0]; SAVE.ranks={}; const score0=SAVE.score||0;
+    startLevel(0,{silent:true}); GAME.state='playing'; player.frozen=false;
+    GAME.levelTime=50; GAME.deaths=0; GAME.jumps=3;   // < gold par 60, flawless
+    flowReset(); FLOW.peak=4; FLOW.run=1000;
+    levelComplete();
+    if(medalFor(0,50)!=='GOLD') return 'medal math wrong: '+medalFor(0,50);
+    if(SAVE.ranks[0]!=='S') return 'rank not S (got '+SAVE.ranks[0]+')';
+    if(SAVE.score<=score0) return 'lifetime score did not grow';
+    if(!SAVE.levelScore[0]) return 'level best score not saved';
+    const rows=DOM.vStats.innerHTML;
+    if(!rows.includes('MEDAL') || !rows.includes('PEAK CHAIN')) return 'flow rows missing on victory';
+    if(DOM.vRank.classList.contains('hidden')) return 'rank medallion hidden';
+    if(DOM.vRankLetter.textContent!=='S') return 'rank letter wrong: '+DOM.vRankLetter.textContent;
+    hideScreen(DOM.victory);
+    /* rank never downgrades */
+    GAME.levelTime=500; GAME.deaths=9; FLOW.run=10; levelComplete();
+    if(SAVE.ranks[0]!=='S') return 'rank downgraded to '+SAVE.ranks[0];
+    hideScreen(DOM.victory);
+    executeCheat('resetbest');
+    if(SAVE.score!==0 || SAVE.ranks[0]!==undefined) return 'resetbest left flow data behind';
+    return true;
+  }), 'flow.score-rank');
+
+  /* 23b — a tainted (cheated) victory must not touch score or ranks */
+  log(guard(()=>{
+    const score0=SAVE.score||0; const ranks0=JSON.stringify(SAVE.ranks||{});
+    executeCheat('level 3');
+    GAME.levelTime=5; GAME.deaths=0; FLOW.run=99999; FLOW.peak=12;
+    executeCheat('win');
+    if(GAME.state!=='victory') return 'win cheat failed';
+    if(SAVE.score!==score0) return 'tainted run paid score';
+    if(JSON.stringify(SAVE.ranks)!==ranks0) return 'tainted run wrote a rank';
+    if(!DOM.vStats.innerHTML.includes('TAINTED')) return 'taint flag missing';
+    if(!DOM.vRank.classList.contains('hidden')) return 'tainted run shows a rank medallion';
+    executeCheat('reset');
+    hideScreen(DOM.victory);
+    return true;
+  }), 'flow.cheat-taint');
+
+  /* 24 — endless vaults append on demand with scaling difficulty */
+  log(guard(()=>{
+    const n0=LEVELS.length;                   /* 10 at boot */
+    ensureLevelsUpTo(n0+2, true);
+    if(LEVELS.length!==n0+2) return 'ensureLevelsUpTo did not append (len='+LEVELS.length+')';
+    const deep=LEVELS[LEVELS.length-1];
+    if(!deep.pars || deep.pars.length!==3) return 'deep vault has no pars';
+    if(!deep.qa) return 'deep vault has no qa hook';
+    if(deep.name===LEVELS[n0-1].name) return 'deep vault name pool repeats adjacent';
+    /* depth 3+ vaults must carry sentinels once built */
+    startLevel(LEVELS.length-1,{silent:true}); GAME.state='playing';
+    if(GAME.level.sweepers.length<2) return 'depth-3+ vault missing sentinels';
+    startLevel(0,{silent:true});               /* restore the harness level */
+    LEVELS.length=n0;                          /* truncate — QA stays deterministic */
+    return true;
+  }), 'endless.append');
+
+  /* 25 — popups are capped (no DOM leak under spam) */
+  log(guard(()=>{
+    startLevel(0,{silent:true}); GAME.state='playing';
+    for(let k=0;k<40;k++) awardScore(50, player.pos, {});
+    if(DOM.popups.children.length>14) return 'popup cap failed: '+DOM.popups.children.length;
+    flowReset();
+    if(DOM.popups.children.length!==0) return 'flowReset did not clear popups';
+    return true;
+  }), 'flow.popup-cap');
+
+  /* 26 — flow audio primitives synthesize without exceptions */
+  log(guard(()=>{
+    try{ SND.init(); }catch(e){ return 'SKIP'; }
+    if(!SND.ready) return 'SKIP';
+    for(let n=1;n<=12;n++) SND.chainNote(n);
+    SND.tierUp(2); SND.tierUp(4); SND.chainLost();
+    SND.rankSting('A'); SND.rankSting('S'); SND.milestone();
+    return true;
+  }), 'audio.flow-ladder');
+
+  /* 27 — the full guide ships and is wired into the menu */
+  log(guard(()=>{
+    if(!$('btn-guide')) return 'guide button missing from help panel';
+    if(!DOM.chain || !DOM.popups || !DOM.hudScore) return 'flow HUD elements missing';
+    if(typeof HOWTO_VERSION==='undefined') return 'HOW-TO-PLAY.html companion not declared';
+    return true;
+  }), 'guide.wired');
+
   const pass=results.filter(r=>r.ok).length;
   window.__QA_DONE__={pass, fail:results.length-pass, total:results.length,
     results:results.map(r=>(r.ok?'PASS ':'FAIL ')+r.name+(r.msg?' | '+r.msg:''))};
@@ -6441,6 +7032,8 @@ function qaRun(){
 /* ============================================================
    23. BOOT
    ============================================================ */
+/* companion guide shipped next to this file (opened via the menu button) */
+const HOWTO_VERSION='v5';
 function boot(){
   try{
     initRenderer();
@@ -6493,6 +7086,7 @@ window.__TIR__={ GAME, player, WORLD_COLLIDE, LEVELS, startLevel, updateGame,
   restartLevel, V, pickUp, dropCarried, PARTS, SND, traceBeams, BEAM_POOL, rayQuad,
   pauseGame, IS_TOUCH, INPUT, TOUCH, CHEATS, executeCheat, THEMES, laserLevel:()=>_laserLevel,
   NATURE, HAPTIC, ADAPT, applyTheme, natureUpdate, buildNature,
+  FLOW, flowFlip, flowBreak, awardScore, medalFor, rankFor, ensureLevelsUpTo,
   get renderer(){ return renderer; } };
 boot();
 </script>

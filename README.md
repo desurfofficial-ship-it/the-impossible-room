@@ -10,6 +10,7 @@ synthesizes **every sound at runtime** with the Web Audio API — zero external 
 > **Mobile:** open it on your phone or tablet, tap **ENTER THE ROOM** — full touch controls
 > load automatically (virtual stick, drag-look, JUMP / USE / pause buttons).
 > Landscape is recommended; the game asks for fullscreen on entry (optional).
+> **Full player's guide:** open **`HOW-TO-PLAY.html`** (or the HOW TO PLAY → FULL GUIDE button).
 > **Cheat console:** press **`** (Backquote) — or the **⌁** button on touch — and type `help`.
 
 ---
@@ -48,19 +49,31 @@ Pass through the color-coded arches to rotate your world:
 Arches **stack**: standing on Wall A and passing a blue arch drops you onto the ceiling.
 Every wall and the ceiling are walkable surfaces — the room is the puzzle.
 
-## The Campaign — 8 Chambers + 2 Bonus
+## The Campaign — 8 Chambers, then Endless
 
-| # | Chamber | Objective |
-|---|---------|-----------|
-| I | **The Initiation** | Collect 3 orb fragments; the ceiling hatch awakens |
-| II | **The Looping Escape** | Break the looping corridor — read the paint that only makes sense upside-down |
-| III | **Weight & Gravity** | Carry gravity cubes across planes; seat one on each pressure anchor |
-| IV | **The Switchboard** | Rotate mirror pillars on floor, wall and ceiling; hold the beam on the sensor for 2 s |
-| V | **The Chrono-Void** | Climb the spire in 90 s while gravity rotates every 20 s — green zones anchor you |
-| VI | **The Silent Inversion** | Take 3 energy cores without touching the sweeping sentinel lasers |
-| VII | **The Reversed Chasm** | Cross a bridge that is only solid on the *right* plane; ride the void elevator |
-| VIII | **The Monument of Escher** | Sequence lock → laser lock → resonance pad → carry the Core Matrix to the upside-down socket |
-| ✦ IX–X | **The Fractal Well / The Escher Machine** | Seeded procedurally generated bonus vaults (collect 4 sigils) |
+| # | Difficulty | Chamber | Objective | Par (G/S/B) |
+|---|---|---|---|---|
+| I | ★ | **The Initiation** | Collect 3 orb fragments; the ceiling hatch awakens | 1:00 / 1:35 / 2:40 |
+| II | ★★ | **The Looping Escape** | Break the looping corridor — read the paint that only makes sense upside-down | 1:15 / 1:55 / 3:10 |
+| III | ★★ | **Weight & Gravity** | Carry gravity cubes across planes; seat one on each pressure anchor | 1:30 / 2:20 / 3:50 |
+| IV | ★★★ | **The Switchboard** | Rotate mirror pillars on floor, wall and ceiling; hold the beam on the sensor for 2 s | 1:50 / 2:50 / 4:40 |
+| V | ★★★★ | **The Chrono-Void** | Climb the spire in 90 s while gravity rotates every **16 s** — green zones anchor you | 1:10 / 1:20 / 1:27 |
+| VI | ★★★★ | **The Silent Inversion** | Take 3 energy cores without touching the sweeping sentinel lasers (**+32% speed per core**) | 1:30 / 2:15 / 3:40 |
+| VII | ★★★★ | **The Reversed Chasm** | Cross a bridge that is only solid on the *right* plane; ride the void elevator | 2:00 / 3:05 / 5:10 |
+| VIII | ★★★★★ | **The Monument of Escher** | Sequence lock → laser lock → resonance pad → carry the Core Matrix to the upside-down socket | 2:30 / 3:50 / 6:20 |
+| ✦ IX–X | ★★–★★★ | **The Fractal Well / The Escher Machine** | Seeded procedural vaults (collect 4 sigils) | 1:30 / 2:20 / 3:50 |
+| ✦ XI+ | ★★★–★★★★★ | **The endless vaults** | Generated on demand — sparser platforms, rarer arches, sentinels from depth 3, faster every depth | scales with depth |
+
+## Flow — the Paradox Chain (v5)
+
+The scoring heart of the game: **every arch you pass chains** (×2…×12) and multiplies
+everything you collect — but the chain **decays in 12 seconds** and **shatters on death**.
+Tiers: WALKER ×2 → INVERTED ×3 → IMPOSSIBLE ×5 → PARADOX ×8 → **ESCHER ×12** (rainbow meter).
+Each chained flip plays the next note of a rising pentatonic melody — a kept chain literally
+sounds like climbing. Escapes are graded with **medals** (GOLD/SILVER/BRONZE vs par time) and
+**ranks** — **S** flawless (gold + 0 deaths) · **A** clean · **B** survivor · **C** escaped —
+which only ever improve, shown as badges on the chamber grid alongside a lifetime score that
+only goes up. Cheated runs are flagged **⌁ TAINTED** and never touch records, scores or ranks.
 
 ## Screenshots
 
@@ -111,13 +124,14 @@ Every wall and the ceiling are walkable surfaces — the room is the puzzle.
 | `speed <n>` | movement multiplier (0.5–6) |
 | `jump <n>` | jump power multiplier (0.5–5) |
 | `gravity floor\|ceil\|wallA\|wallB` | snap gravity |
-| `level <n>` | warp to chamber 1–10 |
+| `level <n>` | warp to chamber 1–∞ (deep vaults generate on demand) |
 | `win` | complete the current chamber |
 | `frags` | collect all fragments / cores here |
 | `tp x y z` | teleport |
 | `timescale <n>` | slow-motion / fast-forward (0.2–3) |
 | `bright <n>` | exposure boost (−0.5–1) |
-| `resetbest` | wipe all best times (speedrun reset) |
+| `stats` | lifetime score / rank tally / depth report |
+| `resetbest` | wipe all best times, scores and ranks |
 | `reset` | clear all cheats |
 
 Cheats never persist to your save, and a `⌁ CHEATS ACTIVE` tag marks the run.
@@ -174,10 +188,12 @@ Fall into the void and you awake at the green arch — nothing is lost but time.
   skylight ceilings + clerestory windows that show the sky while every surface stays fully
   solid for plane-walkers.
 - **Cheat console + Konami code** — see above; also exposed as `window.CHEATS` for tinkerers.
-- **Built-in QA harness** — open the game with `?qa=1` to run 31 self-tests, including scripted
+- **Built-in QA harness** — open the game with `?qa=1` to run 47 self-tests, including scripted
   playthroughs of every level, synthetic-touch tests of the mobile controls (`?qa=1&touch=1`),
   UI-chain checks (victory dismiss), sequence-neutrality of green arches, beam persistence
-  across levels and cheat-system tests. The release build passed **31/31** in both modes.
+  across levels, cheat-system tests, and v5 flow tests (chain decay, death-break, score/rank
+  persistence, taint isolation, endless-vault generation, popup caps, audio ladder).
+  The release build passed **47/47** in both modes.
 
 ## Engineering Notes
 
@@ -200,7 +216,30 @@ Fall into the void and you awake at the green arch — nothing is lost but time.
 
 ## Changelog
 
-**v4 — Wild & Mobile (this release)**
+**v5 — Flow & Fury (this release)**
+- **The Paradox Chain:** arch passes chain a ×2…×12 multiplier that pays out on everything
+  you collect, decays in 12 s, and shatters on death — with tier fanfares (WALKER →
+  INVERTED → IMPOSSIBLE → PARADOX → ESCHER), a bottom-center heat meter, floating score
+  popups, and a rising pentatonic melody that climbs with every flip.
+- **Score, medals, ranks:** per-run and lifetime scores with milestone toasts
+  (5k/10k/25k/50k/100k), GOLD/SILVER/BRONZE medals vs per-chamber par times, and
+  S/A/B/C ranks (S = gold + flawless) with a victory-screen medallion reveal, chamber-grid
+  badges, and a menu lifetime line. Ranks only improve; tainted runs pay nothing.
+- **It gets hard as it goes:** par times for all 8 chambers, Chamber V now shifts gravity
+  every **16 s** (was 20), Chamber VI sentinels start faster and quicken **+32% per core**
+  (was +18%), difficulty stars on the intro cards.
+- **Endless vaults:** beyond Chamber X the procedural vaults never stop — sparser/smaller
+  footholds, rarer bonus arches, sentinel beams from depth 3, faster and longer every depth.
+  Deepest chamber is saved and shown on the menu.
+- **How to Play:** a full standalone companion guide — **`HOW-TO-PLAY.html`** — plus a
+  rebuilt in-game help panel with a FULL GUIDE button.
+- **Feel:** heavy landings now thump (camera shake), witty void-death lines, "SO CLOSE"
+  near-medal toasts, chain-lost feedback, `stats` cheat, `resetbest` wipes the whole flow slate.
+- **Fixed:** chain popups spawned at the player's own position projected outside the camera
+  frustum and were silently discarded (now float ahead of the view with a center fallback).
+- QA harness extended to **47 self-tests** — 47/47 desktop and 47/47 touch.
+
+**v4 — Wild & Mobile**
 - **Mobile-first:** installable PWA — manifest + service worker + app icons.
   Add to your home screen and it launches fullscreen and **plays offline**.
 - **Natural worlds:** every chamber is now embedded in a procedural landscape —
