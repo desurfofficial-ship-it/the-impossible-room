@@ -109,7 +109,17 @@ only goes up. Cheated runs are flagged **⌁ TAINTED** and never touch records, 
 |---|
 | ![](l10.png) |
 
-### v7 — The Polish Pass (release candidate)
+### v8 — The Release Candidate (first-hour polish)
+
+| Lesson I — the checklist tick pops (ring + chime) | Victory: signed vs-par delta + the rank's own reason |
+|---|---|
+| ![](v8-tut-tick.png) | ![](v8-victory.png) |
+
+| Lesson I — jump chevrons & step-block recovery | Chamber select: medal chips at a glance |
+|---|---|
+| ![](v8-l1-causeway.png) | ![](v8-levels-chips.png) |
+
+### v7 — The Polish Pass (previous release)
 
 | The Daily Vault — seed of the day | Chain SHIELDED — shards pause the decay |
 |---|---|
@@ -256,7 +266,42 @@ Fall into the void and you awake at the green arch — nothing is lost but time.
 
 ## Changelog
 
-**v7 — The Polish Pass (release candidate)**
+**v8 — The Release Candidate (first-hour polish)**
+- **Lesson I is now almost impossible to fail.** The two causeway gaps were tightened
+  (2.6m→2.1m and 2.2m→1.9m — still real jumps), and three **step-block recovery kerbs**
+  were added at the gap edges: each is exactly the auto-step height (0.55m), so a fallen
+  newcomer literally *walks* back onto the causeway (previously the 1.1m climb vs a
+  1.17m jump apex was razor-thin). Golden jump chevrons are painted at both gaps, plus
+  “FALLEN? — STEP BLOCKS LEAD UP” floor paint. QA proves the climb needs zero jumps.
+- **Checklist ticks got a real celebration.** Dedicated `tutTick` sound (wood transient
+  + bright attack + rising body, per-step pitch), a bigger box pop with an expanding
+  glow ring, a label slide, double-pulse haptics — and on completion the panel glows
+  gold and bows out (`complete` flourish) while a delayed five-note lesson fanfare
+  plays on the victory screen (the final tick lands first, then the Academy approves).
+- **The “your chain is growing” moment.** The first time the multiplier crosses ×3 in
+  Lesson IV (the chamber that teaches the chain), a magenta callout spells it out:
+  *YOUR CHAIN IS GROWING — SHARDS PAY ×3 NOW*, with matching floor paint near the blue
+  arch and the chain lesson line already on the floor.
+- **Victory report clarity.** The medal row now carries the **signed time-vs-par delta**
+  (green under / red over; a new `fmtDelta` keeps it honest past the minute mark), and
+  the rank hint states **the earned rank's own criteria first** (e.g. “A — SILVER PAR
+  1:35 · AT MOST 1 DEATH”) before the S-requirements line with ✓/✗ marks.
+- **Chamber select medal chips.** The cryptic medal dot became a bordered chip
+  (GOLD / SILV / BRZ) — PB time, medal and rank now read at a glance on every tile.
+- **Beacon for the first GREEN.** Lesson II's return-home green arch now gets the same
+  holographic guide beacon as the first blue/yellow/red arches (dissolves after first use).
+- **Juice, one notch up:** shard bursts 36→46 particles with a slightly deeper screen
+  pulse; chain tier-ups add a small camera thump to the flash + power chord.
+- **No formula changes:** rank/medal math, the 12s chain window, the 2.5s shield and
+  the save format (`tir_save`) are all untouched. Cheats, mobile controls, and the
+  single-file constraint intact.
+- Docs: HOW-TO-PLAY v8 (recovery blocks, tick celebration, victory transparency,
+  61-check QA note); service worker bumped `tir-v8`.
+- QA: 58→61 tests — `academy.tick-juice` (tick sounds/classes/re-arm),
+  `victory.par-delta` (delta row + reason lines), `academy.recovery` (fallen player
+  walks back up with zero jumps). 61/61 desktop + touch, zero page errors.
+
+**v7 — The Polish Pass (previous release)**
 - **CRITICAL FIX — the paint was invisible.** `LText` painted floor/wall manuals onto
   6×0-pixel canvas textures (world sizes were being used as pixel sizes). An invalid
   WebGL texture samples as *undefined* — sometimes black (the decals never rendered,

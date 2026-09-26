@@ -152,6 +152,8 @@ button:disabled{opacity:.32;cursor:not-allowed;transform:none;box-shadow:none}
   margin-top:5px;font-family:var(--mono);font-size:9px;color:var(--ink-faint)}
 .lvl .stars{color:var(--gold);letter-spacing:.05em}
 .lvl .best{color:var(--ink-dim)}
+.lvl .md-chip{font-family:var(--mono);font-size:7.5px;letter-spacing:.14em;
+  border:1px solid currentColor;border-radius:3px;padding:1px 4px;opacity:.95}
 .lvl .b{font-family:var(--mono);font-size:9px;color:var(--gold);margin-top:3px}
 .lvl .b .mG{color:#ffd76a}.lvl .b .mS{color:#d7dde8}.lvl .b .mB{color:#d09a6a}
 .lvl .lesson-chip{position:absolute;top:6px;left:8px;font-family:var(--mono);
@@ -255,14 +257,30 @@ body:not(.touch) .hud-best:empty{display:none}
   letter-spacing:.08em;color:var(--ink-dim);padding:2.5px 0;transition:color .25s}
 .tstep .tbox{width:15px;height:15px;border-radius:4px;border:1px solid var(--line-2);
   display:flex;align-items:center;justify-content:center;font-size:10px;color:transparent;
-  flex:0 0 auto;transition:all .25s ease}
+  flex:0 0 auto;position:relative;transition:all .25s ease}
 .tstep.done{color:var(--ink)}
 .tstep.done .tbox{background:rgba(84,224,138,.2);border-color:var(--green);
   color:var(--green);text-shadow:0 0 8px rgba(84,224,138,.9);
-  animation:tutTick .38s cubic-bezier(.2,1.6,.4,1)}
+  animation:tutTick .42s cubic-bezier(.2,1.7,.4,1)}
+/* v8: an expanding ring bursts off the ticked box — unmistakable in
+   peripheral vision, and cheap (pure CSS, no DOM churn) */
+.tstep.done .tbox::after{content:'';position:absolute;inset:-7px;border-radius:9px;
+  border:2px solid rgba(84,224,138,.85);box-shadow:0 0 14px rgba(84,224,138,.5);
+  animation:tutRing .55s ease-out forwards;pointer-events:none}
 .tstep.done .tlbl{text-decoration:line-through;text-decoration-color:rgba(84,224,138,.6);
-  text-decoration-thickness:1px}
-@keyframes tutTick{0%{transform:scale(.4) rotate(-20deg)}70%{transform:scale(1.25)}100%{transform:scale(1)}}
+  text-decoration-thickness:1px;animation:tutLbl .42s ease-out}
+@keyframes tutTick{0%{transform:scale(.3) rotate(-24deg)}55%{transform:scale(1.5) rotate(6deg)}80%{transform:scale(.94)}100%{transform:scale(1)}}
+@keyframes tutRing{0%{transform:scale(.5);opacity:1}100%{transform:scale(2.1);opacity:0}}
+@keyframes tutLbl{0%{transform:translateX(0)}30%{transform:translateX(5px)}100%{transform:translateX(0)}}
+/* v8: lesson-complete flourish — the panel glows gold and bows out */
+#tut.complete{border-color:rgba(232,193,90,.7);
+  box-shadow:0 0 38px rgba(232,193,90,.32),0 14px 44px rgba(0,0,0,.45);
+  animation:tutGlow .95s ease forwards}
+#tut.complete .tbox{background:rgba(232,193,90,.25);border-color:var(--gold);
+  color:var(--gold);text-shadow:0 0 10px rgba(232,193,90,.9)}
+@keyframes tutGlow{0%{transform:translateX(-50%) scale(1);opacity:1}
+  30%{transform:translateX(-50%) scale(1.05);opacity:1}
+  100%{transform:translateX(-50%) scale(1.02);opacity:0}}
 body.touch #tut{top:calc(58px + env(safe-area-inset-top,0px));padding:8px 12px 9px}
 body.touch .tstep{font-size:10px}
 @media (max-height:560px){ #tut{display:none} }
@@ -581,7 +599,7 @@ body.touch #chain-bar{width:64px}
 
 <!-- ===================== MAIN MENU ===================== -->
 <div id="menu" class="screen">
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V7</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V8</span>
   <div class="kicker">AN ESCHER GRAVITY PUZZLE</div>
   <h1>The Impossible Room<span class="narrow">FIFTEEN CHAMBERS · FOUR GRAVITIES · ONE EXIT</span></h1>
   <div class="arch-legend">
@@ -652,7 +670,8 @@ body.touch #chain-bar{width:64px}
       <span>Chambers I–V are <b>lessons</b>: movement &amp; jumping, the blue arch (walls),
       yellow &amp; red (ceiling and the other wall), the green anchor (and the void), and a
       final examination that combines everything. A live <b>checklist</b> at the top of the
-      screen ticks off each skill as you perform it.</span>
+      screen ticks off each skill as you perform it — slip off the causeway and the floor
+      catches you, with step blocks leading back up.</span>
     </div>
     <div class="h2">The Arches</div>
     <div class="ctl-grid" style="grid-template-columns:1fr">
@@ -1206,6 +1225,18 @@ class AudioEngine{
   buzz(){ this.blip({type:'sawtooth',f0:110,f1:82,d:0.22,g:0.13}); }
   seqNote(i){ this.blip({type:'sine',f0:392*Math.pow(2,[0,4,7,12][Math.min(i,3)]/12),
     d:0.35,g:0.1,bus:this.music}); }
+  tutTick(i){                      // v8 — the checklist tick is its own tiny celebration
+    const f=523*Math.pow(2,[0,2,4,5][Math.max(0,Math.min(i,3))]/12);
+    this.noise({f0:3200,f1:6800,d:0.045,g:0.035});                 // wood transient
+    this.blip({type:'sine',f0:f*2,f1:f*2,d:0.09,g:0.1,bus:this.music}); // bright attack
+    this.blip({type:'triangle',f0:f,f1:f,d:0.42,g:0.11,bus:this.music}); // body
+  }
+  lessonDone(){                    // v8 — the Academy approves: pentatonic run + shimmer
+    [0,4,7,12,16].forEach((s,i)=>this.blip({type:'triangle',
+      f0:587*Math.pow(2,s/12), d:0.5, g:0.1, at:i*0.08, bus:this.music}));
+    this.noise({f0:3200,f1:9500,d:0.9,g:0.02,at:0.12});
+    this.blip({type:'sine',f0:1175,f1:1568,d:0.6,g:0.05,at:0.44,bus:this.music});
+  }
   winSmall(){
     [0,4,7,12,16].forEach((s,i)=>this.blip({type:'triangle',
       f0:523*Math.pow(2,s/12),d:0.55,g:0.1,at:i*0.11,bus:this.music}));
@@ -3759,9 +3790,11 @@ class Fragment{
     const got=this.L.fragments.filter(f=>f.collected).length;
     SND.fragment(got, this.mesh.position);
     buzz(14);
+    /* v8: one notch louder pickup — 46 particles, a slightly deeper screen
+       pulse; the ring + HUD pulse + arpeggio stay as they were (they worked) */
     PARTS.burst(this.mesh.position, new THREE.Color(this.isCore?0xa97bff:0xffd76a),
-      36, 4.5, 3.0, 0.9);
-    flashScreen(this.isCore?'#a97bff':'#e8c15a', 0.34);
+      46, 4.8, 3.2, 0.95);
+    flashScreen(this.isCore?'#a97bff':'#e8c15a', 0.38);
     /* v7 juice: expanding screen-space ring + HUD counter pulse — the
        pickup must be unmistakable even in peripheral vision */
     shardRing(this.mesh.position, this.isCore?'#c9a4ff':'#ffe07a');
@@ -4645,6 +4678,7 @@ function flowFlip(type){
     FLOW.tier=tier;
     SND.tierUp(tier);
     flashScreen(col, 0.3);
+    shake(0.12);                          /* v8: a tier crossing is physical, not just bright */
     buzz([12,30,12]);
     toast('<b style="color:'+col+'">'+TIERS[tier].name+' ×'+FLOW.chain+'</b>', 2000);
     awardScore(120*FLOW.chain, popPos, {label:'TIER +'});
@@ -4750,6 +4784,12 @@ function medalFor(i, t){
 const RANK_ORDER=['C','B','A','S'];
 const RANK_INFO={ S:{name:'FLAWLESS', cls:'rk-s'}, A:{name:'ESCAPED CLEAN', cls:'rk-a'},
   B:{name:'SURVIVOR', cls:'rk-b'}, C:{name:'ESCAPED', cls:'rk-c'} };
+/* v8: signed par/miss deltas that stay honest past the minute mark
+   (fmtRace's mm:ss.cc form does not slice cleanly above 59.99s) */
+function fmtDelta(s){
+  const a=Math.abs(s);
+  return (s<0?'−':'+')+(a<60?a.toFixed(2):fmtRace(a))+'s';
+}
 function rankFor(i, t, deaths){
   const p=LEVELS[i] && LEVELS[i].pars;
   if(!p) return 'C';
@@ -4767,10 +4807,12 @@ function medalClass(m){ return m?('medal-'+m.toLowerCase()):''; }
    each skill is performed. Feels like a quest log, teaches
    like a level design doc.
    ============================================================ */
-const TUT={ on:false, steps:[], done:[] };
+const TUT={ on:false, steps:[], done:[], tk:0 };
 function tutStart(steps, title){
   TUT.on=true; TUT.steps=steps; TUT.done=steps.map(()=>false);
+  TUT.tk++;                                        /* v8: cancel any pending complete-flourish timer */
   if(DOM.tut){
+    DOM.tut.classList.remove('complete');
     DOM.tut.classList.add('on');
     DOM.tutTitle.textContent=title||'LESSON';
     DOM.tutList.innerHTML=steps.map((s,i)=>
@@ -4782,22 +4824,30 @@ function tutDone(i){
   TUT.done[i]=true;
   const el=document.getElementById('tstep-'+i);
   if(el) el.classList.add('done');
-  SND.seqNote(Math.min(5, 2+i));
-  buzz(14);
+  SND.tutTick(i);                                  /* v8: dedicated tick — attack, body, transient */
+  buzz([10,26,12]);                                /* v8: double-pulse haptic */
   awardScore(200+i*50, null, {});        /* silent bank — the tick IS the reward */
   if(TUT.done.every(Boolean)){ tutComplete(); }
 }
 function tutComplete(){
   if(!TUT.on) return;
   TUT.on=false;
-  if(DOM.tut) DOM.tut.classList.remove('on');
+  /* v8: the flourish — the panel glows gold and bows out. No fanfare here:
+     every lesson's final step ticks at the gate, and levelComplete plays the
+     dedicated lesson fanfare a beat later, so the last tick lands first. */
+  const tk=++TUT.tk;
+  if(DOM.tut){
+    DOM.tut.classList.add('complete');
+    setTimeout(()=>{ if(TUT.tk===tk) DOM.tut.classList.remove('complete','on'); }, 950);
+  }
   toast('LESSON <b>COMPLETE</b> — THE ACADEMY APPROVES', 3000);
-  SND.powered();
-  buzz([16,40,16]);
+  buzz([16,40,16,40,90]);
+  PARTS.burst(player.pos.clone().addScaledVector(player.up,0.4),
+    new THREE.Color(0x54e08a), 30, 4, 2.6, 1.0, player.up);
 }
 function tutEnd(){
-  TUT.on=false; TUT.steps=[]; TUT.done=[];
-  if(DOM.tut) DOM.tut.classList.remove('on');
+  TUT.on=false; TUT.steps=[]; TUT.done=[]; TUT.tk++;
+  if(DOM.tut) DOM.tut.classList.remove('on','complete');
 }
 
 function startLevel(i, opts={}){
@@ -4877,7 +4927,10 @@ function levelComplete(){
   L.complete=true;
   GAME.state='victory';
   player.frozen=true;
-  SND.winSmall();
+  /* v8: lessons get their own fanfare, delayed one beat so the final
+     checklist tick lands first — the Academy approves, then celebrates */
+  if(LEVELS[GAME.levelIndex].tut) setTimeout(()=>{ try{ SND.lessonDone(); }catch(e){} }, 320);
+  else SND.winSmall();
   flashScreen('#ffffff', 0.4);
   const t=GAME.levelTime;
   const tainted=cheatActive();          /* speedrun integrity: cheats void the record */
@@ -4919,7 +4972,7 @@ function levelComplete(){
         new THREE.Color([0xffd76a,0xff9ee0,0x54e08a,0x4da3ff][k]), 26, 5, 3, 1.3);
     }
     if(medal!=='GOLD' && pars && t<=pars[0]*1.12){
-      toast('<b>SO CLOSE</b> — GOLD BY '+fmtRace(t-pars[0]).slice(3)+'s', 3200);
+      toast('<b>SO CLOSE</b> — GOLD BY '+fmtDelta(t-pars[0]).slice(1), 3200);
     }
   }
   if(endless) SAVE.bestDepth=Math.max(SAVE.bestDepth||0, GAME.levelIndex+1);
@@ -4942,7 +4995,9 @@ function levelComplete(){
     toast('<b style="color:#ffe9ad">NEW RECORD</b> — '+fmtRace(t), 3200);
   }
   DOM.vKick.textContent=(isBest&&prev!==undefined?'NEW RECORD — ':'')+
-    (isDaily?'THE DAILY VAULT YIELDS':(endless?'DEPTH CLEARED':(finale?'THE MONUMENT YIELDS':'CHAMBER COMPLETE')));
+    (isDaily?'THE DAILY VAULT YIELDS':(endless?'DEPTH CLEARED':(LEVELS[GAME.levelIndex].tut
+      ?'LESSON COMPLETE — THE ACADEMY APPROVES'
+      :(finale?'THE MONUMENT YIELDS':'CHAMBER COMPLETE'))));
   DOM.vKick.classList.toggle('rec', (isBest&&prev!==undefined)||dailyIsBest);
   DOM.vTitle.textContent=isDaily?'Vault of the Day':(endless?'The Vault Yields':'Escaped');
   /* rank medallion */
@@ -4954,7 +5009,12 @@ function levelComplete(){
     SND.rankSting(rank);
   }else DOM.vRank.classList.add('hidden');
   let rows=`<div class="row"><span>${LEVELS[GAME.levelIndex].name}${tainted?' <span class="rec-tag">⌁ TAINTED</span>':''}</span><b>${fmtRace(t)}</b></div>`;
-  if(pars) rows+=`<div class="row"><span>MEDAL · PAR ${fmtRace(pars[0])}</span><b class="${medalClass(medal)}">${medal||'—'}</b></div>`;
+  if(pars){
+    /* v8: the medal row carries the signed delta vs gold par — time-vs-par
+       readable at a glance, green under / red over */
+    const dp=t-pars[0];
+    rows+=`<div class="row"><span>MEDAL · PAR ${fmtRace(pars[0])} · <span class="${dp<=0?'delta-neg':'delta-pos'}">${fmtDelta(dp)}</span></span><b class="${medalClass(medal)}">${medal||'—'}</b></div>`;
+  }
   rows+=scoreRows;
   rows+=`<div class="row"><span>BEST</span><b class="gold">${fmtRace(SAVE.best[GAME.levelIndex]??t)}</b></div>`;
   if(isDaily && SAVE.daily && SAVE.daily.best!==null){
@@ -4973,16 +5033,23 @@ function levelComplete(){
   }
   rows+=`<div class="row"><span>CAMPAIGN</span><b>${fmtRace(GAME.campaignTime)}</b></div>`;
   DOM.vStats.innerHTML=rows;
-  /* v7: rank math in the open — what S demands, and exactly what you missed */
+  /* v7: rank math in the open — v8: the earned rank's own reason first,
+     then what S demands, and exactly what you missed */
   if(rank && pars){
-    if(rank==='S'){
-      DOM.vRankHint.innerHTML='S — GOLD PAR '+fmtRace(pars[0])+' · NO DEATHS — <b>PERFECT RUN</b>';
-    }else{
+    const why={
+      S:'GOLD PAR '+fmtRace(pars[0])+' · NO DEATHS — <b>PERFECT RUN</b>',
+      A:'SILVER PAR '+fmtRace(pars[1])+' · AT MOST 1 DEATH',
+      B:'BRONZE PAR '+fmtRace(pars[2])+' · AT MOST 3 DEATHS',
+      C:'NO PAR MET — OUT ANYWAY'
+    }[rank];
+    let h=`${rank} — ${why}`;
+    if(rank!=='S'){
       const okT=t<=pars[0];
-      DOM.vRankHint.innerHTML='RANK S NEEDS — GOLD '+fmtRace(pars[0])+' '+
-        (okT?'<b class="gold">✓</b>':'<b class="dim">✗ +'+fmtRace(t-pars[0]).slice(3)+'s</b>')+
-        ' · NO DEATHS '+(GAME.deaths===0?'<b class="gold">✓</b>':'<b class="dim">✗ '+GAME.deaths+'</b>');
+      h+='<br>S NEEDS — GOLD '+fmtRace(pars[0])+' '
+        +(okT?'<b class="gold">✓</b>':'<b class="dim">✗ +'+fmtDelta(t-pars[0]).slice(1)+'</b>')
+        +' · NO DEATHS '+(GAME.deaths===0?'<b class="gold">✓</b>':'<b class="dim">✗ '+GAME.deaths+'</b>');
     }
+    DOM.vRankHint.innerHTML=h;
   }else DOM.vRankHint.innerHTML='';
   DOM.btnNext.classList.toggle('hidden', last);
   DOM.btnNext.textContent=isDaily?'BACK TO THE VAULTS':(endless?'DESCEND DEEPER':'NEXT CHAMBER');
@@ -5357,11 +5424,24 @@ LEVELS.push({
     LText(L, -2.6, 1.12, 13.6, ['SPACE — JUMP'], {normal:'y+', up:'z-', w:2.5, h:0.7, size:36, color:'#bcd2e8'});
     LText(L, 0, 1.12, 12.4, ['TOUCH: LEFT STICK MOVES — RIM SPRINTS'], {normal:'y+', up:'z-', w:3.3, h:0.5, size:22, color:'#7d8ba0'});
     LText(L, 0, 1.12, 9.4, ['THE CAUSEWAY — JUMP THE GAPS'], {normal:'y+', up:'z-', w:5.6, h:0.9, size:38, color:'#7d8ba0'});
-    LText(L, 0, 1.12, -1.2, ['MIND THE GAP'], {normal:'y+', up:'z-', w:2.8, h:0.8, size:40, color:'#e8c15a', glowColor:'#e8c15a'});
-    /* the causeway — three platforms, two gaps, one gallery */
+    LText(L, 0, 1.12, 5.7, ['»» JUMP »»'], {normal:'y+', up:'z-', w:2.2, h:0.7, size:40, color:'#e8c15a', glowColor:'#e8c15a'});
+    LText(L, 0, 1.12, -1.0, ['»» JUMP THE GAP »»'], {normal:'y+', up:'z-', w:3.4, h:0.8, size:40, color:'#e8c15a', glowColor:'#e8c15a'});
+    /* v8 recovery paint — the floor below the causeway is a lesson too */
+    LText(L, 1.4, 0.02, 4.4, ['FALLEN? — STEP BLOCKS LEAD UP'], {normal:'y+', up:'z-', w:3.4, h:0.5, size:20, color:'#7d8ba0'});
+    LText(L, -1.4, 0.02, -3.1, ['FALLEN? — STEP BLOCKS LEAD UP'], {normal:'y+', up:'z-', w:3.4, h:0.5, size:20, color:'#7d8ba0'});
+    /* the causeway — three platforms, two gaps, one gallery (v8: slightly
+       wider mid platforms so both gaps are comfortably jumpable at a walk,
+       while still demanding a real jump) */
     LPlatform(L, 0, 1.1, 8.6, 4, 6.8, {mat:'platform'});
-    LPlatform(L, 0, 1.1, 0.9, 4, 4.2, {mat:'platform'});
-    LPlatform(L, 0, 1.1, -6, 4, 4.4, {mat:'platform'});
+    LPlatform(L, 0, 1.1, 0.9, 4, 5.0, {mat:'platform'});
+    LPlatform(L, 0, 1.1, -6, 4, 5.2, {mat:'platform'});
+    /* v8 recovery kerbs — a fallen newcomer walks back up: each block is
+       0.55 high (exactly the auto step-up height), hugging a platform's
+       gap-facing edge on alternating sides so the jump lane stays clear.
+       The floor catches you; the room wants you to continue. */
+    LBox(L, -1.4, 0.275, 5.7, 1.2, 0.55, 1.2, 'platform', {tag:'recovery'});
+    LBox(L, 1.4, 0.275, 3.7, 1.2, 0.55, 1.2, 'platform', {tag:'recovery'});
+    LBox(L, -1.4, 0.275, -3.1, 1.2, 0.55, 1.2, 'platform', {tag:'recovery'});
     LStairs(L, 0, 1.1, -8.2, 'z-', 4, {stepH:0.4, stepD:0.72, width:4});
     LPlatform(L, 0, 2.7, -13.4, 6, 5.6, {mat:'platform'});
     /* shards floating above the walk (unreachable from the floor below) */
@@ -5444,8 +5524,10 @@ LEVELS.push({
     new Fragment(L, 4, 2.0, -12.0, {});
     LText(L, 0, 5.2, -12.66, ['THE WALL IS YOUR FLOOR NOW'], {normal:'z+', up:'y+', w:5.2, h:1.0, size:42, color:'#bcd2e8'});
     LText(L, 0, 3.6, -12.66, ['WALK SIDEWAYS — X MARKS THE SHARDS'], {normal:'z+', up:'y+', w:5.6, h:0.7, size:30, color:'#7d8ba0'});
-    /* the way home */
+    /* the way home — v8: beaconed too, so the first meaningful GREEN use
+       gets the same holographic welcome as the blue/yellow/red firsts */
     const home=LArch(L, 'green', 0, 2.2, -12.95, 'x+', 'wallA');
+    addGuideBeacon(L, home, ARCH_HEX.green);
     L.vars.homeArch=home;
     LText(L, 0, 2.4, -12.66, ['GREEN BRINGS YOU HOME'], {normal:'z+', up:'y+', w:3.8, h:0.8, size:38, color:ARCH_COLORS.green, glowColor:ARCH_COLORS.green});
     /* the gate — east side, a short walk from spawn */
@@ -5624,6 +5706,7 @@ LEVELS.push({
     LText(L, 0, 0.02, 10.2, ['THE TALL GATE CATCHES EVERY PLANE'], {normal:'y+', up:'z-', w:6.0, h:0.8, size:32, color:ARCH_COLORS.green, glowColor:ARCH_COLORS.green});
     LText(L, 0, 0.02, 7.4, ['STEP STONES OVER THE VOID'], {normal:'y+', up:'z-', w:5.2, h:0.8, size:34, color:'#7d8ba0'});
     LText(L, -6.5, 0.02, 5.2, ['EVERY ARCH CHAINS THE PARADOX — 12s TO KEEP IT ALIVE'], {normal:'y+', up:'z-', w:6.4, h:0.7, size:26, color:'#ff9ee0', glowColor:'#ff9ee0'});
+    LText(L, 9, 0.02, 1.7, ['CHAIN ×3 — THE PARADOX NOTICES'], {normal:'y+', up:'z-', w:4.6, h:0.7, size:30, color:'#ff9ee0', glowColor:'#ff9ee0'});
     LText(L, 0, 8.2, 0, ['THE VOID FORGIVES — GREEN ANCHORS YOU'], {normal:'y-', up:'z-', w:7.4, h:1.0, size:36, color:'#54e08a', upsideDown:true});
     /* void hop stones + island shard */
     LPlatform(L, 0, 0.9, 4.5, 2.2, 2.2, {mat:'platform'});
@@ -5669,6 +5752,12 @@ LEVELS.push({
          on this room's route (tall gate -> blue -> yellow) and the checklist
          proves the player understands the multiplier before the Escape act */
       if(FLOW.peak>=3) tutDone(1);
+      /* v8: the "your chain is growing" moment — one clear callout the first
+         time the multiplier crosses ×3 in the lesson that teaches it */
+      if(!L.vars.chainMoment && FLOW.peak>=3){
+        L.vars.chainMoment=true;
+        toast('YOUR CHAIN IS <b style="color:#ff9ee0">GROWING</b> — SHARDS PAY ×3 NOW', 3400);
+      }
       const wallShards=L.fragments.filter(f=>f.collected && Math.abs(f.pos.z)>10).length;
       if(wallShards>=2) tutDone(2);
     });
@@ -7673,7 +7762,7 @@ function setupMenu(){
         +`<div class="t">${locked?'':lv.name}</div>`
         +`<div class="lvl-meta">${lv.stars?`<span class="stars">${'★'.repeat(lv.stars)}</span>`:''}`
         +(best!==undefined?`<span class="best">${fmtRace(best)}</span>`:'')
-        +(md?`<span style="color:${mdCol}">●</span>`:'')+`</div>`;
+        +(md?`<span class="md-chip" style="color:${mdCol}">${md==='GOLD'?'GOLD':(md==='SILVER'?'SILV':'BRZ')}</span>`:'')+`</div>`;
       if(!locked) el.onclick=()=>{
         SND.init(); SND.uiClick();
         enterGame(i);
@@ -8562,6 +8651,84 @@ function qaRun(){
     return true;
   }), 'daily.vault');
 
+  /* 31 — v8 academy ticks: dedicated tick sound, visual pop classes, and
+     the lesson-complete flourish all fire (and re-arm on restart) */
+  log(guard(()=>{
+    startLevel(0,{silent:true});
+    GAME.state='playing';
+    const def=LEVELS[0];
+    tutStart(def.tut.steps, def.tut.title);
+    if(!DOM.tut.classList.contains('on')) return 'checklist not shown';
+    try{ SND.init(); }catch(e){}
+    for(let i=0;i<def.tut.steps.length;i++){
+      tutDone(i);
+      const el=document.getElementById('tstep-'+i);
+      if(!el || !el.classList.contains('done')) return 'step '+i+' did not tick';
+      if(SND.ready) SND.tutTick(i);           /* synthesizes without exceptions */
+    }
+    if(TUT.on) return 'checklist did not complete';
+    if(!DOM.tut.classList.contains('complete')) return 'complete flourish class missing';
+    if(SND.ready) SND.lessonDone();
+    /* re-arm: a restart must rebuild a fresh checklist */
+    tutEnd();
+    tutStart(def.tut.steps, def.tut.title);
+    if(TUT.done.some(Boolean)) return 'checklist did not reset on re-arm';
+    if(DOM.tut.classList.contains('complete')) return 'complete class leaked into re-arm';
+    tutEnd();
+    return true;
+  }), 'academy.tick-juice');
+
+  /* 32 — v8 victory transparency: signed vs-par delta on the medal row and
+     the earned rank's own reason above the S requirements */
+  log(guard(()=>{
+    delete SAVE.best[0];
+    startLevel(0,{silent:true}); GAME.state='playing'; player.frozen=false;
+    GAME.levelTime=50; GAME.deaths=0; GAME.jumps=1;   /* S: gold 60, flawless */
+    flowReset(); FLOW.peak=2; FLOW.run=300;
+    levelComplete();
+    const stats=DOM.vStats.innerHTML, hint=DOM.vRankHint.innerHTML;
+    if(!stats.includes('MEDAL')) return 'medal row missing';
+    if(!stats.includes('delta-neg')) return 'vs-par delta missing on a gold run';
+    if(!hint.includes('S —')) return 'earned-rank reason line missing';
+    if(!hint.includes('PERFECT RUN')) return 'S reason text wrong';
+    hideScreen(DOM.victory);
+    /* slow run: rank C must explain itself and show the S requirements */
+    startLevel(0,{silent:true}); GAME.state='playing'; player.frozen=false;
+    GAME.levelTime=200; GAME.deaths=2; levelComplete();
+    if(!DOM.vRankHint.innerHTML.includes('S NEEDS')) return 'S-requirements line missing';
+    if(!DOM.vRankHint.innerHTML.includes('NO PAR MET')) return 'C reason text missing';
+    if(!DOM.vStats.innerHTML.includes('delta-pos')) return 'over-par delta missing';
+    hideScreen(DOM.victory);
+    executeCheat('resetbest');
+    return true;
+  }), 'victory.par-delta');
+
+  /* 33 — v8 Lesson I recovery: a fallen newcomer walks back onto the
+     causeway via the 0.55 step kerbs — no jump, no void, no failure state */
+  log(guard(()=>{
+    startLevel(0,{silent:true});
+    GAME.state='playing'; player.frozen=false;
+    /* stand on the FLOOR below the causeway, behind kerb 1, facing the
+       platform (yaw 0 = forward -z), then simply walk forward */
+    player.snapTo(V(1.4, 0.92, 5.4), 0, QG.floor.clone());
+    player.vel.set(0,0,0);
+    INPUT.f=true; INPUT.b=false; INPUT.l=false; INPUT.r=false;
+    ctx.steps(0.9, 1/30);
+    INPUT.f=false;
+    if(GAME.jumps>0) return 'climb used a jump (should be pure step-up)';
+    if(player.pos.y<1.5) return 'did not reach the causeway deck (y='+player.pos.y.toFixed(2)+')';
+    if(player.pos.z>2.6) return 'did not progress past the kerb (z='+player.pos.z.toFixed(2)+')';
+    if(GAME.state!=='playing') return 'unexpected state '+GAME.state;
+    /* kerb 2 must also climb: approach platform 3 from the gap floor */
+    player.snapTo(V(-1.4, 0.92, -1.0), 0, QG.floor.clone());
+    player.vel.set(0,0,0);
+    INPUT.f=true;
+    ctx.steps(1.0, 1/30);
+    INPUT.f=false;
+    if(player.pos.y<1.5) return 'kerb 2 did not lead up (y='+player.pos.y.toFixed(2)+')';
+    return true;
+  }), 'academy.recovery');
+
   const pass=results.filter(r=>r.ok).length;
   window.__QA_DONE__={pass, fail:results.length-pass, total:results.length,
     results:results.map(r=>(r.ok?'PASS ':'FAIL ')+r.name+(r.msg?' | '+r.msg:''))};
@@ -8574,7 +8741,7 @@ function qaRun(){
    23. BOOT
    ============================================================ */
 /* companion guide shipped next to this file (opened via the menu button) */
-const HOWTO_VERSION='v7';
+const HOWTO_VERSION='v8';
 function boot(){
   try{
     initRenderer();

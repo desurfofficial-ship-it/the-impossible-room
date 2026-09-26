@@ -241,7 +241,7 @@ footer{margin-top:70px;padding-top:24px;border-top:1px solid var(--line);
     <li><b style="color:#ff8f8f">Under 3.4 seconds left the meter blinks and ticks</b> — you will hear the decay coming.</li>
     <li><b style="color:#54e08a">Every shard you grab shields the chain for 2.5 seconds</b> — decay pauses
       while the bar glows green. Collecting your way across the room keeps the melody alive.</li>
-    <li>Tier-ups (×2, ×3, ×5, ×8, ×12) pay bonus score, flash the screen, and ring a power chord.</li>
+    <li>Tier-ups (×2, ×3, ×5, ×8, ×12) pay bonus score, flash the screen in the tier's color, ring a rising power chord, and give the camera a small celebratory thump.</li>
   </ul>
   <div class="tiers">
     <div class="tier"><span class="t-mult" style="color:#9fd8e8">×2</span>
@@ -309,13 +309,17 @@ footer{margin-top:70px;padding-top:24px;border-top:1px solid var(--line);
       <div class="r-how">any completion<br>counts</div></div>
   </div>
   <p>Ranks only ever <b>improve</b> — replay a chamber as many times as you like to climb
-    C → B → A → S. Your best rank shows as a badge in the chamber select grid, and your
-    <b>lifetime score</b> (shown on the main menu) only goes up. Cheated runs are flagged
-    <b style="color:#ff9ee0">⌁ TAINTED</b> and never touch records, scores, or ranks.</p>
+    C → B → A → S. Your best rank shows as a badge in the chamber select grid, next to
+    your best time and a medal chip (GOLD / SILV / BRZ) — the whole campaign's progress
+    reads at a glance. Your <b>lifetime score</b> (shown on the main menu) only goes up.
+    Cheated runs are flagged <b style="color:#ff9ee0">⌁ TAINTED</b> and never touch
+    records, scores, or ranks.</p>
   <p><b>The formula is printed on every victory screen.</b> The report now shows your
-    <b>peak chain with its tier name</b> (×8 · PARADOX), a <b>FLAWLESS ✓/✗ row</b>, and —
-    whenever you miss it — exactly what Rank S demands: the gold time (with how many
-    seconds over) and the death count. No more guessing what the letter wants from you.</p>
+    <b>peak chain with its tier name</b> (×8 · PARADOX), a <b>FLAWLESS ✓/✗ row</b>, the
+    <b>signed time-vs-par delta</b> right on the medal row (green under, red over), and
+    the <b>exact reason for the rank you earned</b> — plus, whenever you miss it, what
+    Rank S demands: the gold time (with how many seconds over) and the death count.
+    No more guessing what the letter wants from you.</p>
 </section>
 
 <!-- ============ 6. SPEEDRUN ============ -->
@@ -340,15 +344,16 @@ footer{margin-top:70px;padding-top:24px;border-top:1px solid var(--line);
   <h2><span class="no">07</span>The Academy &amp; The Escape</h2>
   <p>The campaign has two acts. <b>The Academy (I–V)</b> teaches the room one lesson at a
     time — each chamber coaches you with a live checklist that ticks off skills as you
-    perform them. <b>The Escape (VI–XV)</b> is the campaign proper: ten unique machines,
-    each built around one idea the previous ones didn't have, and none of the old tricks
-    get retired.</p>
+    perform them, each tick a small celebration of its own (a rising chime, a popping
+    checkmark, and a gold flourish when the lesson completes). <b>The Escape (VI–XV)</b> is
+    the campaign proper: ten unique machines, each built around one idea the previous
+    ones didn't have, and none of the old tricks get retired.</p>
 
   <h3>The Academy — Lessons I–V</h3>
   <table>
     <tr><th>#</th><th>Lesson</th><th>Difficulty</th><th>Gold · Silver · Bronze</th><th>What it teaches</th></tr>
     <tr><td>I</td><td>First Steps</td><td class="stars">★</td>
-      <td>1:00 · 1:35 · 2:30</td><td>Walking, sprinting, jumping gaps, collecting shards — no gravity flips needed</td></tr>
+      <td>1:00 · 1:35 · 2:30</td><td>Walking, sprinting, jumping gaps, collecting shards — no gravity flips needed. Slip off the causeway and the floor catches you: step blocks lead back up, no jump required</td></tr>
     <tr><td>II</td><td>The Sideways Lesson</td><td class="stars">★</td>
       <td>0:55 · 1:30 · 2:20</td><td>The <b style="color:#4da3ff">blue arch</b> — the wall becomes your floor, and green brings you home</td></tr>
     <tr><td>III</td><td>Up Is A Matter Of Opinion</td><td class="stars">★</td>
@@ -461,7 +466,7 @@ footer{margin-top:70px;padding-top:24px;border-top:1px solid var(--line);
     <li><b>Everything is local:</b> progress, records, and scores live in your browser's storage.
       Settings → everything is tunable (volumes, sensitivity, bloom, shadows, speedrun timer, vibration).</li>
     <li><b>Built-in QA:</b> append <span style="font-family:var(--mono)">?qa=1</span> to the URL
-      to watch the game test itself (55 scripted checks — every chamber, every arch).</li>
+      to watch the game test itself (61 scripted checks — every chamber, every arch).</li>
   </ul>
   <div class="note"><b>Privacy:</b> no accounts, no ads, no analytics, no network calls after the
     3D engine loads from its CDN (cached for offline). Your saves never leave the device.</div>
@@ -470,7 +475,7 @@ footer{margin-top:70px;padding-top:24px;border-top:1px solid var(--line);
 <footer>
   THE IMPOSSIBLE ROOM · A GRAVITY ESCAPE<br>
   SINGLE FILE · THREE.JS · WEB AUDIO SYNTH · PROCEDURAL WORLDS<br>
-  GUIDE v7 — MATCHES GAME BUILD v7 “THE POLISH PASS”
+  GUIDE v8 — MATCHES GAME BUILD v8 “THE RELEASE CANDIDATE”
 </footer>
 
 </div>
