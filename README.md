@@ -1,9 +1,12 @@
 # The Impossible Room
 
+**Play:** https://desurfofficial-ship-it.github.io/the-impossible-room/
+
+
 *A walkable M.C. Escher atrium. Bend gravity. Fall sideways and upward. Escape.*
 
 **The Impossible Room** is a fully self-contained, browser-based 3D puzzle game delivered as a
-**single `index.html` file**. Current build: **v10** (Open Graph sharing, SHARE RUN on strong clears, reduced-motion aware). It runs on [Three.js](https://threejs.org/) loaded from a CDN and
+**single `index.html` file**. Current build: **v18** (premium responsive chrome, modal Settings/Help/Chambers, instrument HUD, SHARE RUN, reduced-motion). It runs on [Three.js](https://threejs.org/) loaded from a CDN and
 synthesizes **every sound at runtime** with the Web Audio API — zero external assets.
 
 > **Desktop:** open `index.html` and click **ENTER THE ROOM**.
