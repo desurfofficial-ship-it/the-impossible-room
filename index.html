@@ -8,13 +8,13 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#05060a">
 <title>The Impossible Room — A Gravity Escape</title>
-<meta name="description" content="A walkable M.C. Escher atrium. Bend gravity through colored arches, collect orb fragments and escape eight impossible chambers.">
+<meta name="description" content="A walkable M.C. Escher atrium. Learn the four gravities in The Academy, then escape fifteen impossible chambers — and the endless vaults beyond.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!--
   ============================================================================
-  THE IMPOSSIBLE ROOM — production build
+  THE IMPOSSIBLE ROOM — production build (v6 "The Academy")
   ----------------------------------------------------------------------------
   Single-file, self-contained WebGL game (Three.js r170 via UNPKG CDN).
   Engine highlights:
@@ -23,8 +23,11 @@
     * Camera orientation composed as qUp * qYaw * qPitch (slerped on shifts)
     * AABB collision world + gravity-relative raycast grounding + step-up
     * Web Audio synthesizer — every sound is generated at runtime
-    * LevelManager with 8 hand-crafted levels + 2 seeded procedural bonus rooms
-    * Built-in QA harness: append ?qa=1 to the URL to run 20+ self-tests
+    * LevelManager with 15 hand-crafted levels:
+        - The Academy (I-V): one lesson per chamber, live checklists
+        - The Escape (VI-XV): unique machines, escalating difficulty
+        - endless generated vaults beyond
+    * Built-in QA harness: append ?qa=1 to the URL to run 50+ self-tests
   Self-correction log (issues found & fixed during the verification loop):
     1. WASD inversion on inverted planes     -> move via projected camera basis
     2. Euler gimbal-lock / slerp jitter      -> pure quaternion composition
@@ -66,57 +69,101 @@ kbd{font-family:var(--mono);font-size:.78em;background:rgba(255,255,255,.08);
   background:radial-gradient(120% 90% at 50% 10%,rgba(10,14,26,.25),rgba(4,5,10,.88));
   backdrop-filter:blur(3px);transition:opacity .45s ease}
 .screen.off{opacity:0;pointer-events:none}
-.panel{background:var(--glass);border:1px solid var(--line);border-radius:14px;
-  padding:26px 30px;box-shadow:0 24px 70px rgba(0,0,0,.55);
-  backdrop-filter:blur(10px)}
+.panel{background:var(--glass);border:1px solid var(--line);border-radius:16px;
+  padding:26px 30px;box-shadow:0 24px 70px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
+  backdrop-filter:blur(12px)}
 button{font-family:var(--sans);cursor:pointer;border:1px solid var(--line-2);
-  background:rgba(255,255,255,.05);color:var(--ink);border-radius:9px;
-  padding:11px 22px;font-size:15px;letter-spacing:.06em;transition:all .16s ease}
+  background:rgba(255,255,255,.05);color:var(--ink);border-radius:11px;
+  padding:12px 24px;font-size:14.5px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;transition:all .16s ease}
 button:hover{background:rgba(255,255,255,.12);border-color:var(--accent);
   transform:translateY(-1px);box-shadow:0 6px 22px rgba(57,213,200,.18)}
 button:active{transform:translateY(0)}
-button.primary{border-color:rgba(57,213,200,.65);color:#bffef7;
-  background:linear-gradient(180deg,rgba(57,213,200,.16),rgba(57,213,200,.05));
-  font-weight:600}
-button.primary:hover{box-shadow:0 8px 30px rgba(57,213,200,.35)}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.primary{border-color:rgba(57,213,200,.7);color:#bffef7;
+  background:linear-gradient(180deg,rgba(57,213,200,.22),rgba(57,213,200,.06));
+  font-weight:700;box-shadow:0 4px 24px rgba(57,213,200,.16)}
+button.primary:hover{box-shadow:0 10px 34px rgba(57,213,200,.4);
+  background:linear-gradient(180deg,rgba(57,213,200,.3),rgba(57,213,200,.08))}
 button:disabled{opacity:.32;cursor:not-allowed;transform:none;box-shadow:none}
 .btn-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
 
-/* ============ main menu ============ */
-#menu{z-index:30}
+/* ============ main menu (v6 — the live world shows through) ============ */
+#menu{z-index:30;
+  background:linear-gradient(180deg,rgba(4,6,12,.82) 0%,rgba(4,6,12,.38) 34%,
+    rgba(4,6,12,.5) 62%,rgba(4,6,12,.9) 100%);
+  backdrop-filter:blur(2px)}
 #menu .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.5em;
   color:var(--ink-dim);text-transform:uppercase}
 #menu h1{font-family:var(--serif);font-style:italic;font-weight:600;
   font-size:clamp(40px,7vw,84px);line-height:1.02;text-align:center;
-  background:linear-gradient(180deg,#ffffff 20%,#8fe6dd 60%,#39d5c8);
+  background:linear-gradient(115deg,#ffffff 25%,#9ff2ea 45%,#39d5c8 60%,#ffffff 80%);
+  background-size:220% 100%;
   -webkit-background-clip:text;background-clip:text;color:transparent;
-  filter:drop-shadow(0 0 34px rgba(57,213,200,.28))}
-#menu h1 .narrow{display:block;font-size:.42em;letter-spacing:.34em;
+  filter:drop-shadow(0 0 34px rgba(57,213,200,.28));
+  animation:titleSheen 9s ease-in-out infinite}
+@keyframes titleSheen{0%,100%{background-position:0% 0}50%{background-position:100% 0}}
+#menu h1 .narrow{display:block;font-size:.4em;letter-spacing:.34em;
   font-style:normal;font-family:var(--mono);font-weight:400;color:var(--ink-dim);
   -webkit-text-fill-color:var(--ink-dim);margin-top:14px}
-#menu .tag{color:var(--ink-dim);font-size:15px;max-width:520px;text-align:center;
+#menu .tag{color:var(--ink-dim);font-size:15px;max-width:560px;text-align:center;
   line-height:1.55}
 .arch-legend{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .arch-chip{display:flex;align-items:center;gap:8px;font-family:var(--mono);
-  font-size:11px;letter-spacing:.12em;padding:7px 12px;border-radius:999px;
-  border:1px solid var(--line);background:rgba(255,255,255,.03)}
+  font-size:11px;letter-spacing:.12em;padding:7px 13px;border-radius:999px;
+  border:1px solid var(--line);background:rgba(10,14,22,.55);backdrop-filter:blur(6px)}
 .arch-chip i{width:10px;height:10px;border-radius:50%;display:inline-block;
   box-shadow:0 0 12px 2px currentColor}
 #menu .foot{position:absolute;bottom:26px;font-family:var(--mono);font-size:11px;
   color:var(--ink-faint);letter-spacing:.2em}
+#menu .menu-version{position:absolute;top:22px;right:26px;font-family:var(--mono);
+  font-size:10px;letter-spacing:.28em;color:var(--ink-faint);
+  border:1px solid var(--line);border-radius:999px;padding:6px 12px;
+  background:rgba(10,14,22,.5);backdrop-filter:blur(6px)}
 
-/* level select grid */
-#levels{max-width:760px}
-.lvl-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:16px}
-.lvl{padding:12px 10px;text-align:center;border-radius:10px;cursor:pointer;
-  border:1px solid var(--line);background:rgba(255,255,255,.03);transition:all .15s}
-.lvl:hover:not(.locked){border-color:var(--accent);background:rgba(57,213,200,.08)}
-.lvl .n{font-family:var(--serif);font-style:italic;font-size:24px;color:var(--ink)}
-.lvl .t{font-family:var(--mono);font-size:9px;letter-spacing:.08em;color:var(--ink-dim);
-  margin-top:5px;line-height:1.4;min-height:24px}
+/* level select grid (v6 — Academy / Escape / Vault sections) */
+#levels{max-width:820px}
+.grid-h{grid-column:1/-1;font-family:var(--mono);font-size:10px;letter-spacing:.34em;
+  color:var(--ink-dim);text-transform:uppercase;display:flex;align-items:center;gap:12px;
+  margin:8px 0 2px}
+.grid-h::before,.grid-h::after{content:"";height:1px;flex:1;
+  background:linear-gradient(90deg,transparent,var(--line-2),transparent)}
+.grid-h b{color:var(--accent);font-weight:400}
+.grid-h.gold b{color:var(--gold)}
+.lvl-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:16px;
+  max-height:48vh;overflow-y:auto;padding-right:4px;scrollbar-width:thin;
+  scrollbar-color:rgba(255,255,255,.18) transparent}
+.lvl-grid::-webkit-scrollbar{width:6px}
+.lvl-grid::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}
+.lvl{position:relative;padding:14px 10px 12px;text-align:center;border-radius:12px;
+  cursor:pointer;border:1px solid var(--line);background:rgba(16,20,30,.72);
+  transition:all .16s ease;overflow:hidden;--ac:#39d5c8}
+.lvl::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,transparent,var(--ac),transparent);opacity:.9}
+.lvl::after{content:"";position:absolute;inset:0;border-radius:12px;pointer-events:none;
+  box-shadow:inset 0 0 0 1px transparent;transition:box-shadow .16s ease}
+.lvl:hover:not(.locked){border-color:var(--ac);background:rgba(22,28,40,.9);
+  transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.5), 0 0 22px -6px var(--ac)}
+.lvl .n{font-family:var(--serif);font-style:italic;font-size:23px;color:var(--ink);
+  line-height:1.1}
+.lvl .t{font-family:var(--mono);font-size:8.5px;letter-spacing:.06em;color:var(--ink-dim);
+  margin-top:5px;line-height:1.45;min-height:24px}
+.lvl .lvl-meta{display:flex;align-items:center;justify-content:center;gap:7px;
+  margin-top:5px;font-family:var(--mono);font-size:9px;color:var(--ink-faint)}
+.lvl .stars{color:var(--gold);letter-spacing:.05em}
+.lvl .best{color:var(--ink-dim)}
 .lvl .b{font-family:var(--mono);font-size:9px;color:var(--gold);margin-top:3px}
-.lvl.locked{opacity:.35;cursor:not-allowed}
+.lvl .b .mG{color:#ffd76a}.lvl .b .mS{color:#d7dde8}.lvl .b .mB{color:#d09a6a}
+.lvl .lesson-chip{position:absolute;top:6px;left:8px;font-family:var(--mono);
+  font-size:7.5px;letter-spacing:.18em;color:var(--ac);opacity:.9}
+.lvl .rk{position:absolute;top:5px;right:9px;font-family:var(--serif);font-style:italic;
+  font-size:16px;font-weight:700;line-height:1}
+.lvl.locked{opacity:.35;cursor:not-allowed;filter:saturate(.4)}
 .lvl.locked .t::after{content:"LOCKED";display:block;color:var(--ink-faint)}
+.lvl .rk.rk-s{color:#ff9ee0;text-shadow:0 0 12px rgba(255,158,224,.7)}
+.lvl .rk.rk-a{color:#ffd76a;text-shadow:0 0 12px rgba(255,215,106,.6)}
+.lvl .rk.rk-b{color:#54e08a}
+.lvl .rk.rk-c{color:#9aa3b5}
 
 /* settings */
 .set-row{display:flex;align-items:center;justify-content:space-between;gap:26px;
@@ -146,7 +193,9 @@ button:disabled{opacity:.32;cursor:not-allowed;transform:none;box-shadow:none}
 /* ============ HUD ============ */
 #hud{position:fixed;inset:0;z-index:15;pointer-events:none;opacity:0;transition:opacity .4s}
 #hud.on{opacity:1}
-.hud-tl{position:absolute;top:20px;left:22px;max-width:340px}
+.hud-tl{position:absolute;top:20px;left:22px;max-width:340px;padding-left:14px;
+  border-left:3px solid var(--accent)}
+body.touch .hud-tl{border-left-width:2px}
 .hud-tr{position:absolute;top:20px;right:22px;text-align:right}
 .hud-bl{position:absolute;bottom:20px;left:22px;display:flex;align-items:center;gap:14px}
 .hud-br{position:absolute;bottom:20px;right:22px;text-align:right;
@@ -160,7 +209,7 @@ button:disabled{opacity:.32;cursor:not-allowed;transform:none;box-shadow:none}
 .hud-best{font-family:var(--mono);font-size:10px;color:var(--gold);opacity:.85;
   letter-spacing:.06em;margin-right:8px}
 body:not(.touch) .hud-best:empty{display:none}
-#hud-level{font-family:var(--mono);font-size:10px;letter-spacing:.34em;
+#hud-level{font-family:var(--mono);font-size:10px;letter-spacing:.3em;
   color:var(--accent);text-transform:uppercase;text-shadow:0 0 14px rgba(57,213,200,.5)}
 #hud-obj{font-family:var(--serif);font-style:italic;font-size:20px;color:var(--ink);
   margin-top:4px;text-shadow:0 2px 18px rgba(0,0,0,.8)}
@@ -191,6 +240,32 @@ body:not(.touch) .hud-best:empty{display:none}
 #hud-timer.warn{color:var(--red);animation:pulse 1.05s infinite}
 #hud-loops{font-family:var(--mono);font-size:11px;color:var(--violet);margin-top:5px}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+/* ============ THE ACADEMY — live lesson checklist (v6) ============ */
+#tut{position:fixed;top:calc(16px + env(safe-area-inset-top,0px));left:50%;
+  transform:translateX(-50%) translateY(-8px);z-index:17;min-width:230px;
+  background:var(--glass);border:1px solid var(--line);border-radius:14px;
+  padding:10px 16px 11px;backdrop-filter:blur(10px);opacity:0;pointer-events:none;
+  transition:opacity .3s ease, transform .3s ease;
+  box-shadow:0 14px 44px rgba(0,0,0,.45)}
+#tut.on{opacity:1;transform:translateX(-50%) translateY(0)}
+#tut-title{font-family:var(--mono);font-size:9px;letter-spacing:.3em;color:var(--gold);
+  text-transform:uppercase;margin-bottom:6px;text-align:center}
+.tstep{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:11px;
+  letter-spacing:.08em;color:var(--ink-dim);padding:2.5px 0;transition:color .25s}
+.tstep .tbox{width:15px;height:15px;border-radius:4px;border:1px solid var(--line-2);
+  display:flex;align-items:center;justify-content:center;font-size:10px;color:transparent;
+  flex:0 0 auto;transition:all .25s ease}
+.tstep.done{color:var(--ink)}
+.tstep.done .tbox{background:rgba(84,224,138,.2);border-color:var(--green);
+  color:var(--green);text-shadow:0 0 8px rgba(84,224,138,.9);
+  animation:tutTick .38s cubic-bezier(.2,1.6,.4,1)}
+.tstep.done .tlbl{text-decoration:line-through;text-decoration-color:rgba(84,224,138,.6);
+  text-decoration-thickness:1px}
+@keyframes tutTick{0%{transform:scale(.4) rotate(-20deg)}70%{transform:scale(1.25)}100%{transform:scale(1)}}
+body.touch #tut{top:calc(58px + env(safe-area-inset-top,0px));padding:8px 12px 9px}
+body.touch .tstep{font-size:10px}
+@media (max-height:560px){ #tut{display:none} }
 
 /* reticle */
 #reticle{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
@@ -230,6 +305,10 @@ body:not(.touch) .hud-best:empty{display:none}
 #levelcard{z-index:25;pointer-events:none;background:rgba(3,4,8,.55)}
 #levelcard .lc-num{font-family:var(--mono);letter-spacing:.6em;font-size:13px;
   color:var(--accent)}
+#levelcard .lc-chip{display:inline-block;font-size:9px;letter-spacing:.24em;
+  color:#0b0e14;background:var(--gold);border-radius:4px;padding:3px 8px;margin-right:10px;
+  vertical-align:2px;font-weight:700}
+#levelcard .lc-stars{color:var(--gold);letter-spacing:.1em}
 #levelcard .lc-name{font-family:var(--serif);font-style:italic;font-size:clamp(34px,6vw,64px);
   color:#fff;text-shadow:0 4px 40px rgba(0,0,0,.9)}
 #levelcard .lc-obj{font-family:var(--mono);font-size:12px;letter-spacing:.2em;
@@ -369,6 +448,7 @@ body.touch .ctl-grid kbd{display:none}
   .set-row{min-width:270px}
   .ctl-grid{font-size:12.5px}
   .arch-chip{font-size:10px}
+  #menu .menu-version{display:none}
 }
 @media (max-height:560px){
   .screen{gap:10px}
@@ -451,16 +531,6 @@ body.touch #chain-bar{width:64px}
 .stat-rows .row b.medal-bronze{color:#d09a6a}
 .stat-rows .row span.rec-tag{color:#ff9ee0}
 
-/* chamber select: rank badges + medal dots + scroll for the deep vaults */
-.lvl{position:relative}
-.lvl .rk{position:absolute;top:5px;right:9px;font-family:var(--serif);font-style:italic;
-  font-size:16px;font-weight:700;line-height:1}
-.lvl-grid{max-height:46vh;overflow-y:auto;padding-right:4px;scrollbar-width:thin;
-  scrollbar-color:rgba(255,255,255,.18) transparent}
-.lvl-grid::-webkit-scrollbar{width:6px}
-.lvl-grid::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}
-.lvl .b .mG{color:#ffd76a}.lvl .b .mS{color:#d7dde8}.lvl .b .mB{color:#d09a6a}
-
 /* menu lifetime stats line */
 #menu-stats{font-family:var(--mono);font-size:11px;letter-spacing:.22em;
   color:var(--gold);opacity:.9}
@@ -476,16 +546,18 @@ body.touch #chain-bar{width:64px}
 
 <!-- ===================== MAIN MENU ===================== -->
 <div id="menu" class="screen">
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V6</span>
   <div class="kicker">AN ESCHER GRAVITY PUZZLE</div>
-  <h1>The Impossible Room<span class="narrow">EIGHT CHAMBERS · FOUR GRAVITIES · ONE EXIT</span></h1>
+  <h1>The Impossible Room<span class="narrow">FIFTEEN CHAMBERS · FOUR GRAVITIES · ONE EXIT</span></h1>
   <div class="arch-legend">
     <span class="arch-chip" style="color:#4da3ff"><i style="color:#4da3ff"></i>BLUE&nbsp;→&nbsp;WALL A</span>
     <span class="arch-chip" style="color:#ff5468"><i style="color:#ff5468"></i>RED&nbsp;→&nbsp;WALL B</span>
     <span class="arch-chip" style="color:#e8c15a"><i style="color:#e8c15a"></i>YELLOW&nbsp;→&nbsp;CEILING</span>
     <span class="arch-chip" style="color:#54e08a"><i style="color:#54e08a"></i>GREEN&nbsp;→&nbsp;FLOOR</span>
   </div>
-  <div class="tag">Walk crisscrossing staircases and inverted architecture. Pass through the
-    gravity arches to fall sideways and upward. Collect the orb fragments and escape.</div>
+  <div class="tag">Five Academy chambers teach you the room — walk, jump, and bend gravity
+    through the colored arches. Then escape ten impossible machines, and the endless
+    vaults beyond. Collect the shards. Chase the S rank.</div>
   <div class="btn-row">
     <button id="btn-start" class="primary">ENTER THE ROOM</button>
     <button id="btn-levels">CHAMBERS</button>
@@ -539,6 +611,13 @@ body.touch #chain-bar{width:64px}
       <span><b>USE</b></span><span>Pick up / drop cubes, rotate mirrors, insert cores</span>
       <span><b>II</b></span><span>Pause</span>
     </div>
+    <div class="h2">The Academy — the first five chambers</div>
+    <div class="ctl-grid" style="grid-template-columns:1fr">
+      <span>Chambers I–V are <b>lessons</b>: movement &amp; jumping, the blue arch (walls),
+      yellow &amp; red (ceiling and the other wall), the green anchor (and the void), and a
+      final examination that combines everything. A live <b>checklist</b> at the top of the
+      screen ticks off each skill as you perform it.</span>
+    </div>
     <div class="h2">The Arches</div>
     <div class="ctl-grid" style="grid-template-columns:1fr">
       <span><b style="color:#4da3ff">BLUE</b> rotates gravity +90° — you fall onto <b>Wall A</b>.
@@ -560,7 +639,7 @@ body.touch #chain-bar{width:64px}
       and a <b>rank</b> — <b style="color:#ff9ee0">S</b> flawless ·
       <b style="color:#ffd76a">A</b> clean · <b style="color:#54e08a">B</b> survivor ·
       <b style="color:#9aa3b5">C</b> escaped. Chase the S.</span>
-      <span>Beyond Chamber X the vaults keep going — <b>endless generated depth</b>,
+      <span>Beyond Chamber XV the vaults keep going — <b>endless generated depth</b>,
       thinner platforms, faster sentinels. How deep can you fall upward?</span>
     </div>
     <div class="btn-row" style="margin-top:16px">
@@ -618,6 +697,12 @@ body.touch #chain-bar{width:64px}
     <div id="chain-bar"><i id="chain-fill"></i></div></div>
 </div>
 <div id="popups"></div>
+
+<!-- The Academy — live lesson checklist (v6) -->
+<div id="tut">
+  <div id="tut-title">LESSON</div>
+  <div id="tut-list"></div>
+</div>
 
 <!-- ===================== SCREENS ===================== -->
 <div id="levelcard" class="screen off">
@@ -800,6 +885,23 @@ const SAVE = Object.assign({ unlocked:1, best:{}, campaignBest:null,
 /* fresh installs on phones/tablets: start with bloom off for smooth framerates */
 if(IS_TOUCH){ try{ if(!localStorage.getItem('tir_save')) SAVE.bloom=false; }catch(e){} }
 
+/* ---- v6 migration — the campaign grew a five-lesson Academy ----
+   Old chambers I-VIII are now VI-XIII. Remap records so veterans keep
+   their times, and hand them the Academy already unsealed. */
+if(!SAVE.v6migrated){
+  const remap=o=>{ const n={};
+    for(const k in o){ const i=+k;
+      if(i>=0 && i<8) n[i+5]=o[k];        /* campaign records shift */
+      else if(i>=8) continue;             /* old vault records retire */
+      else n[i]=o[k]; }
+    return n; };
+  SAVE.best=remap(SAVE.best); SAVE.ranks=remap(SAVE.ranks); SAVE.levelScore=remap(SAVE.levelScore);
+  if(SAVE.unlocked>1) SAVE.unlocked=Math.min(15, SAVE.unlocked>=10?15:SAVE.unlocked+5);
+  SAVE.bestDepth=0;                       /* vault depth recounts from the new base */
+  SAVE.v6migrated=true;
+  persist();
+}
+
 function persist(){ STORE.save(SAVE); }
 
 /* ---- DOM refs ---- */
@@ -819,6 +921,7 @@ const DOM = {
   chain:$('chain'), chainMult:$('chain-mult'), chainTier:$('chain-tier'),
   chainFill:$('chain-fill'), hudScore:$('hud-score'), popups:$('popups'),
   menuStats:$('menu-stats'),
+  tut:$('tut'), tutTitle:$('tut-title'), tutList:$('tut-list'),
   btnNext:$('btn-next'), btnReplay:$('btn-replay'), btnBonus:$('btn-bonus'),
   fTitle:$('f-title'), fSub:$('f-sub')
 };
@@ -1730,23 +1833,72 @@ function ambientFxUpdate(dt, t){
   }
 }
 
-/* ---- the ten chamber worlds ---- */
+/* ---- the seventeen chamber worlds (v6: the Academy + the Escape + vaults) ---- */
 const THEMES=[
-  { /* 0 — L1 The Initiation : DAWN ATRIUM (natural) */
+  { /* 0 — L1 First Steps : SPRING NOON (tutorial meadow) */
     nature:'meadow',
-    dome:true, stars:false, sun:{dir:[0.5,0.38,-0.42], color:0xffe2b0, size:58}, moon:false,
+    dome:true, stars:false, sun:{dir:[0.2,0.85,0.25], color:0xfff4d8, size:52}, moon:false,
     clouds:true,
-    sky:{top:0x8fb0d8, horizon:0xf0cfa8, bottom:0x9a8a72, glow:0xffe2b0, glowAmt:0.6},
-    hemi:{sky:0xd8e2f0, ground:0x8a7a5e, int:1.05},
-    dir:{color:0xffe8c0, int:1.7, pos:[10,17,7]},
-    fog:{color:0x94a0b4, density:0.0075},
-    motes:{color:0xd8c8a0}, exposure:1.38,
-    shafts:[{x:0,y:6.3,z:0,h:11.4,r:1.5,r1:3.0,color:0xffe8c0,opacity:0.2},
-            {x:0,y:1.6,z:-12,h:3.4,r:1.1,r1:2.0,color:0x9fd8ff,opacity:0.13},
-            {x:0,y:1.5,z:10.1,h:3.0,r:1.0,r1:1.8,color:0x9fe8c0,opacity:0.13}],
-    fx:{mode:'dust', color:0xd8c8a0, rate:5}
+    sky:{top:0x74a8e0, horizon:0xd8e8f4, bottom:0x9aa87e, glow:0xfff4d8, glowAmt:0.55},
+    hemi:{sky:0xe8f0fa, ground:0x8a9a6e, int:1.22},
+    dir:{color:0xfff8e8, int:1.9, pos:[4,20,6]},
+    fog:{color:0xb8c8d4, density:0.006},
+    motes:{color:0xe8e0c0}, exposure:1.4,
+    shafts:[{x:0,y:5.5,z:2,h:10.4,r:1.5,r1:3.0,color:0xfff4d8,opacity:0.15},
+            {x:0,y:1.6,z:9.5,h:3.0,r:1.0,r1:1.8,color:0xbfe8ff,opacity:0.1}],
+    fx:{mode:'dust', color:0xe8e0c0, rate:4}
   },
-  { /* 1 — L2 The Looping Escape : EMERALD TWILIGHT (natural) */
+  { /* 1 — L2 The Sideways Lesson : BRIGHT FOREST MORNING */
+    nature:'forest',
+    dome:true, stars:false, sun:{dir:[0.55,0.6,0.2], color:0xfff0c8, size:44}, moon:false,
+    clouds:true,
+    sky:{top:0x6a9cd0, horizon:0xd8ecdc, bottom:0x7e8a68, glow:0xfff0c8, glowAmt:0.5},
+    hemi:{sky:0xe4f0e4, ground:0x5a6a4e, int:1.2},
+    dir:{color:0xfff4d8, int:1.75, pos:[10,16,5]},
+    fog:{color:0xa8c0ae, density:0.007},
+    motes:{color:0xd8e8c0}, exposure:1.38,
+    shafts:[{x:0,y:6,z:0,h:11.2,r:1.4,r1:2.8,color:0xfff0c8,opacity:0.13}],
+    fx:{mode:'fireflies', color:0xd8f0a0, rate:3}
+  },
+  { /* 2 — L3 Up Is A Matter Of Opinion : SKY GARDEN AFTERNOON */
+    nature:'meadow',
+    dome:true, stars:false, sun:{dir:[-0.4,0.75,0.3], color:0xffe2a8, size:48}, moon:false,
+    clouds:true,
+    sky:{top:0x8fa8d8, horizon:0xf4e0bc, bottom:0x9a8e70, glow:0xffe2a8, glowAmt:0.6},
+    hemi:{sky:0xf0e4cc, ground:0x8a8260, int:1.15},
+    dir:{color:0xffecc0, int:1.8, pos:[-8,18,6]},
+    fog:{color:0xc4bca4, density:0.0065},
+    motes:{color:0xe8dcb0}, exposure:1.38,
+    shafts:[{x:-4,y:7,z:-2,h:13.4,r:1.3,r1:2.6,color:0xffe2a8,opacity:0.12},
+            {x:4,y:7,z:3,h:13.4,r:1.3,r1:2.6,color:0xffe2a8,opacity:0.12}],
+    fx:{mode:'spores', color:0xf0e0a0, rate:4}
+  },
+  { /* 3 — L4 The Anchor : CALM LAGOON */
+    nature:'ocean',
+    dome:true, stars:false, sun:{dir:[0.15,0.8,0.35], color:0xa8ffe8, size:34}, moon:false,
+    clouds:false,
+    sky:{top:0x2a6a78, horizon:0x7fd0c0, bottom:0x1e4a50, glow:0xa8ffe8, glowAmt:0.4},
+    hemi:{sky:0x9fd8cc, ground:0x2e4a48, int:1.28},
+    dir:{color:0xc8ffe8, int:1.7, pos:[4,18,6]},
+    fog:{color:0x4a7a74, density:0.008},
+    motes:{color:0x9fe8d0}, exposure:1.38,
+    shafts:[{x:0,y:8,z:0,h:15.2,r:1.6,r1:3.2,color:0xa8ffe8,opacity:0.12}],
+    fx:{mode:'caustics', color:0x8fe8d0, rate:5}
+  },
+  { /* 4 — L5 The Examination : HIGHLAND DAWN (alpine) */
+    nature:'alpine',
+    dome:true, stars:false, sun:{dir:[0.6,0.3,0.45], color:0xffd8a0, size:58}, moon:false,
+    clouds:true,
+    sky:{top:0x4a6a9a, horizon:0xf0b878, bottom:0x6a5e48, glow:0xffd8a0, glowAmt:0.7},
+    hemi:{sky:0xf8dcc0, ground:0x6a5e4a, int:1.05},
+    dir:{color:0xffe8c8, int:1.8, pos:[14,22,10]},
+    fog:{color:0xb0a088, density:0.0055},
+    motes:{color:0xe8d0a8}, exposure:1.38,
+    shafts:[{x:0,y:6,z:0,h:11.2,r:1.6,r1:3.2,color:0xffd8a0,opacity:0.14},
+            {x:0,y:1.6,z:8,h:3.0,r:1.0,r1:1.8,color:0xffe8c0,opacity:0.1}],
+    fx:{mode:'dust', color:0xe8d0a8, rate:5}
+  },
+  { /* 5 — L6 The Looping Escape : EMERALD TWILIGHT (natural) */
     nature:'forest',
     dome:true, stars:false, sun:{dir:[-0.7,0.16,0.3], color:0xa8ffd0, size:34}, moon:false,
     clouds:true,
@@ -1760,7 +1912,7 @@ const THEMES=[
             {x:53,y:4.2,z:0,h:7.6,r:1.2,r1:2.2,color:0xa8ffd0,opacity:0.12}],
     fx:{mode:'fireflies', color:0xd8f090, rate:4}
   },
-  { /* 2 — L3 Weight & Gravity : SANDSTONE NOON (natural) */
+  { /* 6 — L7 Weight & Gravity : SANDSTONE NOON (natural) */
     nature:'desert',
     dome:true, stars:false, sun:{dir:[0.25,0.9,-0.2], color:0xfff8e0, size:46}, moon:false,
     clouds:true,
@@ -1774,7 +1926,7 @@ const THEMES=[
             {x:0,y:1.6,z:-10.5,h:3.2,r:1.0,r1:1.8,color:0xffd8a0,opacity:0.14}],
     fx:{mode:'dust', color:0xe8d8b0, rate:4}
   },
-  { /* 3 — L4 The Switchboard : POLAR LAB (bright clinical) */
+  { /* 7 — L8 The Switchboard : POLAR LAB (bright clinical) */
     nature:'snowfield',
     dome:true, stars:false, sun:{dir:[0.35,0.8,0.3], color:0xffffff, size:40}, moon:false,
     clouds:true,
@@ -1787,7 +1939,7 @@ const THEMES=[
             {x:0,y:1.8,z:6,h:3.4,r:1.1,r1:2.0,color:0x9fd8ff,opacity:0.14}],
     fx:{mode:'dust', color:0xdce8f4, rate:3}
   },
-  { /* 4 — L5 The Chrono-Void : SOLAR STORM (natural dramatic) */
+  { /* 8 — L9 The Chrono-Void : SOLAR STORM (natural dramatic) */
     nature:'volcanic',
     dome:true, stars:false, sun:{dir:[-0.45,0.42,-0.55], color:0xffa860, size:66}, moon:false,
     clouds:true,
@@ -1800,7 +1952,7 @@ const THEMES=[
             {x:0,y:1.6,z:9,h:3.4,r:1.1,r1:2.0,color:0xffc890,opacity:0.14}],
     fx:{mode:'embers', color:0xffa050, rate:7}
   },
-  { /* 5 — L6 The Silent Inversion : MIDNIGHT ORCHID (night, visible) */
+  { /* 9 — L10 The Silent Inversion : MIDNIGHT ORCHID (night, visible) */
     nature:'nightgarden',
     dome:true, stars:true, sun:{dir:[0.4,0.5,0.35], color:0xcfd8ff, size:26}, moon:true,
     clouds:false,
@@ -1813,7 +1965,7 @@ const THEMES=[
             {x:-11,y:1.4,z:-11,h:3,r:1,r1:1.8,color:0xa97bff,opacity:0.13}],
     fx:{mode:'spores', color:0xb898ff, rate:5}
   },
-  { /* 6 — L7 The Reversed Chasm : GLACIAL DEPTHS (natural ice) */
+  { /* 10 — L11 The Reversed Chasm : GLACIAL DEPTHS (natural ice) */
     nature:'arctic',
     dome:true, stars:false, sun:{dir:[0.3,0.6,-0.5], color:0xe8f8ff, size:38}, moon:false,
     clouds:true, aurora:true,
@@ -1826,7 +1978,46 @@ const THEMES=[
             {x:12.4,y:7,z:0,h:12.8,r:1.2,r1:2.2,color:0xd8f0ff,opacity:0.12}],
     fx:{mode:'snow', color:0xf0f8ff, rate:9}
   },
-  { /* 7 — L8 The Monument of Escher : GOLDEN SUMMIT (natural majestic) */
+  { /* 11 — L12 The Clockwork Court : BRASS DUSK (new v6) */
+    nature:'desert',
+    dome:true, stars:false, sun:{dir:[-0.55,0.28,0.35], color:0xffb070, size:62}, moon:false,
+    clouds:true,
+    sky:{top:0x5a3a56, horizon:0xe89a58, bottom:0x4a2c38, glow:0xffb878, glowAmt:0.7},
+    hemi:{sky:0xffc8a0, ground:0x5a4038, int:0.98},
+    dir:{color:0xffd0a0, int:1.7, pos:[-12,18,8]},
+    fog:{color:0x9a6858, density:0.007},
+    motes:{color:0xffc8a0}, exposure:1.34,
+    shafts:[{x:-8,y:9,z:-6,h:16,r:1.6,r1:3.2,color:0xffb878,opacity:0.11},
+            {x:8,y:9,z:6,h:16,r:1.6,r1:3.2,color:0xffb878,opacity:0.11}],
+    fx:{mode:'embers', color:0xffb060, rate:5}
+  },
+  { /* 12 — L13 The Hundred-Step Garden : DUSK GARDEN (new v6) */
+    nature:'forest',
+    dome:true, stars:false, sun:{dir:[0.15,0.88,0.2], color:0xe8e8c0, size:36}, moon:false,
+    clouds:true,
+    sky:{top:0x2e5a6e, horizon:0x8fae7e, bottom:0x243a2e, glow:0xcfe8c0, glowAmt:0.3},
+    hemi:{sky:0x9ec8a8, ground:0x3a4a3e, int:1.0},
+    dir:{color:0xd8e8c0, int:1.5, pos:[4,22,4]},
+    fog:{color:0x6a8272, density:0.008},
+    motes:{color:0xb8d8a8}, exposure:1.3,
+    shafts:[{x:0,y:7,z:0,h:12,r:1.7,r1:3.4,color:0xd8e8b8,opacity:0.1}],
+    fx:{mode:'spores', color:0xc8f0a0, rate:4}
+  },
+  { /* 13 — L14 The Escher Trials : AURORA MIDNIGHT (new v6) */
+    nature:'nightgarden',
+    dome:true, stars:true, sun:{dir:[-0.3,0.55,0.4], color:0xb8f0ff, size:24}, moon:true,
+    clouds:false, aurora:true,
+    sky:{top:0x081420, horizon:0x2a4a58, bottom:0x0c141c, glow:0x9fe8e0, glowAmt:0.3},
+    hemi:{sky:0xa8d8d8, ground:0x2e4448, int:1.24},
+    dir:{color:0xc8f4ff, int:1.72, pos:[-8,18,8]},
+    fog:{color:0x425862, density:0.0072},
+    motes:{color:0xa8e8e0}, exposure:1.38,
+    shafts:[{x:0,y:16,z:0,h:28,r:1.9,r1:4.0,color:0xb8f0ff,opacity:0.11},
+            {x:16,y:5,z:-16,h:9,r:1.2,r1:2.4,color:0x9fe8e0,opacity:0.1},
+            {x:-16,y:5,z:16,h:9,r:1.2,r1:2.4,color:0x9fe8e0,opacity:0.10}],
+    fx:{mode:'fireflies', color:0xa8f0e0, rate:4}
+  },
+  { /* 14 — L15 The Monument of Escher : GOLDEN SUMMIT (natural majestic) */
     nature:'alpine',
     dome:true, stars:false, sun:{dir:[0.55,0.3,0.5], color:0xffd080, size:62}, moon:false,
     clouds:true,
@@ -1840,7 +2031,7 @@ const THEMES=[
             {x:0,y:6,z:14,h:12,r:1.0,r1:2.0,color:0xffe8c0,opacity:0.1}],
     fx:{mode:'dust', color:0xe8d0a0, rate:5}
   },
-  { /* 8 — L9 The Fractal Well : BIOLUME LAGOON (grotto) */
+  { /* 15 — Vault : BIOLUME LAGOON (grotto) */
     nature:'ocean',
     dome:true, stars:false, sun:{dir:[0,0.85,0.2], color:0xa8ffe8, size:30}, moon:false,
     clouds:false,
@@ -1852,7 +2043,7 @@ const THEMES=[
     shafts:[{x:0,y:7,z:0,h:13.6,r:1.5,r1:2.8,color:0xa8ffe8,opacity:0.15}],
     fx:{mode:'caustics', color:0x8fe8d0, rate:6}
   },
-  { /* 9 — L10 The Escher Machine : NEBULA ROSE (cosmic) */
+  { /* 16 — Vault : NEBULA ROSE (cosmic) */
     nature:'cosmic',
     dome:true, stars:true, sun:{dir:[-0.4,0.45,0.4], color:0xf0c8ff, size:34}, moon:false,
     clouds:false,
@@ -4345,6 +4536,46 @@ function rankFor(i, t, deaths){
 }
 function medalClass(m){ return m?('medal-'+m.toLowerCase()):''; }
 
+/* ============================================================
+   16c. THE ACADEMY — tutorial checklist (v6)
+   The first five chambers coach the player live: a visible
+   step list that ticks off with sound, score and haptics as
+   each skill is performed. Feels like a quest log, teaches
+   like a level design doc.
+   ============================================================ */
+const TUT={ on:false, steps:[], done:[] };
+function tutStart(steps, title){
+  TUT.on=true; TUT.steps=steps; TUT.done=steps.map(()=>false);
+  if(DOM.tut){
+    DOM.tut.classList.add('on');
+    DOM.tutTitle.textContent=title||'LESSON';
+    DOM.tutList.innerHTML=steps.map((s,i)=>
+      `<div class="tstep" id="tstep-${i}"><span class="tbox">✓</span><span class="tlbl">${s}</span></div>`).join('');
+  }
+}
+function tutDone(i){
+  if(!TUT.on || TUT.done[i]) return;
+  TUT.done[i]=true;
+  const el=document.getElementById('tstep-'+i);
+  if(el) el.classList.add('done');
+  SND.seqNote(Math.min(5, 2+i));
+  buzz(14);
+  awardScore(200+i*50, null, {});        /* silent bank — the tick IS the reward */
+  if(TUT.done.every(Boolean)){ tutComplete(); }
+}
+function tutComplete(){
+  if(!TUT.on) return;
+  TUT.on=false;
+  if(DOM.tut) DOM.tut.classList.remove('on');
+  toast('LESSON <b>COMPLETE</b> — THE ACADEMY APPROVES', 3000);
+  SND.powered();
+  buzz([16,40,16]);
+}
+function tutEnd(){
+  TUT.on=false; TUT.steps=[]; TUT.done=[];
+  if(DOM.tut) DOM.tut.classList.remove('on');
+}
+
 function startLevel(i, opts={}){
   GAME.levelIndex=i;
   const def=LEVELS[i];
@@ -4385,16 +4616,20 @@ function startLevel(i, opts={}){
   L.hudMode=def.hud;
   L.updaters.push(...(def.updaters||[]));
   setupHUD(L);
+  tutEnd();                               /* v6: never carry a checklist across rooms */
+  if(def.tut && !GAME.qa && !opts.silent) tutStart(def.tut.steps, def.tut.title);
   SND.ambient(def.ambient??55);
-  /* level card */
-  DOM.hudLevel.textContent='CHAMBER '+ROMAN[i];
+  /* level card — v6: The Academy lessons get their own kicker + chip */
+  DOM.hudLevel.textContent=(def.tut?('LESSON '+ROMAN[i]):('CHAMBER '+ROMAN[i]))+' — '+def.name.toUpperCase();
   DOM.hudObj.textContent=def.objective;
-  if(!SAVE.flowHintSeen && !GAME.qa){
+  if(!SAVE.flowHintSeen && !GAME.qa && !def.tut){
     SAVE.flowHintSeen=true; persist();
     toast('CHAIN ARCH PASSES TO RAISE <b>PARADOX</b> — SCORE PAYS ×CHAIN', 4200);
   }
   if(!opts.silent){
-    DOM.lcNum.textContent='CHAMBER '+ROMAN[i]+(def.stars?' · '+'★'.repeat(def.stars):'');
+    DOM.lcNum.innerHTML=(def.tut
+      ? '<span class="lc-chip">THE ACADEMY</span>LESSON '+ROMAN[i]
+      : 'CHAMBER '+ROMAN[i]+(def.stars?' · <span class="lc-stars">'+'★'.repeat(def.stars)+'</span>':''));
     DOM.lcName.textContent=def.name;
     DOM.lcObj.textContent=def.objective+(def.pars?'  ·  PAR '+fmtRace(def.pars[0]):'');
     showScreen(DOM.levelcard);
@@ -4405,7 +4640,12 @@ function startLevel(i, opts={}){
     DOM.hud.classList.add('on');
   }
 }
-function restartLevel(){ startLevel(GAME.levelIndex, {silent:true}); toast('CHAMBER RESET'); }
+function restartLevel(){
+  const def=LEVELS[GAME.levelIndex];
+  startLevel(GAME.levelIndex, {silent:true});
+  if(def.tut && !GAME.qa) tutStart(def.tut.steps, def.tut.title);   /* re-arm the lesson */
+  toast('CHAMBER RESET');
+}
 
 function levelComplete(){
   const L=GAME.level;
@@ -4424,9 +4664,10 @@ function levelComplete(){
   GAME.levelTimes[GAME.levelIndex]=t;
   GAME.totalDeaths=(GAME.totalDeaths||0)+GAME.deaths;
   GAME.totalJumps=(GAME.totalJumps||0)+GAME.jumps;
+  const CAMPAIGN_N=15;                     /* v6: the fifteen hand-built chambers */
   const last=GAME.levelIndex===LEVELS.length-1;
-  const finale=GAME.levelIndex===7;               /* the campaign monument */
-  const endless=GAME.levelIndex>=8;               /* generated vaults go deeper forever */
+  const finale=GAME.levelIndex===CAMPAIGN_N-1;   /* the campaign monument (XV) */
+  const endless=GAME.levelIndex>=CAMPAIGN_N;     /* generated vaults go deeper forever */
   /* ---- v5 flow: completion bonuses, medal, rank, score ---- */
   const pars=LEVELS[GAME.levelIndex].pars;
   const medal=medalFor(GAME.levelIndex, t);
@@ -4487,9 +4728,9 @@ function levelComplete(){
   rows+=`<div class="row"><span>JUMPS</span><b>${GAME.jumps}</b></div>`;
   rows+=`<div class="row"><span>CAMPAIGN</span><b>${fmtRace(GAME.campaignTime)}</b></div>`;
   DOM.vStats.innerHTML=rows;
-  DOM.btnNext.classList.toggle('hidden', finale);
+  DOM.btnNext.classList.toggle('hidden', last);
   DOM.btnNext.textContent=endless?'DESCEND DEEPER':'NEXT CHAMBER';
-  DOM.btnBonus.classList.toggle('hidden', !(finale&&LEVELS.length>8));
+  DOM.btnBonus.classList.toggle('hidden', !(finale&&LEVELS.length>CAMPAIGN_N));
   showScreen(DOM.victory);
   if(plc && plc.isLocked) plc.unlock();
   DOM.hud.classList.remove('on');
@@ -4505,7 +4746,7 @@ function campaignVictory(){
   DOM.vKick.textContent='CAMPAIGN COMPLETE';
   DOM.vTitle.textContent='The Impossible Room';
   let rows='';
-  for(let i=0;i<Math.min(8,LEVELS.length);i++){
+  for(let i=0;i<Math.min(15,LEVELS.length);i++){
     rows+=`<div class="row"><span>${ROMAN[i]} · ${LEVELS[i].name}</span><b>${SAVE.best[i]!==undefined?fmtRace(SAVE.best[i]):'—'}</b></div>`;
   }
   rows+=`<div class="row"><span>TOTAL</span><b class="gold">${fmtRace(GAME.campaignTime)}</b></div>`;
@@ -4514,7 +4755,7 @@ function campaignVictory(){
   rows+=`<div class="row"><span>JUMPS</span><b>${GAME.totalJumps||0}</b></div>`;
   DOM.vStats.innerHTML=rows;
   DOM.btnNext.classList.add('hidden');
-  DOM.btnBonus.classList.toggle('hidden', LEVELS.length<=8);
+  DOM.btnBonus.classList.toggle('hidden', LEVELS.length<=15);
   showScreen(DOM.victory);
   if(plc && plc.isLocked) plc.unlock();
   DOM.hud.classList.remove('on');
@@ -4822,17 +5063,392 @@ function updateGame(dt){
 }
 
 /* ============================================================
-   19. LEVEL DEFINITIONS — CAMPAIGN (Part A: L1, L2)
+   19. LEVEL DEFINITIONS — THE ACADEMY (Lessons I–IV, v6)
+   ------------------------------------------------------------
+   The first chambers teach one skill each, in isolation, with
+   a live checklist (TUT) that ticks off as the player performs
+   the skill. No level beyond these explains the basics again.
    ============================================================ */
 
-/* ---------------- LEVEL 1 : THE INITIATION ---------------- */
+/* ---------------- LESSON I : FIRST STEPS ---------------- */
 LEVELS.push({
-  name:'The Initiation',
-  objective:'Collect 3 orb fragments — the ceiling hatch awakens',
+  name:'First Steps',
+  objective:'Walk, sprint and jump — gather the three shards',
+  hud:'fragments',
+  ambient:58,
+  stars:1,
+  pars:[60,95,150],
+  accent:'#39d5c8',
+  tut:{ title:'LESSON I — MOVEMENT',
+    steps:['WALK THE GALLERY','JUMP A GAP','GATHER 3 SHARDS','REACH THE GATE'] },
+  palette:{ trim:0x39d5c8, plat:0x5a6478,
+    checkerA:'#8c94a8', checkerB:'#5a6278', panel:'#6a7488', panelLine:'#8a94ac',
+    floorRepX:8, floorRepY:8, wallRepX:5,
+    glassTint:0xd8c8b0, glassOpacity:0.24, frame:0x4a4238 },
+  shadowExt:{x:14,z:18,y:12},
+  build(L){
+    LShell(L, {w:26, h:11, d:34, glaze:{wall:0.42, ceil:true}});
+    /* spawn dais + green anchor (the respawn point of every room) —
+       flush with the causeway so walking begins without a hop */
+    LPlatform(L, 0, 1.1, 14.2, 3.6, 5, {mat:'platform'});
+    L.spawn={pos:V(0, 2.0, 14.8), yaw:0};
+    L.respawn={pos:V(0, 2.0, 14.8), yaw:0};
+    LArch(L, 'green', 0, 1.1, 13.2, 'z-');
+    /* the painted manual — floor decals a newcomer cannot miss */
+    LText(L, 0, 1.12, 14.6, ['W A S D — MOVE'], {normal:'y+', up:'z-', w:3.2, h:0.8, size:48, color:'#bcd2e8'});
+    LText(L, 2.6, 1.12, 13.6, ['SHIFT — SPRINT'], {normal:'y+', up:'z-', w:2.6, h:0.7, size:36, color:'#bcd2e8'});
+    LText(L, -2.6, 1.12, 13.6, ['SPACE — JUMP'], {normal:'y+', up:'z-', w:2.5, h:0.7, size:36, color:'#bcd2e8'});
+    LText(L, 0, 1.12, 12.4, ['TOUCH: LEFT STICK MOVES — RIM SPRINTS'], {normal:'y+', up:'z-', w:3.3, h:0.5, size:22, color:'#7d8ba0'});
+    LText(L, 0, 1.12, 9.4, ['THE CAUSEWAY — JUMP THE GAPS'], {normal:'y+', up:'z-', w:5.6, h:0.9, size:38, color:'#7d8ba0'});
+    LText(L, 0, 1.12, -1.2, ['MIND THE GAP'], {normal:'y+', up:'z-', w:2.8, h:0.8, size:40, color:'#e8c15a', glowColor:'#e8c15a'});
+    /* the causeway — three platforms, two gaps, one gallery */
+    LPlatform(L, 0, 1.1, 8.6, 4, 6.8, {mat:'platform'});
+    LPlatform(L, 0, 1.1, 0.9, 4, 4.2, {mat:'platform'});
+    LPlatform(L, 0, 1.1, -6, 4, 4.4, {mat:'platform'});
+    LStairs(L, 0, 1.1, -8.2, 'z-', 4, {stepH:0.4, stepD:0.72, width:4});
+    LPlatform(L, 0, 2.7, -13.4, 6, 5.6, {mat:'platform'});
+    /* shards floating above the walk (unreachable from the floor below) */
+    new Fragment(L, 0, 2.35, 8.6, {});
+    new Fragment(L, 0, 2.35, 0.9, {});
+    new Fragment(L, 0, 3.95, -13, {});
+    /* the gate */
+    LBox(L, -1.9, 4.4, -15.6, 0.6, 3.4, 0.6, 'wall', {tag:'gatepost'});
+    LBox(L, 1.9, 4.4, -15.6, 0.6, 3.4, 0.6, 'wall', {tag:'gatepost'});
+    LBox(L, 0, 6.3, -15.6, 4.4, 0.5, 0.6, 'wall', {tag:'gatetop'});
+    LText(L, 0, 5.0, -15.2, ['THE GATE'], {normal:'z-', up:'y+', w:2.2, h:0.6, size:44, color:'#7d8ba0'});
+    const exit=new ExitVolume(L, 0, 4.6, -15.6, 2.4, 3.0, 1.4, {locked:true, color:0x54e08a,
+      onEnter:()=>{ tutDone(3); levelComplete(); }});
+    L.vars.status='SHARDS 0 / 3';
+    L.onFragment=(f, got)=>{
+      L.vars.status=`SHARDS ${got} / 3`;
+      if(got>=3){
+        exit.setLocked(false);
+        SND.doorOpen();
+        toast('THE GATE <b>UNLOCKS</b> — WALK THROUGH');
+        PARTS.burst(V(0,4.6,-15.4), new THREE.Color(0x54e08a), 50, 3.5, 3, 1.2);
+      }
+    };
+    /* live coaching */
+    const spawn0=L.spawn.pos.clone();
+    L.updaters.push(()=>{
+      if(player.pos.distanceTo(spawn0)>5.5) tutDone(0);        /* walked */
+      if(GAME.jumps>0) tutDone(1);                              /* jumped */
+    });
+  },
+  qa(ctx){
+    for(const f of L_FIX().fragments){
+      ctx.warp(f.pos.x, f.pos.y, f.pos.z);
+      ctx.step(0.1);
+      if(!f.collected) return 'shard not collected at '+f.pos.toArray().join(',');
+    }
+    ctx.step(0.1);
+    if(L_FIX().exits[0].locked) return 'gate still locked after 3 shards';
+    const ex=L_FIX().exits[0];
+    ctx.warp((ex.box.min.x+ex.box.max.x)/2, (ex.box.min.y+ex.box.max.y)/2, (ex.box.min.z+ex.box.max.z)/2);
+    ctx.step(0.12);
+    if(GAME.state!=='victory') return 'gate exit did not complete (state='+GAME.state+')';
+    return true;
+  }
+});
+function L_FIX(){ return GAME.level; }
+
+/* ---------------- LESSON II : THE SIDEWAYS LESSON ---------------- */
+LEVELS.push({
+  name:'The Sideways Lesson',
+  objective:'Blue turns the room sideways — walk the wall, then come home',
+  hud:'fragments',
+  ambient:62,
+  stars:1,
+  pars:[55,90,140],
+  accent:'#4da3ff',
+  tut:{ title:'LESSON II — THE BLUE ARCH',
+    steps:['ENTER THE BLUE ARCH','WALK THE WALL','GATHER 3 SHARDS','RETURN THROUGH GREEN','REACH THE GATE'] },
+  palette:{ trim:0x4da3ff, plat:0x5a6a84,
+    checkerA:'#8c9cb8', checkerB:'#5a6a84', panel:'#6a7a94', panelLine:'#8a9ab4',
+    floorRepX:8, floorRepY:8, wallRepX:5,
+    glassTint:0xc8dcff, glassOpacity:0.24, frame:0x38445a },
+  shadowExt:{x:14,z:14,y:14},
+  build(L){
+    LShell(L, {w:26, h:14, d:26, glaze:{wall:0.42, ceil:true}});
+    LPlatform(L, 0, 0.25, 10.5, 3.6, 3.6, {mat:'platform'});
+    L.spawn={pos:V(0, 1.2, 10.5), yaw:0};
+    L.respawn={pos:V(0, 1.2, 10.5), yaw:0};
+    LArch(L, 'green', 0, 0.25, 9.6, 'z-');
+    /* floor shard — the easy one */
+    new Fragment(L, 4, 1.0, 5, {});
+    /* THE blue arch */
+    LArch(L, 'blue', 0, 0, -2, 'z-');
+    LText(L, 0, 0.02, 5.6, ['BLUE TURNS THE ROOM SIDEWAYS'], {normal:'y+', up:'z-', w:5.4, h:0.9, size:38, color:ARCH_COLORS.blue, glowColor:ARCH_COLORS.blue});
+    LText(L, 0, 0.02, -5.6, ['WALK THROUGH — FALL ONTO THE WALL'], {normal:'y+', up:'z-', w:6.4, h:0.8, size:32, color:'#7d8ba0'});
+    /* wall A running board + shards (the whole wall is walkable) */
+    LBox(L, 0, 1.2, -12.4, 12, 0.5, 1.2, 'platform', {tag:'board'});
+    new Fragment(L, -4, 2.0, -12.0, {});
+    new Fragment(L, 4, 2.0, -12.0, {});
+    LText(L, 0, 5.2, -12.66, ['THE WALL IS YOUR FLOOR NOW'], {normal:'z+', up:'y+', w:5.2, h:1.0, size:42, color:'#bcd2e8'});
+    LText(L, 0, 3.6, -12.66, ['WALK SIDEWAYS — X MARKS THE SHARDS'], {normal:'z+', up:'y+', w:5.6, h:0.7, size:30, color:'#7d8ba0'});
+    /* the way home */
+    const home=LArch(L, 'green', 0, 2.2, -12.95, 'x+', 'wallA');
+    L.vars.homeArch=home;
+    LText(L, 0, 2.4, -12.66, ['GREEN BRINGS YOU HOME'], {normal:'z+', up:'y+', w:3.8, h:0.8, size:38, color:ARCH_COLORS.green, glowColor:ARCH_COLORS.green});
+    /* the gate — east side, a short walk from spawn */
+    LBox(L, 11.2, 1.9, -1.9, 0.6, 3.4, 0.6, 'wall', {tag:'gatepost'});
+    LBox(L, 11.2, 1.9, 1.9, 0.6, 3.4, 0.6, 'wall', {tag:'gatepost'});
+    LBox(L, 11.2, 3.8, 0, 0.6, 0.5, 4.4, 'wall', {tag:'gatetop'});
+    LText(L, 10.8, 2.5, 0, ['THE GATE'], {normal:'x+', up:'y+', w:2.2, h:0.6, size:42, color:'#7d8ba0'});
+    const exit=new ExitVolume(L, 11.2, 2.0, 0, 1.4, 3.0, 2.4, {locked:true, color:0x54e08a,
+      onEnter:()=>{ tutDone(4); levelComplete(); }});
+    L.vars.status='SHARDS 0 / 3';
+    L.onFragment=(f, got)=>{
+      L.vars.status=`SHARDS ${got} / 3`;
+      if(got>=3){
+        exit.setLocked(false);
+        SND.doorOpen();
+        toast('THE GATE <b>UNLOCKS</b>');
+      }
+    };
+    /* live coaching */
+    L.vars.wallSeen=false;
+    L.updaters.push(()=>{
+      const g=gKey(player.gravityDir);
+      if(g==='0,0,-1'){
+        tutDone(0);
+        if(Math.abs(player.pos.x)>2.2 || Math.abs(player.pos.y-2)>2.2) { tutDone(1); L.vars.wallSeen=true; }
+      }
+      if(L.vars.wallSeen && g==='0,-1,0') tutDone(3);
+    });
+  },
+  qa(ctx){
+    const L2=L_FIX();
+    ctx.setGravity('floor'); ctx.warp(4, 1.0, 5); ctx.step(0.1);
+    ctx.setGravity('wallA'); ctx.warp(-4, 2.0, -12.0); ctx.step(0.1);
+    ctx.warp(4, 2.0, -12.0); ctx.step(0.1);
+    if(L2.fragments.filter(f=>f.collected).length<3) return 'shards not collected';
+    if(L2.exits[0].locked) return 'gate still locked';
+    /* the wall green arch must normalize gravity back to the floor */
+    const home=L2.vars.homeArch;
+    ctx.setGravity('wallA');
+    ctx.warp(home.center.x, home.center.y, home.center.z);
+    ctx.steps(1.2, 1/30);
+    if(gKey(player.gravityDir)!=='0,-1,0') return 'green home arch did not normalize (got '+gKey(player.gravityDir)+')';
+    const ex=L2.exits[0];
+    ctx.warp((ex.box.min.x+ex.box.max.x)/2, (ex.box.min.y+ex.box.max.y)/2, (ex.box.min.z+ex.box.max.z)/2);
+    ctx.step(0.12);
+    if(GAME.state!=='victory') return 'gate exit did not complete (state='+GAME.state+')';
+    return true;
+  }
+});
+
+/* ---------------- LESSON III : UP IS A MATTER OF OPINION ---------------- */
+LEVELS.push({
+  name:'Up Is A Matter Of Opinion',
+  objective:'Yellow flips the room over — red leans it the other way',
+  hud:'fragments',
+  ambient:66,
+  stars:1,
+  pars:[60,95,150],
+  accent:'#e8c15a',
+  tut:{ title:'LESSON III — YELLOW & RED',
+    steps:['ENTER THE YELLOW ARCH','STAND ON THE CEILING','GATHER 3 SHARDS','COME HOME THROUGH GREEN','REACH THE GATE'] },
+  palette:{ trim:0xe8c15a, plat:0x8a8062,
+    checkerA:'#a89c7c', checkerB:'#7a7052', panel:'#968a6c', panelLine:'#b0a480',
+    floorRepX:8, floorRepY:8, wallRepX:5,
+    glassTint:0xfff0c0, glassOpacity:0.24, frame:0x584c34 },
+  shadowExt:{x:15,z:15,y:16},
+  build(L){
+    LShell(L, {w:28, h:15, d:28, glaze:{wall:0.42, ceil:true}});
+    LPlatform(L, 0, 0.25, 11.5, 3.6, 3.6, {mat:'platform'});
+    L.spawn={pos:V(0, 1.2, 11.5), yaw:0};
+    L.respawn={pos:V(0, 1.2, 11.5), yaw:0};
+    LArch(L, 'green', 0, 0.25, 10.6, 'z-');
+    /* floor shard + the two teaching arches on the floor */
+    new Fragment(L, 5, 1.0, 7, {});
+    LArch(L, 'yellow', 0, 0, -3, 'z-');
+    LArch(L, 'red', -7, 0, 4, 'z+');
+    LText(L, 0, 0.02, 6, ['YELLOW TURNS THE ROOM UPSIDE-DOWN'], {normal:'y+', up:'z-', w:5.8, h:0.9, size:36, color:ARCH_COLORS.yellow, glowColor:ARCH_COLORS.yellow});
+    LText(L, -7, 0.02, 6.8, ['RED LEANS THE OTHER WALL — BEHIND YOU'], {normal:'y+', up:'z-', w:5.6, h:0.8, size:28, color:ARCH_COLORS.red, glowColor:ARCH_COLORS.red});
+    /* the ceiling garden — pads to stand on while inverted */
+    const padGlow=L.palette.glow(0x54e08a, 1.2);
+    LBox(L, -4, 13.9, -2, 3.4, 0.4, 3.4, 'platform', {tag:'gardenpad'});
+    LBox(L, -4, 13.66, -2, 3.0, 0.06, 3.0, padGlow, {solid:false, castShadow:false, onRay:false});
+    LBox(L, 4, 13.9, 3, 3.4, 0.4, 3.4, 'platform', {tag:'gardenpad'});
+    LBox(L, 4, 13.66, 3, 3.0, 0.06, 3.0, padGlow, {solid:false, castShadow:false, onRay:false});
+    new Fragment(L, -4, 13.3, -2, {});
+    new Fragment(L, 4, 13.3, 3, {});
+    LText(L, 0, 14.94, 1.5, ['YOU ARE STANDING ON THE CEILING — BREATHE'], {normal:'y-', up:'z-', w:6.6, h:0.9, size:34, color:'#e8c15a', upsideDown:true});
+    /* blue on the ceiling -> the OTHER wall (stacking lesson preview) */
+    LArch(L, 'blue', 0, 15, 6, 'z-', 'ceil');
+    LText(L, 0, 14.94, 8.5, ['FROM HERE, BLUE MEANS THE OTHER WALL'], {normal:'y-', up:'z-', w:6.2, h:0.8, size:30, color:ARCH_COLORS.blue, upsideDown:true});
+    /* wall B shard + board */
+    LBox(L, 2, 5.2, 13.5, 5, 0.5, 1.0, 'platform', {tag:'board'});
+    new Fragment(L, 2, 6.0, 13.2, {});
+    LText(L, 2, 8.0, 13.66, ['WALL B — THE OTHER SIDE'], {normal:'z-', up:'y+', w:4.2, h:0.8, size:38, color:ARCH_COLORS.red, glowColor:ARCH_COLORS.red});
+    /* ways home */
+    const homeCeil=LArch(L, 'green', 0, 14.97, -6, 'z-', 'ceil');
+    const homeWallB=LArch(L, 'green', -3, 3, 13.95, 'x-', 'wallB');
+    L.vars.homeCeil=homeCeil; L.vars.homeWallB=homeWallB;
+    LText(L, 0, 13.9, -6.3, ['GREEN = DOWN'], {normal:'y-', up:'z-', w:2.6, h:0.7, size:38, color:ARCH_COLORS.green, upsideDown:true});
+    /* the gate — west side */
+    LBox(L, -12.4, 1.9, -1.9, 0.6, 3.4, 0.6, 'wall', {tag:'gatepost'});
+    LBox(L, -12.4, 1.9, 1.9, 0.6, 3.4, 0.6, 'wall', {tag:'gatepost'});
+    LBox(L, -12.4, 3.8, 0, 0.6, 0.5, 4.4, 'wall', {tag:'gatetop'});
+    LText(L, -12.0, 2.5, 0, ['THE GATE'], {normal:'x-', up:'y+', w:2.2, h:0.6, size:42, color:'#7d8ba0'});
+    const exit=new ExitVolume(L, -12.4, 2.0, 0, 1.4, 3.0, 2.4, {locked:true, color:0x54e08a,
+      onEnter:()=>{ tutDone(4); levelComplete(); }});
+    L.vars.status='SHARDS 0 / 3';
+    L.onFragment=(f, got)=>{
+      L.vars.status=`SHARDS ${got} / 3`;
+      if(got>=3){
+        exit.setLocked(false);
+        SND.doorOpen();
+        toast('THE GATE <b>UNLOCKS</b>');
+      }
+    };
+    /* live coaching */
+    L.vars.ceilSeen=false;
+    L.updaters.push(()=>{
+      const g=gKey(player.gravityDir);
+      if(g==='0,1,0'){
+        tutDone(0);
+        if(player.pos.y>12.5){ tutDone(1); L.vars.ceilSeen=true; }
+      }
+      if(L.vars.ceilSeen && g==='0,-1,0') tutDone(3);
+    });
+  },
+  qa(ctx){
+    const L3=L_FIX();
+    ctx.setGravity('floor'); ctx.warp(5, 1.0, 7); ctx.step(0.1);
+    ctx.setGravity('ceil'); ctx.warp(-4, 13.3, -2); ctx.step(0.1);
+    ctx.warp(4, 13.3, 3); ctx.step(0.1);
+    ctx.setGravity('wallB'); ctx.warp(2, 6.0, 13.2); ctx.step(0.1);
+    if(L3.fragments.filter(f=>f.collected).length<3) return 'shards not collected';
+    if(L3.exits[0].locked) return 'gate still locked';
+    /* ceiling green normalizes */
+    const hc=L3.vars.homeCeil;
+    ctx.setGravity('ceil');
+    ctx.warp(hc.center.x, hc.center.y, hc.center.z);
+    ctx.steps(1.2, 1/30);
+    if(gKey(player.gravityDir)!=='0,-1,0') return 'ceiling green arch did not normalize (got '+gKey(player.gravityDir)+')';
+    const ex=L3.exits[0];
+    ctx.warp((ex.box.min.x+ex.box.max.x)/2, (ex.box.min.y+ex.box.max.y)/2, (ex.box.min.z+ex.box.max.z)/2);
+    ctx.step(0.12);
+    if(GAME.state!=='victory') return 'gate exit did not complete (state='+GAME.state+')';
+    return true;
+  }
+});
+
+/* ---------------- LESSON IV : THE ANCHOR ---------------- */
+LEVELS.push({
+  name:'The Anchor',
+  objective:'Green anchors you — hop the void, raid the walls, come back',
+  hud:'fragments',
+  ambient:60,
+  stars:2,
+  pars:[70,110,170],
+  accent:'#54e08a',
+  tut:{ title:'LESSON IV — THE ANCHOR',
+    steps:['CROSS THE TALL GREEN GATE','TAKE THE WALL SHARDS','HOP THE VOID STONES','REACH THE GATE'] },
+  palette:{ trim:0x54e08a, plat:0x5f7a68,
+    checkerA:'#8caa98', checkerB:'#5a7864', panel:'#6a8a78', panelLine:'#84a490',
+    floorRepX:8, floorRepY:8, wallRepX:5,
+    glassTint:0xd0ffd8, glassOpacity:0.24, frame:0x34483c },
+  shadowExt:{x:16,z:16,y:16},
+  build(L){
+    /* a ring of floor around a void pit — the center is the abyss */
+    LShell(L, {w:30, h:16, d:30, floorHole:14, glaze:{wall:0.42, ceil:true}});
+    LPlatform(L, 0, 0.25, 12.5, 3.6, 3.6, {mat:'platform'});
+    L.spawn={pos:V(0, 1.2, 12.5), yaw:0};
+    L.respawn={pos:V(0, 1.2, 12.5), yaw:0};
+    LArch(L, 'green', 0, 0.25, 11.6, 'z-');
+    /* THE tall green gate — any plane becomes floor through it */
+    const tall=LArch(L, 'green', 0, 0.02, 8.6, 'z-', 'floor', {tall:true});
+    L.vars.tallGate=tall;
+    LText(L, 0, 0.02, 10.2, ['THE TALL GATE CATCHES EVERY PLANE'], {normal:'y+', up:'z-', w:6.0, h:0.8, size:32, color:ARCH_COLORS.green, glowColor:ARCH_COLORS.green});
+    LText(L, 0, 0.02, 7.4, ['STEP STONES OVER THE VOID'], {normal:'y+', up:'z-', w:5.2, h:0.8, size:34, color:'#7d8ba0'});
+    LText(L, 0, 8.2, 0, ['THE VOID FORGIVES — GREEN ANCHORS YOU'], {normal:'y-', up:'z-', w:7.4, h:1.0, size:36, color:'#54e08a', upsideDown:true});
+    /* void hop stones + island shard */
+    LPlatform(L, 0, 0.9, 4.5, 2.2, 2.2, {mat:'platform'});
+    LPlatform(L, 0, 1.5, 2.2, 2.0, 2.0, {mat:'platform'});
+    LPlatform(L, 0, 2.1, -0.8, 4, 4, {mat:'platform'});
+    new Fragment(L, 0, 3.0, -0.8, {});
+    /* plane access */
+    LArch(L, 'blue', 9, 0, 0, 'x-');                  // floor -> WALL A
+    LArch(L, 'yellow', -9, 0, 0, 'x+');               // floor -> CEILING
+    /* wall A board + shard + the yellow stack to WALL B */
+    LBox(L, 0, 2.0, -14.4, 10, 0.5, 1.2, 'platform', {tag:'board'});
+    new Fragment(L, 0, 3.0, -14.2, {});
+    LArch(L, 'yellow', 4.5, 1.8, -14.5, 'x+', 'wallA');   // WALL A -> WALL B
+    LText(L, 0, 5.6, -14.66, ['STACK ARCHES — WALL TO WALL'], {normal:'z+', up:'y+', w:5.0, h:0.8, size:34, color:ARCH_COLORS.yellow, glowColor:ARCH_COLORS.yellow});
+    /* wall B board + shard + the green way home */
+    LBox(L, 0, 6.0, 14.4, 10, 0.5, 1.2, 'platform', {tag:'board'});
+    new Fragment(L, 0, 7.0, 14.2, {});
+    const homeB=LArch(L, 'green', -4.5, 5.8, 14.5, 'x-', 'wallB');
+    L.vars.homeB=homeB;
+    /* ceiling recovery */
+    LArch(L, 'green', 0, 15.97, -4, 'z-', 'ceil');
+    /* the gate — north ring */
+    LBox(L, -1.9, 1.9, -12.4, 0.6, 3.4, 0.6, 'wall', {tag:'gatepost'});
+    LBox(L, 1.9, 1.9, -12.4, 0.6, 3.4, 0.6, 'wall', {tag:'gatepost'});
+    LBox(L, 0, 3.8, -12.4, 4.4, 0.5, 0.6, 'wall', {tag:'gatetop'});
+    LText(L, 0, 2.5, -12.0, ['THE GATE'], {normal:'z+', up:'y+', w:2.2, h:0.6, size:42, color:'#7d8ba0'});
+    const exit=new ExitVolume(L, 0, 2.0, -12.4, 2.4, 3.0, 1.4, {locked:true, color:0x54e08a,
+      onEnter:()=>{ tutDone(3); levelComplete(); }});
+    L.vars.status='SHARDS 0 / 3';
+    L.onFragment=(f, got)=>{
+      L.vars.status=`SHARDS ${got} / 3`;
+      if(f.pos.y>10 && f.pos.x===0 && Math.abs(f.pos.z+0.8)<0.1) tutDone(2);   /* the island stone */
+      if(got>=3){
+        exit.setLocked(false);
+        SND.doorOpen();
+        toast('THE GATE <b>UNLOCKS</b>');
+      }
+    };
+    /* live coaching */
+    L.updaters.push(()=>{
+      if(player.pos.z<7.6 && gKey(player.gravityDir)==='0,-1,0' && player.grounded) tutDone(0);
+      const wallShards=L.fragments.filter(f=>f.collected && Math.abs(f.pos.z)>10).length;
+      if(wallShards>=2) tutDone(1);
+    });
+  },
+  qa(ctx){
+    const L4=L_FIX();
+    ctx.setGravity('wallA'); ctx.warp(0, 3.0, -14.2); ctx.step(0.1);
+    ctx.setGravity('wallB'); ctx.warp(0, 7.0, 14.2); ctx.step(0.1);
+    ctx.setGravity('floor'); ctx.warp(0, 3.0, -0.8); ctx.step(0.1);
+    if(L4.fragments.filter(f=>f.collected).length<3) return 'shards not collected';
+    if(L4.exits[0].locked) return 'gate still locked';
+    /* the tall gate normalizes from ANY plane — prove it from the ceiling */
+    const tg=L4.vars.tallGate;
+    ctx.setGravity('ceil');
+    ctx.warp(tg.center.x, tg.center.y, tg.center.z);
+    ctx.steps(1.4, 1/30);
+    if(gKey(player.gravityDir)!=='0,-1,0') return 'tall green gate did not normalize (got '+gKey(player.gravityDir)+')';
+    const ex=L4.exits[0];
+    ctx.warp((ex.box.min.x+ex.box.max.x)/2, (ex.box.min.y+ex.box.max.y)/2, (ex.box.min.z+ex.box.max.z)/2);
+    ctx.step(0.12);
+    if(GAME.state!=='victory') return 'gate exit did not complete (state='+GAME.state+')';
+    return true;
+  }
+});
+
+/* ============================================================
+   19b. CAMPAIGN (Part B: L5 Examination, L6–L8)
+   ------------------------------------------------------------
+   L5 is the graduation exam of The Academy: every arch, every
+   plane, no coaching. L6-L8 are the campaign proper — each
+   chamber is a unique machine (sequences, cubes, lasers).
+   ============================================================ */
+
+/* ---------------- LEVEL 5 : THE EXAMINATION ---------------- */
+LEVELS.push({
+  name:'The Examination',
+  objective:'Prove the four arches — take the fragments from three planes',
   hud:'fragments',
   ambient:55,
-  stars:1,
-  pars:[60,95,160],
+  stars:2,
+  pars:[75,115,180],
+  accent:'#39d5c8',
+  tut:{ title:'THE EXAMINATION',
+    steps:['CHAIN THE FOUR ARCHES','TAKE THE 3 FRAGMENTS','AWAKEN THE HATCH','ASCEND AND ESCAPE'] },
   palette:{ trim:0x39d5c8, plat:0x5a6478,
     checkerA:'#8c94a8', checkerB:'#5a6278', panel:'#6a7488', panelLine:'#8a94ac',
     floorRepX:8, floorRepY:8, wallRepX:5,
@@ -4845,12 +5461,9 @@ LEVELS.push({
     L.spawn={pos:V(0, 1.2, 12.4), yaw:0};
     L.respawn={pos:V(0, 1.2, 12.4), yaw:0};
     LArch(L, 'green', 0, 0.25, 10.1, 'z-');
-    /* tutorial paint */
-    LText(L, 0, 0.02, 7.6, ['W A S D — MOVE'], {normal:'y+', up:'z-', w:4.6, h:1.1, size:52, color:'#bcd2e8'});
-    LText(L, 3.4, 0.02, 9.6, ['SPACE — JUMP'], {normal:'y+', up:'z-', w:3.6, h:0.9, size:46, color:'#bcd2e8'});
-    LText(L, -3.4, 0.02, 9.6, ['E — INTERACT'], {normal:'y+', up:'z-', w:3.4, h:0.9, size:46, color:'#bcd2e8'});
-    LText(L, 0, 0.02, 2.5, ['STEP THROUGH THE COLORED ARCHES'], {normal:'y+', up:'z-', w:6.4, h:1.0, size:40, color:'#7d8ba0'});
-    /* arch legend behind spawn AND ahead (north wall — visible on spawn view) */
+    /* exam paint — the handholds are gone, the legend remains */
+    LText(L, 0, 0.02, 7.6, ['THE ACADEMY WATCHES — NO MORE HANDHOLDS'], {normal:'y+', up:'z-', w:7.0, h:0.9, size:34, color:'#7d8ba0'});
+    /* arch legend on both far walls (visible on spawn view) */
     LText(L, -5.2, 7.6, 16.94, ['BLUE — WALL A'], {normal:'z-', up:'y+', w:3.2, h:0.8, size:54, color:ARCH_COLORS.blue, glowColor:ARCH_COLORS.blue});
     LText(L, -1.7, 7.6, 16.94, ['RED — WALL B'], {normal:'z-', up:'y+', w:3.0, h:0.8, size:54, color:ARCH_COLORS.red, glowColor:ARCH_COLORS.red});
     LText(L, 1.8, 7.6, 16.94, ['YELLOW — CEILING'], {normal:'z-', up:'y+', w:3.4, h:0.8, size:48, color:ARCH_COLORS.yellow, glowColor:ARCH_COLORS.yellow});
@@ -4880,19 +5493,22 @@ LEVELS.push({
     new Hatch(L, 0, 12, 0, 2.6, 'ceil', {id:'exitHatch'});
     const exit=new ExitVolume(L, 0, 12.75, 0, 2.2, 1.5, 2.2, {
       locked:true, color:0x54e08a,
-      onEnter:()=>levelComplete()
+      onEnter:()=>{ tutDone(3); levelComplete(); }
     });
     L.onFragment=(f, got)=>{
       L.vars.status=`FRAGMENTS ${got} / 3` + (got<3?'':' — THE HATCH AWAKENS');
+      tutDone(1);
       if(got>=3){
         L.hatch.openUp();
         exit.setLocked(false);
         toast('THE CEILING HATCH <b>UNLOCKS</b> — ASCEND');
         SND.powered();
+        tutDone(2);
         PARTS.burst(V(0,11.8,0), new THREE.Color(0x54e08a), 60, 3.5, 3, 1.4, V(0,-1,0));
       }
     };
     L.vars.status='FRAGMENTS 0 / 3';
+    L.updaters.push(()=>{ if((L.vars.archCount||0)>0) tutDone(0); });
   },
   qa(ctx){
     /* collect each fragment by teleporting into range, then verify the hatch
@@ -4912,9 +5528,8 @@ LEVELS.push({
     return true;
   }
 });
-function L_FIX(){ return GAME.level; }
 
-/* ---------------- LEVEL 2 : THE LOOPING ESCAPE ---------------- */
+/* ---------------- LEVEL 6 : THE LOOPING ESCAPE ---------------- */
 LEVELS.push({
   name:'The Looping Escape',
   objective:'Break the sequence — read the inverted paint',
@@ -4922,6 +5537,7 @@ LEVELS.push({
   ambient:65.4,
   stars:2,
   pars:[75,115,190],
+  accent:'#7dc98f',
   palette:{ trim:0x7dc98f, plat:0x54644f,
     checkerA:'#64746a', checkerB:'#46524a', panel:'#54624f', panelLine:'#68786a',
     floorRepX:26, floorRepY:4, wallRepX:14, wallRepY:1.4,
@@ -5009,35 +5625,31 @@ LEVELS.push({
     /* keep the door portal animated */
   },
   qa(ctx){
-    const L2=L_FIX();
+    const L6=L_FIX();
     /* verify wrap illusion */
     player.pos.set(51, 1.2, 0);
     ctx.step(0.1);
     if(Math.abs(player.pos.x-7)>1.5) return 'east wrap failed (x='+player.pos.x.toFixed(2)+')';
-    const before=L2.sequences[0].progress;
+    const before=L6.sequences[0].progress;
     if(before!==0) return 'sequence should start at 0 (got '+before+')';
     /* wrong order first: yellow resets */
     ctx.warp(12, 1.2, 0); ctx.step(0.12); ctx.steps(1.4, 1/30);   // pass yellow (from floor -> CEIL)
-    if(L2.sequences[0].progress!==0) return 'yellow first should keep progress 0';
+    if(L6.sequences[0].progress!==0) return 'yellow first should keep progress 0';
     ctx.setGravity('floor'); ctx.warp(26, 1.2, 0); ctx.steps(1.4, 1/30);  // blue -> WALL A
-    if(L2.sequences[0].progress!==1) return 'blue should be step 1 (got '+L2.sequences[0].progress+')';
+    if(L6.sequences[0].progress!==1) return 'blue should be step 1 (got '+L6.sequences[0].progress+')';
     ctx.setGravity('floor'); ctx.warp(12, 1.2, 0); ctx.steps(1.4, 1/30);  // yellow -> CEIL
-    if(L2.sequences[0].progress!==2) return 'yellow should be step 2';
+    if(L6.sequences[0].progress!==2) return 'yellow should be step 2';
     ctx.setGravity('floor'); ctx.warp(40, 1.2, 0); ctx.steps(1.6, 1/30);  // red -> WALL B
-    if(!L2.sequences[0].done) return 'sequence not complete after B,Y,R';
-    if(L2.wraps[0].enabled) return 'wrap should be disabled after sequence';
-    if(L2.exits[0].locked) return 'exit should unlock after sequence';
+    if(!L6.sequences[0].done) return 'sequence not complete after B,Y,R';
+    if(L6.wraps[0].enabled) return 'wrap should be disabled after sequence';
+    if(L6.exits[0].locked) return 'exit should unlock after sequence';
     ctx.warp(58, 4, 0); ctx.step(0.12);
     if(GAME.state!=='victory') return 'exit did not complete (state='+GAME.state+')';
     return true;
   }
 });
 
-/* ============================================================
-   19b. CAMPAIGN (Part B: L3, L4, L5, L6)
-   ============================================================ */
-
-/* ---------------- LEVEL 3 : WEIGHT & GRAVITY ---------------- */
+/* ---------------- LEVEL 7 : WEIGHT & GRAVITY ---------------- */
 LEVELS.push({
   name:'Weight & Gravity',
   objective:'Seat a gravity cube on each anchor — the vault will yield',
@@ -5045,6 +5657,7 @@ LEVELS.push({
   ambient:49,
   stars:2,
   pars:[90,140,230],
+  accent:'#e0a54d',
   palette:{ trim:0xe0a54d, plat:0x8a7658,
     checkerA:'#a89478', checkerB:'#7a6a52', panel:'#96826a', panelLine:'#b09a7e',
     floorRepX:7, floorRepY:7, wallRepX:5,
@@ -5118,23 +5731,23 @@ LEVELS.push({
     });
   },
   qa(ctx){
-    const L3=L_FIX();
-    const cubes=L3.cubes;
+    const L7=L_FIX();
+    const cubes=L7.cubes;
     /* seat cube 1 on the wall anchor: drop it while wall gravity is active */
     cubes[0].pos.set(0, 1.6, -13.2);
     cubes[0].gravityDir.set(0,0,-1);
     cubes[0].state='fall'; cubes[0].collider.active=true;
     ctx.steps(1.5, 1/30);
-    if(!L3.plates[0].active) return 'cube did not seat on wall plate';
+    if(!L7.plates[0].active) return 'cube did not seat on wall plate';
     /* seat cube 2 on the ceiling anchor */
     cubes[1].pos.set(0, 11.6, 0);
     cubes[1].gravityDir.set(0,1,0);
     cubes[1].state='fall'; cubes[1].collider.active=true;
     ctx.steps(1.5, 1/30);
-    if(!L3.plates[1].active) return 'cube did not seat on ceiling plate';
+    if(!L7.plates[1].active) return 'cube did not seat on ceiling plate';
     ctx.steps(2.2, 1/30);
-    if(!L3.vars.vault.open) return 'vault did not open';
-    if(L3.exits[0].locked) return 'exit still locked';
+    if(!L7.vars.vault.open) return 'vault did not open';
+    if(L7.exits[0].locked) return 'exit still locked';
     player.pos.set(0, 1.2, -4.2);
     ctx.step(0.12);
     if(GAME.state!=='victory') return 'vault exit did not complete (state='+GAME.state+')';
@@ -5142,7 +5755,7 @@ LEVELS.push({
   }
 });
 
-/* ---------------- LEVEL 4 : THE SWITCHBOARD ---------------- */
+/* ---------------- LEVEL 8 : THE SWITCHBOARD ---------------- */
 LEVELS.push({
   name:'The Switchboard',
   objective:'Rotate the mirror pillars — feed the sensor for 2 seconds',
@@ -5150,6 +5763,7 @@ LEVELS.push({
   ambient:58.3,
   stars:3,
   pars:[110,170,280],
+  accent:'#8fb4ff',
   palette:{ trim:0x4da3ff, plat:0x8a96ac,
     checkerA:'#a8b4c8', checkerB:'#78849a', panel:'#96a2b8', panelLine:'#b0bcd0',
     floorRepX:8, floorRepY:8, wallRepX:5,
@@ -5213,17 +5827,17 @@ LEVELS.push({
     L.vars.status='ALIGN THE BEAM — E TO ROTATE MIRRORS';
   },
   qa(ctx){
-    const L4=L_FIX();
+    const L8=L_FIX();
     /* feed the designed solution: M1 idx 5, M2 idx 2, M3 idx 1 */
-    L4.mirrors[0].idx=5; L4.mirrors[0].applyAngle(true);
-    L4.mirrors[1].idx=2; L4.mirrors[1].applyAngle(true);
-    L4.mirrors[2].idx=1; L4.mirrors[2].applyAngle(true);
+    L8.mirrors[0].idx=5; L8.mirrors[0].applyAngle(true);
+    L8.mirrors[1].idx=2; L8.mirrors[1].applyAngle(true);
+    L8.mirrors[2].idx=1; L8.mirrors[2].applyAngle(true);
     ctx.step(0.05);
-    const s=L4.sensors[0];
+    const s=L8.sensors[0];
     if(!s.powered) return 'designed mirror solution does not power the sensor';
     ctx.steps(2.4, 1/30);
     if(!s.charged) return 'sensor did not hold charge for 2s (charge='+s.charge.toFixed(2)+')';
-    if(L4.exits[0].locked) return 'gate still locked';
+    if(L8.exits[0].locked) return 'gate still locked';
     ctx.steps(1.8, 1/30);   // bars finish sliding
     player.pos.set(0, 1.2, 6);
     ctx.step(0.12);
@@ -5232,7 +5846,16 @@ LEVELS.push({
   }
 });
 
-/* ---------------- LEVEL 5 : THE CHRONO-VOID ---------------- */
+/* ============================================================
+   19c. CAMPAIGN (Part C: L9–L11 shifted, L12–L14 new, L15 finale)
+   ------------------------------------------------------------
+   Every chamber is a unique machine: a timed collapse, a
+   sentinel heist, a plane-conditional bridge, a clockwork
+   court of elevators, a four-maze garden, and a four-trial
+   gauntlet — before the Monument itself.
+   ============================================================ */
+
+/* ---------------- LEVEL 9 : THE CHRONO-VOID ---------------- */
 LEVELS.push({
   name:'The Chrono-Void',
   objective:'Ascend to the spire crown before stabilization collapses',
@@ -5240,6 +5863,7 @@ LEVELS.push({
   ambient:43.6,
   stars:4,
   pars:[70,80,87],
+  accent:'#e8633c',
   palette:{ trim:0xe8633c, plat:0x8a6048,
     checkerA:'#a87858', checkerB:'#7a543c', panel:'#96684c', panelLine:'#b07a58',
     floorRepX:6, floorRepY:6, wallRepX:4,
@@ -5333,7 +5957,7 @@ LEVELS.push({
     }
   },
   qa(ctx){
-    const L5=L_FIX();
+    const L9=L_FIX();
     /* gravity rotates on the 16s mark — stand in open floor like a real
        climber (standing at spawn would fling you back through the green
        arch, which honestly recovers you — but this test wants the raw shift) */
@@ -5359,7 +5983,7 @@ LEVELS.push({
   }
 });
 
-/* ---------------- LEVEL 6 : THE SILENT INVERSION ---------------- */
+/* ---------------- LEVEL 10 : THE SILENT INVERSION ---------------- */
 LEVELS.push({
   name:'The Silent Inversion',
   objective:'Take 3 energy cores — touch nothing red',
@@ -5367,6 +5991,7 @@ LEVELS.push({
   ambient:73.4,
   stars:4,
   pars:[90,135,220],
+  accent:'#a97bff',
   palette:{ trim:0xa97bff, plat:0x7c6e9c,
     checkerA:'#9c8cb8', checkerB:'#6a5c8c', panel:'#8a7aa8', panelLine:'#a292c0',
     floorRepX:7, floorRepY:7, wallRepX:5,
@@ -5383,7 +6008,7 @@ LEVELS.push({
     new Fragment(L, -11, 0.45, -11, {core:true});
     new Fragment(L, 0, 6.5, -14.45, {core:true});
     new Fragment(L, 0, 11.3, 4, {core:true});
-    /* sentinel sweepers (v5: base speeds raised — chamber VI does not forgive) */
+    /* sentinel sweepers (v5: base speeds raised — this chamber does not forgive) */
     new Sweeper(L, {x:0, y:1.5, z:-6, axis:'x', amp:6, speed:0.68, phase:0, h:3.0, d:9, deadly:true});
     new Sweeper(L, {x:0, y:1.5, z:6, axis:'x', amp:6, speed:0.74, phase:2.1, h:3.0, d:9, deadly:true});
     new Sweeper(L, {x:0, y:10.5, z:0, axis:'x', amp:6, speed:0.58, phase:1.0, h:3.0, d:9, deadly:true});
@@ -5425,23 +6050,23 @@ LEVELS.push({
     L.updaters.push((dt)=>{ L.vars.hazCd=Math.max(0,L.vars.hazCd-dt); });
   },
   qa(ctx){
-    const L6=L_FIX();
+    const L10=L_FIX();
     /* collect one core, then get hit — core is retained, player respawns */
     player.pos.set(-11, 1.0, -11);
     ctx.step(0.1);
-    if(!L6.fragments[0].collected) return 'core 1 not collected';
-    const spawn=L6.spawn.pos.clone();
-    const pane=L6.sweepers[0].center(GAME.t);   // stand exactly in the pane's path
+    if(!L10.fragments[0].collected) return 'core 1 not collected';
+    const spawn=L10.spawn.pos.clone();
+    const pane=L10.sweepers[0].center(GAME.t);   // stand exactly in the pane's path
     player.pos.set(pane.x, 1.2, pane.z);
     ctx.step(0.05);
     if(player.pos.distanceTo(spawn)>3) return 'sentinel did not respawn player';
-    if(!L6.fragments[0].collected) return 'core was lost on detection (should be retained)';
+    if(!L10.fragments[0].collected) return 'core was lost on detection (should be retained)';
     /* remaining cores + hatch */
     player.pos.set(0, 6.5, -14.45); ctx.step(0.1);
     player.pos.set(0, 11.0, 4); ctx.step(0.1);
-    if(L6.fragments.filter(f=>f.collected).length<3) return 'not all cores collected';
+    if(L10.fragments.filter(f=>f.collected).length<3) return 'not all cores collected';
     ctx.steps(1.6, 1/30);
-    if(!L6.hatch.open) return 'descent hatch did not open';
+    if(!L10.hatch.open) return 'descent hatch did not open';
     player.pos.set(0, -0.5, 0);
     ctx.step(0.12);
     if(GAME.state!=='victory') return 'descent exit did not complete (state='+GAME.state+')';
@@ -5449,11 +6074,7 @@ LEVELS.push({
   }
 });
 
-/* ============================================================
-   19c. CAMPAIGN (Part C: L7, L8)
-   ============================================================ */
-
-/* ---------------- LEVEL 7 : THE REVERSED CHASM ---------------- */
+/* ---------------- LEVEL 11 : THE REVERSED CHASM ---------------- */
 LEVELS.push({
   name:'The Reversed Chasm',
   objective:'Cross the bridge of the worthy plane — ride the void elevator',
@@ -5461,6 +6082,7 @@ LEVELS.push({
   ambient:61.7,
   stars:4,
   pars:[120,185,310],
+  accent:'#8fd8ff',
   palette:{ trim:0x39d5c8, plat:0x8a9cb4,
     checkerA:'#a8bcd0', checkerB:'#7894ac', panel:'#96a8c0', panelLine:'#b0c4d8',
     floorRepX:8, floorRepY:8, wallRepX:5,
@@ -5522,7 +6144,7 @@ LEVELS.push({
     };
   },
   qa(ctx){
-    const L7=L_FIX();
+    const L11=L_FIX();
     /* conditional solidity: floor platform under FLOOR gravity */
     let hit=WORLD_COLLIDE.raycast(V(-11,4,0), V(0,-1,0), 20);
     if(!hit || Math.abs(hit.point.y-0.55)>0.3) return 'seg1 not solid under FLOOR gravity';
@@ -5557,7 +6179,404 @@ LEVELS.push({
   }
 });
 
-/* ---------------- LEVEL 8 : THE MONUMENT OF ESCHER ---------------- */
+/* ---------------- LEVEL 12 : THE CLOCKWORK COURT (new, v6) ---------------- */
+LEVELS.push({
+  name:'The Clockwork Court',
+  objective:'Ride the moving court — time the sentinels, take three cores',
+  hud:'cores',
+  ambient:52.8,
+  stars:4,
+  pars:[130,190,300],
+  accent:'#ffb46a',
+  palette:{ trim:0xffb46a, plat:0x8a7050,
+    checkerA:'#a88860', checkerB:'#7a6244', panel:'#96805e', panelLine:'#b09a76',
+    floorRepX:7, floorRepY:7, wallRepX:5,
+    glassTint:0xffdca8, glassOpacity:0.24, frame:0x5a442c },
+  shadowExt:{x:16,z:16,y:22},
+  build(L){
+    LShell(L, {w:30, h:22, d:30, floorHole:2.6, glaze:{wall:0.4, ceil:true}});
+    L.spawn={pos:V(0, 1.2, 12.5), yaw:0};
+    L.respawn={pos:V(0, 1.2, 12.5), yaw:0};
+    LPlatform(L, 0, 0.25, 11.6, 3.4, 3.4, {mat:'platform'});
+    LArch(L, 'green', 0, 0.25, 10.7, 'z-');
+    LText(L, 0, 0.02, 8.2, ['THE COURT NEVER STOPS MOVING — RIDE IT'], {normal:'y+', up:'z-', w:6.6, h:0.9, size:34, color:'#7d8ba0'});
+    /* the clockwork: two elevators cycling floor <-> sky */
+    new Elevator(L, -8, 0.6, -6, 3.4, 3.4, 0.6, 14, {speed:1.35});
+    new Elevator(L, 8, 0.6, 6, 3.4, 3.4, 0.6, 14, {speed:1.0});
+    /* high perches beside the elevator tops */
+    LPlatform(L, -8, 14.4, -12, 4, 4, {mat:'platform'});
+    LPlatform(L, 8, 14.4, 12, 4, 4, {mat:'platform'});
+    LText(L, -8, 14.45, -9.9, ['PERCH I'], {normal:'z-', up:'y+', w:2, h:0.5, size:36, color:'#bcd2e8'});
+    LText(L, 8, 14.45, 14.1, ['PERCH II'], {normal:'z+', up:'y+', w:2.1, h:0.5, size:36, color:'#bcd2e8'});
+    /* cores: perch I, perch II, and the ceiling */
+    new Fragment(L, -8, 15.3, -12, {core:true});
+    new Fragment(L, 8, 15.3, 12, {core:true});
+    new Fragment(L, -4, 21.2, -4, {core:true});
+    /* sentinels: the floor band, the E2 column, and the ceiling walk */
+    new Sweeper(L, {x:0, y:1.5, z:8, axis:'x', amp:6, speed:0.5, phase:0, h:3.0, d:6, deadly:true});
+    new Sweeper(L, {x:8, y:8, z:6, axis:'y', amp:4, speed:0.5, phase:2.0, h:3.0, d:3.0, deadly:true});
+    new Sweeper(L, {x:0, y:20.5, z:0, axis:'x', amp:6, speed:0.5, phase:1.2, h:3.0, d:9, deadly:true});
+    const stripeMat=L.palette.glow(0xff2233, 0.7);
+    LBox(L, 0, 0.015, 8, 13, 0.03, 0.16, stripeMat, {solid:false, castShadow:false, onRay:false});
+    LBox(L, 0, 21.985, 0, 13, 0.03, 0.16, stripeMat, {solid:false, castShadow:false, onRay:false});
+    /* plane access */
+    LArch(L, 'blue', -5, 0, 4, 'z-');                 // floor -> WALL A
+    LArch(L, 'yellow', 6, 0, -6, 'z-');               // floor -> CEILING
+    LArch(L, 'green', 0, 4, -14.9, 'x+', 'wallA');    // WALL A -> floor
+    LArch(L, 'green', 4, 4, 14.9, 'x-', 'wallB');     // WALL B -> floor
+    LArch(L, 'green', 0, 21.97, 5, 'z-', 'ceil');     // ceiling -> floor
+    LText(L, 0, 21.9, 0, ['THE CEILING WALKS — MIND THE PANE'], {normal:'y-', up:'z-', w:6.4, h:0.8, size:32, color:'#e8633c', upsideDown:true});
+    /* floor descent hatch exit */
+    new Hatch(L, 0, 0, 0, 2.6, 'floor', {id:'descent'});
+    const exit=new ExitVolume(L, 0, -0.75, 0, 2.2, 1.4, 2.2, {locked:true, color:0xffb46a,
+      onEnter:()=>levelComplete()});
+    L.onFragment=(f, got)=>{
+      L.vars.status=`CORES ${got} / 3` + (got<3?'':' — DESCEND');
+      if(got>=3){
+        L.hatch.openUp();
+        exit.setLocked(false);
+        toast('THE FLOOR <b>DESCENT</b> UNLOCKS');
+        SND.powered();
+      }
+    };
+    L.vars.status='CORES 0 / 3';
+  },
+  qa(ctx){
+    const L12=L_FIX();
+    CHEATS.god=true;                    /* sentinel arena — the bot may not die */
+    /* the elevator must carry a standing player to the sky */
+    ctx.setGravity('floor');
+    ctx.warp(-8, 1.7, -6);
+    let maxY=0;
+    for(let i=0;i<360;i++){ ctx.step(1/30); maxY=Math.max(maxY, player.pos.y); }
+    if(maxY<11) return 'elevator did not carry the player (max y='+maxY.toFixed(2)+')';
+    /* cores */
+    ctx.warp(-8, 15.3, -12); ctx.step(0.1);
+    ctx.warp(8, 15.3, 12); ctx.step(0.1);
+    ctx.setGravity('ceil');
+    ctx.warp(-4, 21.2, -4); ctx.step(0.1);
+    if(L12.fragments.filter(f=>f.collected).length<3) return 'cores not collected';
+    ctx.setGravity('floor');
+    ctx.steps(1.8, 1/30);
+    if(!L12.hatch.open) return 'descent hatch did not open';
+    ctx.warp(0, -0.5, 0); ctx.step(0.12);
+    CHEATS.god=false;
+    if(GAME.state!=='victory') return 'descent exit did not complete (state='+GAME.state+')';
+    return true;
+  }
+});
+
+/* ---------------- LEVEL 13 : THE HUNDRED-STEP GARDEN (new, v6) ---------------- */
+LEVELS.push({
+  name:'The Hundred-Step Garden',
+  objective:'The floor ends — tour the other three planes to cross',
+  hud:'fragments',
+  ambient:64.2,
+  stars:5,
+  pars:[150,220,340],
+  accent:'#c8a2ff',
+  palette:{ trim:0xc8a2ff, plat:0x6a8a74,
+    checkerA:'#84aa94', checkerB:'#547e64', panel:'#6a8a7a', panelLine:'#8cb09a',
+    floorRepX:8, floorRepY:8, wallRepX:5,
+    glassTint:0xd8ffd8, glassOpacity:0.24, frame:0x2e4638 },
+  shadowExt:{x:19,z:19,y:16},
+  build(L){
+    /* the whole center is void — only the south and north floor ledges exist */
+    LShell(L, {w:36, h:16, d:36, floorHole:36, glaze:{wall:0.42, ceil:true}});
+    LBox(L, 0, -0.3, 11, 36, 0.6, 14, 'floor', {tag:'floor'});       // south ledge z 4..18
+    LBox(L, 0, -0.3, -15, 36, 0.6, 6, 'floor', {tag:'floor'});       // north ledge z -18..-12
+    L.spawn={pos:V(0, 1.2, 15), yaw:0};
+    L.respawn={pos:V(0, 1.2, 15), yaw:0};
+    LPlatform(L, 0, 0.25, 15.8, 3.6, 3.6, {mat:'platform'});
+    LArch(L, 'green', 0, 0.25, 14.9, 'z-');
+    LText(L, 0, 0.02, 11.5, ['THE GARDEN OF FOUR MAZES'], {normal:'y+', up:'z-', w:6.4, h:0.9, size:40, color:'#c8a2ff', glowColor:'#c8a2ff'});
+    LText(L, 0, 0.02, 9.2, ['THE FLOOR ENDS HERE — THE OTHER PLANES BEGIN'], {normal:'y+', up:'z-', w:7.4, h:0.8, size:30, color:'#7d8ba0'});
+    /* maze 1 — WALL A fins (blue): land, walk east, rise */
+    const WALLASET=[WALLA_G], WALLBSET=[WALLB_G], CEILSET=[CEIL_G];
+    const finA=[[-10,2],[-6,3.2],[-2,4.4],[2,5.6],[6,6.8],[10,8]];
+    for(const [fx,fy] of finA){
+      addConditional(L, fx, fy, -17.75, 2.6, 2.6, 0.5, WALLASET,
+        {name:'mazeA', color:0x1d2a36, emissive:0x4da3ff});
+    }
+    new Fragment(L, -6, 4.2, -17.1, {});
+    LText(L, 0, 1.2, -17.66, ['WALK THE BLUE FINS EAST'], {normal:'z+', up:'y+', w:4.6, h:0.8, size:34, color:ARCH_COLORS.blue, glowColor:ARCH_COLORS.blue});
+    /* the blue arch lifts you from the south ledge onto WALL A */
+    const bArch=LArch(L, 'blue', 0, 0, 8, 'z-');
+    L.vars.bArch=bArch;
+    /* maze 2 — WALL B fins (red): from wall A's east end, climb west */
+    const finB=[[10,2],[6,4],[2,6],[-2,8],[-6,10],[-10,12]];
+    for(const [fx,fy] of finB){
+      addConditional(L, fx, fy, 17.75, 2.6, 2.6, 0.5, WALLBSET,
+        {name:'mazeB', color:0x2a1d24, emissive:0xff5468});
+    }
+    new Fragment(L, 2, 7.2, 17.1, {});
+    LText(L, 0, 9.5, 17.66, ['RED FINS — CLIMB WEST'], {normal:'z-', up:'y+', w:4.2, h:0.8, size:34, color:ARCH_COLORS.red, glowColor:ARCH_COLORS.red});
+    /* wall A -> WALL B (yellow, mounted high on wall A east) */
+    const yArch=LArch(L, 'yellow', 13, 6.5, -17.9, 'x+', 'wallA');
+    L.vars.yArch=yArch;
+    /* wall B -> CEILING (red, mounted high on wall B west) */
+    const rArch=LArch(L, 'red', -13, 10.5, 17.9, 'x-', 'wallB');
+    L.vars.rArch=rArch;
+    /* maze 3 — CEILING pads (yellow): drift north */
+    const pads=[[-10,12],[-6,8],[-2,4],[2,0],[6,-4],[10,-8]];
+    for(const [px,pz] of pads){
+      addConditional(L, px, 15.8, pz, 3.0, 0.4, 3.0, CEILSET,
+        {name:'mazeC', color:0x2a2416, emissive:0xe8c15a});
+    }
+    new Fragment(L, 2, 14.9, 0, {});
+    LText(L, 0, 15.9, 4, ['ONE MAZE ABOVE'], {normal:'y-', up:'z-', w:4, h:0.8, size:38, color:ARCH_COLORS.yellow, upsideDown:true});
+    /* ceiling -> north ledge (green) */
+    const gCeil=LArch(L, 'green', 10, 15.97, -14, 'z-', 'ceil');
+    L.vars.gCeil=gCeil;
+    /* recovery: wall A low green (drops you on the north ledge) */
+    const gA=LArch(L, 'green', -5, 1.5, -17.9, 'x+', 'wallA');
+    L.vars.gA=gA;
+    LArch(L, 'green', 5, 1.5, 17.9, 'x-', 'wallB');
+    /* the gate — north ledge */
+    LBox(L, -1.9, 1.9, -16.4, 0.6, 3.4, 0.6, 'wall', {tag:'gatepost'});
+    LBox(L, 1.9, 1.9, -16.4, 0.6, 3.4, 0.6, 'wall', {tag:'gatepost'});
+    LBox(L, 0, 3.8, -16.4, 4.4, 0.5, 0.6, 'wall', {tag:'gatetop'});
+    LText(L, 0, 2.5, -16.0, ['THE GATE'], {normal:'z+', up:'y+', w:2.2, h:0.6, size:42, color:'#7d8ba0'});
+    const exit=new ExitVolume(L, 0, 2.0, -16.4, 2.4, 3.0, 1.4, {locked:true, color:0x54e08a,
+      onEnter:()=>levelComplete()});
+    L.vars.status='SHARDS 0 / 3';
+    L.onFragment=(f, got)=>{
+      L.vars.status=`SHARDS ${got} / 3`;
+      if(got>=3){
+        exit.setLocked(false);
+        SND.doorOpen();
+        toast('THE GATE <b>UNLOCKS</b> — THE NORTH LEDGE');
+      }
+    };
+    L.vars.onPlaneShift=(cf, active)=>{ /* keep the fin shimmer alive */ };
+  },
+  qa(ctx){
+    const L13=L_FIX();
+    /* conditional mazes: fins solid only under their plane */
+    ctx.setGravity('wallA');
+    let hit=WORLD_COLLIDE.raycast(V(-6, 4.2, -12), V(0,0,-1), 20);
+    if(!hit || Math.abs(hit.point.z+17.5)>0.4) return 'wall A fins not solid under WALL A';
+    ctx.setGravity('floor');
+    hit=WORLD_COLLIDE.raycast(V(-6, 4.2, -12), V(0,0,-1), 20);
+    if(hit && Math.abs(hit.point.z+17.5)<0.4) return 'wall A fins should ghost under FLOOR';
+    ctx.setGravity('wallB');
+    hit=WORLD_COLLIDE.raycast(V(2, 7.2, 12), V(0,0,1), 20);
+    if(!hit || Math.abs(hit.point.z-17.5)>0.4) return 'wall B fins not solid under WALL B';
+    ctx.setGravity('ceil');
+    hit=WORLD_COLLIDE.raycast(V(2, 10, 0), V(0,1,0), 20);
+    if(!hit || Math.abs(hit.point.y-15.6)>0.4) return 'ceiling pads not solid under CEILING';
+    /* the golden chain: blue -> wallA, yellow -> wallB, red -> ceil, green -> floor */
+    ctx.setGravity('floor');
+    ctx.warp(L13.vars.bArch.center.x, L13.vars.bArch.center.y, L13.vars.bArch.center.z);
+    ctx.steps(1.3, 1/30);
+    if(gKey(player.gravityDir)!=='0,0,-1') return 'blue chain link failed (got '+gKey(player.gravityDir)+')';
+    ctx.warp(L13.vars.yArch.center.x, L13.vars.yArch.center.y, L13.vars.yArch.center.z);
+    ctx.steps(1.3, 1/30);
+    if(gKey(player.gravityDir)!=='0,0,1') return 'yellow chain link failed (got '+gKey(player.gravityDir)+')';
+    ctx.warp(L13.vars.rArch.center.x, L13.vars.rArch.center.y, L13.vars.rArch.center.z);
+    ctx.steps(1.3, 1/30);
+    if(gKey(player.gravityDir)!=='0,1,0') return 'red chain link failed (got '+gKey(player.gravityDir)+')';
+    ctx.warp(L13.vars.gCeil.center.x, L13.vars.gCeil.center.y, L13.vars.gCeil.center.z);
+    ctx.steps(1.5, 1/30);
+    if(gKey(player.gravityDir)!=='0,-1,0') return 'green chain link failed (got '+gKey(player.gravityDir)+')';
+    if(player.pos.z>-12.5) return 'green drop did not land on the north ledge (z='+player.pos.z.toFixed(2)+')';
+    /* shards + exit */
+    ctx.setGravity('wallA'); ctx.warp(-6, 4.2, -17.1); ctx.step(0.1);
+    ctx.setGravity('wallB'); ctx.warp(2, 7.2, 17.1); ctx.step(0.1);
+    ctx.setGravity('ceil'); ctx.warp(2, 14.9, 0); ctx.step(0.1);
+    if(L13.fragments.filter(f=>f.collected).length<3) return 'shards not collected';
+    if(L13.exits[0].locked) return 'gate still locked';
+    const ex=L13.exits[0];
+    ctx.setGravity('floor');
+    ctx.warp((ex.box.min.x+ex.box.max.x)/2, (ex.box.min.y+ex.box.max.y)/2, (ex.box.min.z+ex.box.max.z)/2);
+    ctx.step(0.12);
+    if(GAME.state!=='victory') return 'gate exit did not complete (state='+GAME.state+')';
+    return true;
+  }
+});
+
+/* ---------------- LEVEL 14 : THE ESCHER TRIALS (new, v6) ---------------- */
+LEVELS.push({
+  name:'The Escher Trials',
+  objective:'Four trials guard the tower — pass them all, claim the crown',
+  hud:'final',
+  ambient:47.5,
+  stars:5,
+  pars:[170,250,400],
+  accent:'#ffd76a',
+  palette:{ trim:0xffd76a, plat:0x8a8262,
+    checkerA:'#a89e7e', checkerB:'#7a7250', panel:'#968e6e', panelLine:'#b0a884',
+    floorRepX:9, floorRepY:9, wallRepX:6,
+    glassTint:0xffe8bc, glassOpacity:0.22, frame:0x5a5238 },
+  shadowExt:{x:23,z:23,y:36},
+  build(L){
+    LShell(L, {w:44, h:36, d:44, glaze:{wall:0.38, ceil:true}});
+    L.spawn={pos:V(0, 1.2, 18), yaw:0};
+    L.respawn={pos:V(0, 1.2, 18), yaw:0};
+    LPlatform(L, 0, 0.25, 17, 3.6, 3.6, {mat:'platform'});
+    LArch(L, 'green', 0, 0.25, 16.1, 'z-');
+    LText(L, 0, 0.02, 13.5, ['FOUR TRIALS — ONE TOWER — ONE CROWN'], {normal:'y+', up:'z-', w:7.4, h:0.9, size:36, color:'#ffd76a', glowColor:'#ffd76a'});
+    /* ---------------- the central tower + spiral stairs ---------------- */
+    LBox(L, 0, 14.75, 0, 10, 29.5, 10, 'wall', {tag:'tower'});
+    LPlatform(L, 0, 29.5, 0, 11, 11, {mat:'platform'});      // the crown
+    const FACES=[
+      {dir:'x+', sx:-7,   sz: 6.5, corner:[ 6.5,  6.5]},
+      {dir:'z-', sx: 6.5, sz: 7,   corner:[ 6.5, -6.5]},
+      {dir:'x-', sx: 7,   sz:-6.5, corner:[-6.5, -6.5]},
+      {dir:'z+', sx:-6.5, sz:-7,   corner:[-6.5,  6.5]}
+    ];
+    let y=0;
+    for(let flight=0; flight<5; flight++){
+      const face=FACES[flight%4];
+      const top=LStairs(L, face.sx, y, face.sz, face.dir, 14,
+        {stepH:0.42, stepD:0.78, width:3});
+      y=top.y;
+      LPlatform(L, face.corner[0], y, face.corner[1], 4.4, 4.4, {mat:'platform'});
+    }
+    LPlatform(L, 4.6, y, 4.6, 3.2, 3.2, {mat:'platform'});  // bridge to the crown
+    /* the trial gate — blocks the stair base */
+    const gate=LBox(L, -7, 2.0, 11, 3.4, 4.0, 0.4, L.palette.glow(0xff5468,1.6), {tag:'trialgate'});
+    LText(L, -7, 4.6, 10.6, ['THE TRIAL GATE — FOUR SEALS'], {normal:'z+', up:'y+', w:4.6, h:0.7, size:30, color:'#ff8494'});
+    /* ---------------- TRIAL I (NE): THE SEQUENCE ---------------- */
+    LPlatform(L, 16, 0.5, -16, 10, 8, {mat:'platform'});
+    LArch(L, 'blue', 13.5, 0.5, -16, 'z-');
+    LArch(L, 'yellow', 16, 0.5, -16, 'z-');
+    LArch(L, 'red', 18.5, 0.5, -16, 'z-');
+    L.vars.seqColors=['red','blue','yellow'];
+    LText(L, 6.3, 3.4, -16, ['THE ORDER'], {normal:'x-', up:'y+', w:2.6, h:0.8, size:40, color:'#e8c15a'});
+    LText(L, 6.3, 2.2, -17.6, ['RED · BLUE · YELLOW'], {normal:'x-', up:'y+', w:3.4, h:0.7, size:34, color:'#bcd2e8'});
+    LText(L, 16, 0.55, -11.6, ['TRIAL I — THE SEQUENCE'], {normal:'z-', up:'y+', w:4.2, h:0.7, size:32, color:'#bcd2e8'});
+    /* ---------------- TRIAL II (SE): THE LIGHT ---------------- */
+    new LaserEmitter(L, 21.45, 2.6, 16, V(-1,0,0));
+    const ML=new Mirror(L, 16, 2.6, 16, 'floor', {strut:2.5, idx:0});
+    LText(L, 16, 0.55, 13.6, ['TRIAL II — THE LIGHT'], {normal:'z-', up:'y+', w:4.0, h:0.7, size:32, color:'#bcd2e8'});
+    LText(L, 16, 0.02, 18.5, ['ROTATE THE MIRROR — FEED THE SENSOR'], {normal:'y+', up:'z-', w:6.4, h:0.7, size:28, color:'#7d8ba0'});
+    /* ---------------- TRIAL III (SW): THE WEIGHT ---------------- */
+    LBox(L, -16, 0.5, 13, 0.95, 1.0, 0.95, 'platform', {tag:'pedestal'});
+    LText(L, -16, 1.32, 13, ['CUBE'], {normal:'y+', up:'z-', w:1.4, h:0.5, size:40, color:'#39d5c8'});
+    new GravityCube(L, -16, 1.35, 13);
+    new PressurePlate(L, -16, 3, 21.7, 'wallB');
+    LArch(L, 'red', -16, 0, 10, 'z+');                   // floor -> WALL B (carry the cube through)
+    LText(L, -16, 0.02, 11.8, ['TRIAL III — THE WEIGHT'], {normal:'y+', up:'z-', w:4.4, h:0.7, size:32, color:'#bcd2e8'});
+    LText(L, -16, 0.02, 8.2, ['CARRY THE CUBE THROUGH RED — SEAT IT HIGH'], {normal:'y+', up:'z-', w:7.0, h:0.7, size:26, color:'#7d8ba0'});
+    LText(L, -16, 5.2, 21.66, ['WALL ANCHOR'], {normal:'z-', up:'y+', w:2.8, h:0.8, size:40, color:'#e0a54d'});
+    /* ---------------- TRIAL IV (NW): THE SENTINELS ---------------- */
+    new Fragment(L, -19, 0.45, -19, {core:true});
+    new Fragment(L, -13, 0.45, -19, {core:true});
+    new Fragment(L, -16, 0.45, -13, {core:true});
+    new Sweeper(L, {x:-16, y:1.5, z:-19, axis:'x', amp:4.5, speed:0.6, phase:0, h:3.0, d:6, deadly:true});
+    new Sweeper(L, {x:-16, y:1.5, z:-14, axis:'x', amp:4.5, speed:0.72, phase:2.2, h:3.0, d:5, deadly:true});
+    const stripeMat=L.palette.glow(0xff2233, 0.7);
+    LBox(L, -16, 0.015, -19, 10, 0.03, 0.16, stripeMat, {solid:false, castShadow:false, onRay:false});
+    LBox(L, -16, 0.015, -14, 9, 0.03, 0.16, stripeMat, {solid:false, castShadow:false, onRay:false});
+    LText(L, -16, 0.02, -11.6, ['TRIAL IV — THE SENTINELS'], {normal:'z+', up:'y+', w:4.6, h:0.7, size:32, color:'#bcd2e8'});
+    /* ---------------- recovery + crown ---------------- */
+    LArch(L, 'green', 0, 4, -21.5, 'x+', 'wallA');
+    LArch(L, 'green', -13, 2, 21.45, 'x-', 'wallB');
+    LArch(L, 'green', 0, 35.97, -6, 'z-', 'ceil');
+    const exit=new ExitVolume(L, 0, 30.2, 0, 2.4, 2.4, 2.4, {locked:true, color:0xffd76a,
+      onEnter:()=>levelComplete()});
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.09, 10, 30),
+      L.palette.glow(0xffd76a, 2.6));
+    ring.position.set(0, 30.2, 0);
+    WORLD.add(ring); L.disposables.push(ring);
+    LText(L, 0, 29.55, 3.4, ['THE CROWN'], {normal:'z-', up:'y+', w:2.6, h:0.7, size:42, color:'#ffd76a'});
+    /* ---------------- trial bookkeeping ---------------- */
+    L.vars.trials={seq:false, light:false, weight:false, sent:false};
+    const sealNames=['SEQUENCE','LIGHT','WEIGHT','SENTINELS'];
+    function trialCheck(){
+      const t=L.vars.trials;
+      const done=[t.seq,t.light,t.weight,t.sent];
+      done.forEach((d,i)=>{ if(d) hudSetStage(i); });
+      const n=done.filter(Boolean).length;
+      L.vars.status='TRIALS: '+sealNames.map((s,i)=>done[i]?'● '+s:'○ '+s).join(' · ');
+      if(n===4 && !L.vars.allDone){
+        L.vars.allDone=true;
+        L.vars.gateOpenT=0;
+        SND.powered();
+        shake(0.8);
+        flashScreen('#ffd76a', 0.5);
+        toast('THE TRIALS ARE <b>PASSED</b> — CLIMB THE TOWER');
+        exit.setLocked(false);
+      }
+    }
+    new Sequence(L, ['red','blue','yellow'], {
+      onDone(){ L.vars.trials.seq=true; SND.winSmall(); toast('SEAL I — <b>THE SEQUENCE</b>'); trialCheck(); }
+    });
+    new LaserSensor(L, 6.4, 2.6, 16, V(1,0,0), { chargeTime:2.0,
+      onCharged(){ L.vars.trials.light=true; toast('SEAL II — <b>THE LIGHT</b>'); trialCheck(); }});
+    L.onPlateState=(plate, on)=>{
+      if(plate.active){ if(!L.vars.trials.weight){ L.vars.trials.weight=true;
+        toast('SEAL III — <b>THE WEIGHT</b>'); trialCheck(); } }
+    };
+    L.onFragment=(f, got)=>{
+      if(got>=3 && !L.vars.trials.sent){ L.vars.trials.sent=true;
+        toast('SEAL IV — <b>THE SENTINELS</b>'); trialCheck(); }
+    };
+    L.vars.status='TRIALS: ○ SEQUENCE · ○ LIGHT · ○ WEIGHT · ○ SENTINELS';
+    /* the trial gate slides down when all four seals break */
+    L.vars.gateOpenT=-1;
+    L.updaters.push((dt)=>{
+      if(L.vars.gateOpenT>=0 && L.vars.gateOpenT<1){
+        L.vars.gateOpenT=Math.min(1, L.vars.gateOpenT+dt/1.6);
+        const k=easeInOut(L.vars.gateOpenT);
+        gate.mesh.position.y=2.0-k*4.2;
+        gate.collider.min.y=gate.mesh.position.y-2.0;
+        gate.collider.max.y=gate.mesh.position.y+2.0;
+        gate.mesh.material.emissive.setHex(0x54e08a);
+        if(L.vars.gateOpenT>=0.5) gate.collider.active=false;
+      }
+    });
+  },
+  qa(ctx){
+    const L14=L_FIX();
+    CHEATS.god=true;                    /* sentinel arena warps must not die */
+    /* trial I — sequence R, B, Y */
+    ctx.setGravity('floor');
+    ctx.warp(18.5, 1.8, -16); ctx.steps(1.3, 1/30);
+    if(L14.sequences[0].progress!==1) return 'sequence step 1 failed (progress='+L14.sequences[0].progress+')';
+    ctx.setGravity('floor');
+    ctx.warp(13.5, 1.8, -16); ctx.steps(1.3, 1/30);
+    if(L14.sequences[0].progress!==2) return 'sequence step 2 failed';
+    ctx.setGravity('floor');
+    ctx.warp(16, 1.8, -16); ctx.steps(1.3, 1/30);
+    if(!L14.sequences[0].done) return 'sequence did not complete';
+    if(!L14.vars.trials.seq) return 'trial I did not seal';
+    /* trial II — find the mirror angle that feeds the sensor */
+    const mir=L14.mirrors[0], s=L14.sensors[0];
+    let powered=false;
+    for(let k=0;k<8 && !powered;k++){
+      mir.idx=k; mir.applyAngle(true);
+      ctx.step(0.05);
+      powered=s.powered;
+    }
+    if(!powered) return 'no mirror angle powers the trial II sensor';
+    ctx.steps(2.4, 1/30);
+    if(!s.charged) return 'trial II sensor did not charge';
+    if(!L14.vars.trials.light) return 'trial II did not seal';
+    /* trial III — seat the cube on the wall B anchor */
+    const cube=L14.cubes[0];
+    cube.pos.set(-16, 3.0, 20.1);
+    cube.gravityDir.set(0,0,1);
+    cube.state='fall'; cube.collider.active=true;
+    ctx.steps(1.6, 1/30);
+    if(!L14.plates[0].active) return 'cube did not seat on the wall anchor';
+    if(!L14.vars.trials.weight) return 'trial III did not seal';
+    /* trial IV — the three cores */
+    for(const c of L14.fragments){ ctx.warp(c.pos.x, c.pos.y, c.pos.z); ctx.step(0.1); }
+    if(!L14.vars.trials.sent) return 'trial IV did not seal';
+    if(!L14.vars.allDone) return 'four seals did not open the gate';
+    ctx.steps(1.8, 1/30);
+    if(L14.exits[0].locked) return 'crown exit still locked';
+    /* the crown */
+    ctx.warp(0, 30.4, 0); ctx.steps(0.4, 1/30);
+    CHEATS.god=false;
+    if(GAME.state!=='victory') return 'crown exit did not complete (state='+GAME.state+')';
+    return true;
+  }
+});
+
+/* ---------------- LEVEL 15 : THE MONUMENT OF ESCHER ---------------- */
 LEVELS.push({
   name:'The Monument of Escher',
   objective:'Rebuild the Core Anchor — sequence, light, resonance, socket',
@@ -5565,6 +6584,7 @@ LEVELS.push({
   ambient:36.7,
   stars:5,
   pars:[150,230,380],
+  accent:'#e8c15a',
   palette:{ trim:0xe8c15a, plat:0x8a7a58,
     checkerA:'#a89878', checkerB:'#786848', panel:'#96866a', panelLine:'#b09e7e',
     floorRepX:10, floorRepY:10, wallRepX:6,
@@ -5663,11 +6683,11 @@ LEVELS.push({
     const gate2=LBox(L, -5.9, T2y+1.6, 6.5, 0.3, 3.2, 3.6, L.palette.glow(0xff5468,1.6), {tag:'gate'});
     /* ---------- GATE 3 : RESONANCE PAD (the corner before the final flight) ---------- */
     const T3=corners[4];
+    L.vars.pad={pos:V(T3[0], T3[1], T3[2]), charge:0, done:false};
     const padGlow=L.palette.glow(0x39d5c8, 1.4);
     LBox(L, T3[0], T3[1]+0.04, T3[2], 2.2, 0.1, 2.2, padGlow, {solid:false, castShadow:false});
     LText(L, T3[0], T3[1]+0.02, T3[2]+2.1, ['STAND — RESONANCE PAD'], {normal:'y+', up:'z-', w:3.4, h:0.7, size:34, color:'#39d5c8'});
     const gate3=LBox(L, 6.5, T3[1]+1.8, 5.4, 3.4, 3.2, 0.3, L.palette.glow(0xff5468,1.6), {tag:'gate'});
-    L.vars.pad={pos:V(T3[0], T3[1], T3[2]), charge:0, done:false};
     /* ---------- THE CROWN : socket + finale ---------- */
     LArch(L, 'yellow', 2.2, 35.42, 2.2, 'x+');    // crown -> ceiling
     const socketMat=L.palette.glow(0xe8c15a, 2.4);
@@ -5780,39 +6800,39 @@ LEVELS.push({
     L.vars.status='LOCKS: SEQUENCE · LIGHT · RESONANCE';
   },
   qa(ctx){
-    const L8=L_FIX();
+    const L15=L_FIX();
     /* stage 1 — sequence in the order R, B, Y */
     ctx.setGravity('floor');
-    ctx.warp(5, ringFixY(L8)+1.3, -19.2); ctx.steps(1.3, 1/30);
-    if(L8.sequences[0].progress!==1) return 'sequence step 1 failed (progress='+L8.sequences[0].progress+')';
+    ctx.warp(5, ringFixY(L15)+1.3, -19.2); ctx.steps(1.3, 1/30);
+    if(L15.sequences[0].progress!==1) return 'sequence step 1 failed (progress='+L15.sequences[0].progress+')';
     ctx.setGravity('floor');
-    ctx.warp(-5, ringFixY(L8)+1.3, -19.2); ctx.steps(1.3, 1/30);
-    if(L8.sequences[0].progress!==2) return 'sequence step 2 failed';
+    ctx.warp(-5, ringFixY(L15)+1.3, -19.2); ctx.steps(1.3, 1/30);
+    if(L15.sequences[0].progress!==2) return 'sequence step 2 failed';
     ctx.setGravity('floor');
-    ctx.warp(0, ringFixY(L8)+1.3, -19.2); ctx.steps(1.3, 1/30);
-    if(!L8.sequences[0].done) return 'sequence did not complete';
-    if(!L8.vars.gates.g1open) return 'gate 1 did not open';
+    ctx.warp(0, ringFixY(L15)+1.3, -19.2); ctx.steps(1.3, 1/30);
+    if(!L15.sequences[0].done) return 'sequence did not complete';
+    if(!L15.vars.gates.g1open) return 'gate 1 did not open';
     /* stage 2 — laser solution: MA idx 3, MB idx 7 */
-    L8.mirrors[0].idx=3; L8.mirrors[0].applyAngle(true);
-    L8.mirrors[1].idx=7; L8.mirrors[1].applyAngle(true);
+    L15.mirrors[0].idx=3; L15.mirrors[0].applyAngle(true);
+    L15.mirrors[1].idx=7; L15.mirrors[1].applyAngle(true);
     ctx.step(0.05);
-    if(!L8.sensors[0].powered) return 'laser solution does not power the sensor';
+    if(!L15.sensors[0].powered) return 'laser solution does not power the sensor';
     ctx.steps(2.4, 1/30);
-    if(!L8.sensors[0].charged) return 'sensor did not charge';
+    if(!L15.sensors[0].charged) return 'sensor did not charge';
     ctx.steps(1.4, 1/30);
     /* stage 3 — resonance pad (arrive with floor gravity, as a real climber would) */
-    const pad=L8.vars.pad;
+    const pad=L15.vars.pad;
     ctx.setGravity('floor');
     ctx.warp(pad.pos.x, pad.pos.y+1.0, pad.pos.z);
     player.grounded=true;
     ctx.steps(2.3, 1/30);
     if(!pad.done) return 'resonance pad did not complete (charge='+pad.charge.toFixed(2)+')';
     /* stage 4 — carry the core to the socket */
-    pickUp(L8.cubes[0]);
-    if(GAME.carry!==L8.cubes[0]) return 'core pick-up failed';
+    pickUp(L15.cubes[0]);
+    if(GAME.carry!==L15.cubes[0]) return 'core pick-up failed';
     ctx.warp(0, 35.1, 0);
     ctx.step(0.05);
-    const socket=L8.interactables.find(m=>m.userData.interact&&m.userData.interact.type==='socket');
+    const socket=L15.interactables.find(m=>m.userData.interact&&m.userData.interact.type==='socket');
     if(!socket) return 'socket interactable missing';
     socket.userData.interact.action(GAME.carry);
     ctx.steps(5.4, 1/30);
@@ -5947,7 +6967,7 @@ const CHEAT_CMDS={
     const tally=ranks.reduce((m,r)=>{ m[s[r]]=(m[s[r]]||0)+1; return m; },{});
     return 'LIFETIME '+fmtScore(SAVE.score||0)+' PTS · RANKS '
       +['S','A','B','C'].map(r=>(tally[r]||0)+r).join(' ')
-      +(SAVE.bestDepth>10?' · DEPTH '+(SAVE.bestDepth-10):'');
+      +(SAVE.bestDepth>15?' · DEPTH '+(SAVE.bestDepth-15):'');
   },
   reset(){
     CHEATS.god=false; CHEATS.noclip=false; CHEATS.speed=1; CHEATS.jump=1;
@@ -6182,7 +7202,6 @@ LEVELS.push(procLevel(31415926, 'The Escher Machine',
     checkerA:'#9c84a8', checkerB:'#6e547c', panel:'#866e94', panelLine:'#a488b0',
     floorRepX:7, floorRepY:7, wallRepX:5,
     glassTint:0xe8c0ff, glassOpacity:0.24, frame:0x423252 }, 46.2, 2));
-
 /* ---- the endless tail: vaults generate on demand as you descend ---- */
 const DEEP_NAMES=['The Hollow Frame','The Silent Rotor','The Mirror Orchard','The Long Fall',
   'The Penrose Vault','The Aerial Garden','The Iron Spiral','The Echo Chamber'];
@@ -6208,9 +7227,9 @@ function makeDeepLevel(depth){
     44+((depth*7)%22), depth);
 }
 function ensureLevelsUpTo(n, force){
-  if(GAME.qa && !force) return;         /* QA harness must stay deterministic (10 levels) */
+  if(GAME.qa && !force) return;         /* QA harness must stay deterministic (17 levels) */
   while(LEVELS.length<n){
-    const depth=LEVELS.length-7;        /* index 8 -> depth 1 */
+    const depth=LEVELS.length-14;       /* index 15 -> depth 1 */
     LEVELS.push(makeDeepLevel(depth));
   }
 }
@@ -6267,35 +7286,60 @@ function loop(){
 }
 
 /* ---------------- menu wiring ---------------- */
+const CAMPAIGN_N=15;                     /* v6: fifteen hand-built chambers */
 function setupMenu(){
   const grid=$('lvl-grid');
   const rebuild=()=>{
     grid.innerHTML='';
-    LEVELS.forEach((lv,i)=>{
+    const section=(html, cls)=>{
+      const h=document.createElement('div');
+      h.className='grid-h'+(cls?' '+cls:''); h.innerHTML=html;
+      grid.appendChild(h);
+    };
+    const tile=(lv, i)=>{
       const locked=(i+1)>SAVE.unlocked;
       const el=document.createElement('div');
       el.className='lvl'+(locked?' locked':'');
-      const bonus=i>=8;
+      el.style.setProperty('--ac', lv.accent||'#39d5c8');
+      const bonus=i>=CAMPAIGN_N;
       const rk=SAVE.ranks[i];
       const best=SAVE.best[i];
       const md=best!==undefined?medalFor(i,best):null;
-      el.innerHTML=`<div class="n">${bonus?'✦':''}${ROMAN[i]||('#'+(i+1))}</div>`
+      const mdCol=md==='GOLD'?'#ffd76a':(md==='SILVER'?'#d7dde8':'#d09a6a');
+      el.innerHTML=`<div class="n">${bonus?'✦ ':''}${ROMAN[i]||('#'+(i+1))}</div>`
+        +(!locked&&lv.tut?'<span class="lesson-chip">LESSON</span>':'')
         +(rk?`<span class="rk rk-${rk.toLowerCase()}">${rk}</span>`:'')
         +`<div class="t">${locked?'':lv.name}</div>`
-        +`<div class="b">${best!==undefined?fmtTime(best):''}${md?` <span class="m${md[0]}">●</span>`:''}</div>`;
+        +`<div class="lvl-meta">${lv.stars?`<span class="stars">${'★'.repeat(lv.stars)}</span>`:''}`
+        +(best!==undefined?`<span class="best">${fmtTime(best)}</span>`:'')
+        +(md?`<span style="color:${mdCol}">●</span>`:'')+`</div>`;
       if(!locked) el.onclick=()=>{
         SND.init(); SND.uiClick();
         enterGame(i);
       };
       grid.appendChild(el);
-    });
+    };
+    /* THE ACADEMY — the five lessons */
+    section('THE ACADEMY — <b>LEARN THE ROOM</b>');
+    for(let i=0;i<Math.min(5,LEVELS.length);i++) tile(LEVELS[i], i);
+    /* THE ESCAPE — the ten machines */
+    if(LEVELS.length>5){
+      section('THE ESCAPE — <b>TEN IMPOSSIBLE MACHINES</b>', 'gold');
+      for(let i=5;i<Math.min(CAMPAIGN_N,LEVELS.length);i++) tile(LEVELS[i], i);
+    }
+    /* THE VAULTS — endless depth */
+    if(LEVELS.length>CAMPAIGN_N){
+      section('THE VAULTS — <b>ENDLESS DEPTH</b>');
+      for(let i=CAMPAIGN_N;i<LEVELS.length;i++) tile(LEVELS[i], i);
+    }
     /* lifetime line — the number that only goes up */
     const ranksN=Object.keys(SAVE.ranks).length;
+    const cleared=Math.min(CAMPAIGN_N, Object.keys(SAVE.best).filter(k=>+k<CAMPAIGN_N).length);
     if(SAVE.score>0){
-      DOM.menuStats.innerHTML=`LIFETIME <b>${fmtScore(SAVE.score)}</b> PTS · ${ranksN} RANK${ranksN===1?'':'S'} CLIMBED`
-        +(SAVE.bestDepth>10?` · DEPTH <b>${SAVE.bestDepth-10}</b>`:'');
+      DOM.menuStats.innerHTML=`CHAMBERS <b>${cleared} / ${CAMPAIGN_N}</b> · LIFETIME <b>${fmtScore(SAVE.score)}</b> PTS · ${ranksN} RANK${ranksN===1?'':'S'} CLIMBED`
+        +(SAVE.bestDepth>CAMPAIGN_N?` · DEPTH <b>${SAVE.bestDepth-CAMPAIGN_N}</b>`:'');
     }else{
-      DOM.menuStats.textContent='EIGHT CHAMBERS · THEN THE VAULTS GO DEEP FOREVER';
+      DOM.menuStats.textContent=`FIFTEEN CHAMBERS · THEN THE VAULTS GO DEEP FOREVER`;
     }
   };
   rebuild();
@@ -6386,7 +7430,7 @@ function setupMenu(){
     DOM.vignette.style.opacity=0; enterGame(GAME.levelIndex); };
   $('btn-bonus').onclick=()=>{ SND.uiClick(); hideScreen(DOM.victory);
     DOM.vignette.style.opacity=0;
-    const nxt=(GAME.levelIndex>=8 && GAME.levelIndex<LEVELS.length-1)?GAME.levelIndex+1:8;
+    const nxt=(GAME.levelIndex>=CAMPAIGN_N && GAME.levelIndex<LEVELS.length-1)?GAME.levelIndex+1:CAMPAIGN_N;
     ensureLevelsUpTo(nxt+1);
     enterGame(nxt); };
   $('btn-vmenu').onclick=()=>{ SND.uiClick(); hideScreen(DOM.victory);
@@ -6466,7 +7510,7 @@ function qaRun(){
   const guard=(fn)=>{ try{ return fn(); }catch(e){ return 'EXCEPTION: '+e.message; } };
 
   /* 0 — boot integrity */
-  log(guard(()=>{ if(LEVELS.length!==10) return 'level count '+LEVELS.length;
+  log(guard(()=>{ if(LEVELS.length!==17) return 'level count '+LEVELS.length;
     return true; }), 'boot.levels');
   log(guard(()=>{ if(GAME.logicOnly && !GAME.qa) return 'renderer missing';
     return true; }), 'boot.renderer');
@@ -6580,7 +7624,34 @@ function qaRun(){
         typeof res==='string'?res:undefined);
   }
 
-  /* 6b — touch controls (synthetic TouchEvents; SKIP when unsupported) */
+  /* 6b — every arch in every chamber must actually fire ("the gates all
+     work"): warp into each trigger volume and demand a gravity event.
+     Sweeps with god-mode on so sentinel panes cannot void the bot. */
+  log(guard(()=>{
+    for(let i=0;i<LEVELS.length;i++){
+      startLevel(i,{silent:true});
+      GAME.state='playing'; player.frozen=false;
+      const L=GAME.level;
+      if(L.arches.length<1) return 'chamber '+(i+1)+' has no arches';
+      CHEATS.god=true;
+      for(let a=0;a<L.arches.length;a++){
+        const arch=L.arches[a];
+        player.snapTo(arch.center, 0, QG.floor.clone());
+        player.vel.set(0,0,0);
+        player.archCd=0; player.transition=null; player.frozen=false;
+        const c0=L.vars.archCount||0;
+        ctx.step(1/30);
+        if((L.vars.archCount||0)<=c0)
+          return 'arch #'+(a+1)+' ('+arch.type+') on chamber '+(i+1)+' did not fire';
+        ctx.steps(1.3, 1/30);           // settle transition + cooldown
+      }
+      CHEATS.god=false;
+    }
+    startLevel(0,{silent:true});
+    return true;
+  }), 'arches.all-wired');
+
+  /* 6c — touch controls (synthetic TouchEvents; SKIP when unsupported) */
   const touchCapable = IS_TOUCH && typeof TouchEvent!=='undefined' && typeof Touch!=='undefined';
   const tlog=(res, name)=>log(res===true||res==='SKIP', name,
     res==='SKIP'?'skipped (no touch mode/API)':(typeof res==='string'?res:undefined));
@@ -6696,32 +7767,34 @@ function qaRun(){
     GAME.state='playing'; player.frozen=false;
     for(const f of L_FIX().fragments){ ctx.warp(f.pos.x, f.pos.y, f.pos.z); ctx.step(0.1); }
     ctx.steps(1.7, 1/30);
-    player.pos.set(0, 12.5, 0); ctx.step(0.1);
-    if(GAME.state!=='victory') return 'level 1 did not complete (state='+GAME.state+')';
+    const ex=L_FIX().exits[0];
+    ctx.warp((ex.box.min.x+ex.box.max.x)/2, (ex.box.min.y+ex.box.max.y)/2, (ex.box.min.z+ex.box.max.z)/2);
+    ctx.step(0.1);
+    if(GAME.state!=='victory') return 'lesson I did not complete (state='+GAME.state+')';
     if(DOM.victory.classList.contains('hidden')) return 'victory screen missing';
     $('btn-next').onclick();            // exactly what a player clicks
     if(!DOM.victory.classList.contains('off')) return 'victory overlay did not dismiss on NEXT';
-    if(GAME.levelIndex!==1) return 'did not advance to level 2 (idx='+GAME.levelIndex+')';
+    if(GAME.levelIndex!==1) return 'did not advance to lesson II (idx='+GAME.levelIndex+')';
     if(GAME.state!=='levelcard' && GAME.state!=='playing') return 'bad state after next (state='+GAME.state+')';
     return true;
   }), 'ui.victory-dismiss');
 
   /* 9 — green arches must not break an in-progress sequence
-     (playtest bug: L2 / L8 gate 1 were unwinnable — returning to the floor
-      REQUIRES a green pass, which reset the sequence) */
+     (playtest bug: the sequence chambers were unwinnable — returning to the
+      floor REQUIRES a green pass, which reset the sequence) */
   log(guard(()=>{
-    startLevel(1,{silent:true});
+    startLevel(5,{silent:true});
     GAME.state='playing'; player.frozen=false; player.archCd=0;
-    const L2=L_FIX();
+    const L6=L_FIX();
     ctx.warp(26, 1.2, 0); ctx.steps(1.4, 1/30);      // blue -> WALL A
-    if(L2.sequences[0].progress!==1) return 'blue should be step 1';
+    if(L6.sequences[0].progress!==1) return 'blue should be step 1';
     /* pass the green tall gate at x=6 the way a player must */
     player.snapTo(player.pos, player.yaw, QG.wallA.clone());
     ctx.warp(6.1, 1.2, 0); ctx.steps(1.5, 1/30);     // green gate -> floor
     if(gKey(player.gravityDir)!=='0,-1,0') return 'green gate did not normalize gravity';
-    if(L2.sequences[0].progress!==1) return 'green gate broke the sequence (progress='+L2.sequences[0].progress+')';
+    if(L6.sequences[0].progress!==1) return 'green gate broke the sequence (progress='+L6.sequences[0].progress+')';
     ctx.warp(12, 1.2, 0); ctx.steps(1.4, 1/30);      // yellow -> CEIL
-    if(L2.sequences[0].progress!==2) return 'yellow should be step 2 after green';
+    if(L6.sequences[0].progress!==2) return 'yellow should be step 2 after green';
     return true;
   }), 'sequence.green-neutral');
 
@@ -6729,18 +7802,18 @@ function qaRun(){
      (playtest bug: beam meshes were added to WORLD — level disposal
       orphaned them, so L8's beams were invisible after playing L4) */
   log(guard(()=>{
-    startLevel(3,{silent:true}); GAME.state='playing'; player.frozen=false;
-    const L4=L_FIX();
-    L4.mirrors[0].idx=5; L4.mirrors[0].applyAngle(true);
-    L4.mirrors[1].idx=2; L4.mirrors[1].applyAngle(true);
-    L4.mirrors[2].idx=1; L4.mirrors[2].applyAngle(true);
+    startLevel(7,{silent:true}); GAME.state='playing'; player.frozen=false;
+    const L8=L_FIX();
+    L8.mirrors[0].idx=5; L8.mirrors[0].applyAngle(true);
+    L8.mirrors[1].idx=2; L8.mirrors[1].applyAngle(true);
+    L8.mirrors[2].idx=1; L8.mirrors[2].applyAngle(true);
     ctx.step(0.05);
     if(!BEAM_POOL[0] || BEAM_POOL[0].parent!==scene) return 'beam not created at scene level';
     if(!BEAM_POOL[0].visible) return 'beam not visible on its own level';
-    startLevel(7,{silent:true}); GAME.state='playing'; player.frozen=false;
-    const L8=L_FIX();
-    L8.mirrors[0].idx=3; L8.mirrors[0].applyAngle(true);
-    L8.mirrors[1].idx=7; L8.mirrors[1].applyAngle(true);
+    startLevel(14,{silent:true}); GAME.state='playing'; player.frozen=false;
+    const L15=L_FIX();
+    L15.mirrors[0].idx=3; L15.mirrors[0].applyAngle(true);
+    L15.mirrors[1].idx=7; L15.mirrors[1].applyAngle(true);
     ctx.step(0.05);
     if(!BEAM_POOL[0] || BEAM_POOL[0].parent!==scene) return 'beam orphaned after level switch';
     if(!BEAM_POOL[0].visible) return 'beam invisible on the second laser level';
@@ -6750,15 +7823,15 @@ function qaRun(){
   /* 11 — no laser audio leaking across levels */
   log(guard(()=>{
     if(typeof _laserLevel==='undefined') return true;   // guard for older builds
-    startLevel(3,{silent:true}); GAME.state='playing'; player.frozen=false;
-    const L4=L_FIX();
-    L4.mirrors[0].idx=5; L4.mirrors[0].applyAngle(true);
-    L4.mirrors[1].idx=2; L4.mirrors[1].applyAngle(true);
-    L4.mirrors[2].idx=1; L4.mirrors[2].applyAngle(true);
+    startLevel(7,{silent:true}); GAME.state='playing'; player.frozen=false;
+    const L8=L_FIX();
+    L8.mirrors[0].idx=5; L8.mirrors[0].applyAngle(true);
+    L8.mirrors[1].idx=2; L8.mirrors[1].applyAngle(true);
+    L8.mirrors[2].idx=1; L8.mirrors[2].applyAngle(true);
     ctx.step(0.1);
-    if(_laserLevel===0) return 'precondition: beam should be powered on L4';
-    startLevel(4,{silent:true}); GAME.state='playing'; player.frozen=false;
-    if(_laserLevel!==0) return 'laser level leaked into chamber V (_laserLevel='+_laserLevel+')';
+    if(_laserLevel===0) return 'precondition: beam should be powered on the switchboard';
+    startLevel(8,{silent:true}); GAME.state='playing'; player.frozen=false;
+    if(_laserLevel!==0) return 'laser level leaked into the chrono-void (_laserLevel='+_laserLevel+')';
     return true;
   }), 'laser.no-audio-leak');
 
@@ -7033,7 +8106,7 @@ function qaRun(){
    23. BOOT
    ============================================================ */
 /* companion guide shipped next to this file (opened via the menu button) */
-const HOWTO_VERSION='v5';
+const HOWTO_VERSION='v6';
 function boot(){
   try{
     initRenderer();

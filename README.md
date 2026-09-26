@@ -49,20 +49,32 @@ Pass through the color-coded arches to rotate your world:
 Arches **stack**: standing on Wall A and passing a blue arch drops you onto the ceiling.
 Every wall and the ceiling are walkable surfaces — the room is the puzzle.
 
-## The Campaign — 8 Chambers, then Endless
+## The Campaign — The Academy, The Escape, then Endless
+
+**v6 restructures the campaign into two acts.** The Academy (Lessons I–V) teaches the
+game one skill per chamber with a live on-screen checklist that ticks off each skill as
+the player performs it; The Escape (VI–XV) is the campaign proper — ten unique machines
+that escalate all the way to the Monument.
 
 | # | Difficulty | Chamber | Objective | Par (G/S/B) |
 |---|---|---|---|---|
-| I | ★ | **The Initiation** | Collect 3 orb fragments; the ceiling hatch awakens | 1:00 / 1:35 / 2:40 |
-| II | ★★ | **The Looping Escape** | Break the looping corridor — read the paint that only makes sense upside-down | 1:15 / 1:55 / 3:10 |
-| III | ★★ | **Weight & Gravity** | Carry gravity cubes across planes; seat one on each pressure anchor | 1:30 / 2:20 / 3:50 |
-| IV | ★★★ | **The Switchboard** | Rotate mirror pillars on floor, wall and ceiling; hold the beam on the sensor for 2 s | 1:50 / 2:50 / 4:40 |
-| V | ★★★★ | **The Chrono-Void** | Climb the spire in 90 s while gravity rotates every **16 s** — green zones anchor you | 1:10 / 1:20 / 1:27 |
-| VI | ★★★★ | **The Silent Inversion** | Take 3 energy cores without touching the sweeping sentinel lasers (**+32% speed per core**) | 1:30 / 2:15 / 3:40 |
-| VII | ★★★★ | **The Reversed Chasm** | Cross a bridge that is only solid on the *right* plane; ride the void elevator | 2:00 / 3:05 / 5:10 |
-| VIII | ★★★★★ | **The Monument of Escher** | Sequence lock → laser lock → resonance pad → carry the Core Matrix to the upside-down socket | 2:30 / 3:50 / 6:20 |
-| ✦ IX–X | ★★–★★★ | **The Fractal Well / The Escher Machine** | Seeded procedural vaults (collect 4 sigils) | 1:30 / 2:20 / 3:50 |
-| ✦ XI+ | ★★★–★★★★★ | **The endless vaults** | Generated on demand — sparser platforms, rarer arches, sentinels from depth 3, faster every depth | scales with depth |
+| I | ★ | **First Steps** *(lesson)* | Walk, sprint and jump the causeway; gather 3 shards | 1:00 / 1:35 / 2:30 |
+| II | ★ | **The Sideways Lesson** *(lesson)* | The blue arch — walk the wall, green brings you home | 0:55 / 1:30 / 2:20 |
+| III | ★ | **Up Is A Matter Of Opinion** *(lesson)* | Yellow flips the room over; red leans it the other way | 1:00 / 1:35 / 2:30 |
+| IV | ★★ | **The Anchor** *(lesson)* | Tall green gates, void-hopping stones, wall-to-wall arches | 1:10 / 1:50 / 2:50 |
+| V | ★★ | **The Examination** | The graduation exam: all four arches, fragments on three planes | 1:15 / 1:55 / 3:00 |
+| VI | ★★ | **The Looping Escape** | Break the looping corridor — read the paint that only makes sense upside-down | 1:15 / 1:55 / 3:10 |
+| VII | ★★ | **Weight & Gravity** | Carry gravity cubes across planes; seat one on each pressure anchor | 1:30 / 2:20 / 3:50 |
+| VIII | ★★★ | **The Switchboard** | Rotate mirror pillars on floor, wall and ceiling; hold the beam on the sensor for 2 s | 1:50 / 2:50 / 4:40 |
+| IX | ★★★★ | **The Chrono-Void** | Climb the spire in 90 s while gravity rotates every **16 s** — green zones anchor you | 1:10 / 1:20 / 1:27 |
+| X | ★★★★ | **The Silent Inversion** | Take 3 energy cores without touching the sweeping sentinel lasers (**+32% speed per core**) | 1:30 / 2:15 / 3:40 |
+| XI | ★★★★ | **The Reversed Chasm** | Cross a bridge that is only solid on the *right* plane; ride the void elevator | 2:00 / 3:05 / 5:10 |
+| XII | ★★★★ | **The Clockwork Court** | Ride elevators between the planes; time the vertical sentinel; raid the high perches | 2:10 / 3:10 / 5:00 |
+| XIII | ★★★★★ | **The Hundred-Step Garden** | The floor ends — four plane-locked mazes share one room; tour three planes to cross | 2:30 / 3:40 / 5:40 |
+| XIV | ★★★★★ | **The Escher Trials** | Four trials (sequence · light · weight · sentinels) break the tower's seals | 2:50 / 4:10 / 6:40 |
+| XV | ★★★★★ | **The Monument of Escher** | Sequence lock → laser lock → resonance pad → carry the Core Matrix to the upside-down socket | 2:30 / 3:50 / 6:20 |
+| ✦ XVI–XVII | ★★–★★★ | **The Fractal Well / The Escher Machine** | Seeded procedural vaults (collect 4 sigils) | 1:30 / 2:20 / 3:50 |
+| ✦ XVIII+ | ★★★–★★★★★ | **The endless vaults** | Generated on demand — sparser platforms, rarer arches, sentinels from depth 3, faster every depth | scales with depth |
 
 ## Flow — the Paradox Chain (v5)
 
@@ -96,6 +108,24 @@ only goes up. Cheated runs are flagged **⌁ TAINTED** and never touch records, 
 | Chamber X — nebula rose |
 |---|
 | ![](l10.png) |
+
+### v6 — The Academy
+
+| The new menu (live world shows through) | Chamber select: Academy / Escape / Vaults |
+|---|---|
+| ![](v6-menu.png) | ![](v6-levels.png) |
+
+| Lesson I — the live checklist coaches you | Lesson II — walking the wall |
+|---|---|
+| ![](v6-academy.png) | ![](v6-l2-wall.png) |
+
+| XII The Clockwork Court — brass dusk | XIII The Hundred-Step Garden — dusk |
+|---|---|
+| ![](v6-clockwork.png) | ![](v6-garden.png) |
+
+| XIV The Escher Trials — aurora midnight | The Academy on a phone |
+|---|---|
+| ![](v6-trials.png) | ![](v6-mobile.png) |
 
 | On a phone — virtual stick + touch buttons |
 |---|
@@ -216,7 +246,30 @@ Fall into the void and you awake at the green arch — nothing is lost but time.
 
 ## Changelog
 
-**v5 — Flow & Fury (this release)**
+**v6 — The Academy (this release)**
+- **15 hand-crafted chambers** (was 8): the campaign is now two acts —
+  **The Academy (I–V)** and **The Escape (VI–XV)** — plus the endless vaults from XVI.
+- **The Academy teaches the game.** The first five chambers are lessons: movement & jumping,
+  the blue arch, yellow & red, the green anchor (and the void), then a no-coaching
+  Examination. Each lesson coaches with a **live checklist** at the top of the screen that
+  ticks off skills as you perform them — with sounds, score and haptics per tick.
+- **Three new unique machines:** **XII The Clockwork Court** (ride elevators, time a
+  vertical sentinel), **XIII The Hundred-Step Garden** (four plane-locked mazes in one
+  room — blue/red/yellow fins solid only on their plane), and **XIV The Escher Trials**
+  (a four-trial gauntlet: sequence, light, weight, sentinels — then the tower crown).
+- **UI overhaul:** the menu lets the live 3D world show through, the title sheens, the
+  chamber select is grouped into THE ACADEMY / THE ESCAPE / THE VAULTS with accent-colored
+  cards (stars, best time, medal dot, rank badge, LESSON chips), level cards carry an
+  Academy chip, and the HUD is cleaner with an accent-ruled objective.
+- **Save migration:** veterans keep their records — old chambers I–VIII map to VI–XIII,
+  and the Academy comes pre-unlocked.
+- **New QA guarantee — "the gates all work":** a sweep test warps through **every arch in
+  every chamber** (17 levels × all arches) and demands a gravity event from each.
+- **17 themed worlds** (was 10): five new Academy worlds (spring noon, forest morning,
+  sky garden, calm lagoon, highland dawn) + brass dusk, dusk garden, aurora midnight.
+- QA harness extended to **55 self-tests** — 55/55 desktop and 55/55 touch.
+
+**v5 — Flow & Fury**
 - **The Paradox Chain:** arch passes chain a ×2…×12 multiplier that pays out on everything
   you collect, decays in 12 s, and shatters on death — with tier fanfares (WALKER →
   INVERTED → IMPOSSIBLE → PARADOX → ESCHER), a bottom-center heat meter, floating score
