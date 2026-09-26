@@ -1783,10 +1783,12 @@ const GAME = {
   logicOnly:false,
 };
 let renderer, scene, camera, composer, bloomPass, dirLight, hemiLight, plc;
+let playerBody = null; // v19: first-person viewmodel (legs / hand / bag) parented to camera
 const WORLD = new THREE.Group();     // per-level content root
 scene = new THREE.Scene();
 scene.add(WORLD);
 camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.08, 400);
+scene.add(camera); // v19: camera must be in scene graph for its child viewmodel (playerBody) to render
 
 function initRenderer(){
   try{
@@ -1819,6 +1821,8 @@ function initRenderer(){
   composer.addPass(new OutputPass());
   window.addEventListener('resize', onResize);
   window.addEventListener('orientationchange', ()=>setTimeout(onResize, 160));
+  /* v19: build the first-person viewmodel now that camera + renderer exist */
+  playerBody = new PlayerBody();
 }
 function onResize(){
   camera.aspect = innerWidth/innerHeight;
@@ -4129,6 +4133,220 @@ function hudPulse(){
 }
 
 /* ============================================================
+   8.5. PLAYER BODY — v19 first-person viewmodel
+   Featureless black silhouette parented to the camera: visible legs that
+   swing with the walk cycle, a right hand that reaches forward on pickup,
+   and a mesh bag (lower-left of view) that fills orb-by-orb as fragments
+   are collected. No face — pure silhouette, matching the game's avatar.
+   ============================================================ */
+class PlayerBody{
+  constructor(){
+    this.group = new THREE.Group();
+    camera.add(this.group);
+
+    // Pure-black silhouette material (matches the banner avatar)
+    const silMat = new THREE.MeshStandardMaterial({
+      color: 0x000000, roughness: 0.62, metalness: 0.0, emissive: 0x000000
+    });
+    // Dark canvas for the bag
+    const bagMat = new THREE.MeshStandardMaterial({
+      color: 0x14171f, roughness: 0.88, metalness: 0.0
+    });
+    this._silMat = silMat; this._bagMat = bagMat;
+    // Helper: mark every mesh so it never gets frustum-culled (body is always
+    // in view by design; culling can drop it on edge frames)
+    const _uncull = m => { m.frustumCulled = false; return m; };
+
+    // ---- Legs (visible at bottom of view, swing with bobPhase) ----
+    // Positions tuned for FOV 75: at z=-0.22, visible vertical range is ±0.169,
+    // so y=-0.13 (group) puts the leg-top at screen y≈-0.5 and the shoe bottom
+    // at screen y≈-1.0 — fully visible at the bottom of the screen.
+    this.legs = [];
+    for(let i=0; i<2; i++){
+      const lg = new THREE.Group();
+      const thigh = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.045, 0.038, 0.18, 8), silMat);
+      thigh.position.y = -0.09;
+      lg.add(thigh);
+      const shoe = new THREE.Mesh(
+        new THREE.SphereGeometry(0.055, 10, 7), silMat);
+      shoe.position.set(0, -0.20, 0.05);
+      shoe.scale.set(1.15, 0.55, 1.55);
+      lg.add(shoe);
+      lg.position.set(i===0 ? -0.07 : 0.07, -0.13, -0.22);
+      this.legs.push(lg);
+      this.group.add(lg);
+    }
+
+    // ---- Hood (visible when looking down — smooth silhouette, NO FACE) ----
+    // At default forward look this is off-screen (below). When the player
+    // pitches the camera down ~30°, the hood enters view at screen y≈-0.85.
+    const hood = new THREE.Mesh(
+      new THREE.SphereGeometry(0.12, 14, 10), silMat);
+    hood.position.set(0, -0.35, -0.28);
+    hood.scale.set(1.0, 1.1, 1.15);
+    this.group.add(hood);
+
+    // ---- Mesh bag (LOWER-LEFT of view, slung on left shoulder) ----
+    // At z=-0.35, y=-0.15: screen y ≈ -0.56 (clearly visible lower-left).
+    this.bagGroup = new THREE.Group();
+    this.bagGroup.position.set(-0.22, -0.15, -0.35);
+    this.bagGroup.rotation.y = 0.35;
+    // Strap from shoulder down to bag
+    const strap = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.008, 0.008, 0.22, 6), bagMat);
+    strap.position.set(0.10, 0.13, 0.02);
+    strap.rotation.z = 0.55;
+    this.bagGroup.add(strap);
+    // Sack body
+    const sack = new THREE.Mesh(
+      new THREE.SphereGeometry(0.10, 12, 10), bagMat);
+    sack.scale.set(0.82, 1.05, 0.72);
+    this.bagGroup.add(sack);
+    // Sack opening (torus rim)
+    const rim = new THREE.Mesh(
+      new THREE.TorusGeometry(0.058, 0.012, 6, 12), bagMat);
+    rim.rotation.x = Math.PI/2;
+    rim.position.y = 0.09;
+    this.bagGroup.add(rim);
+    // Mesh pattern hint (crosshatch of thin rings)
+    for(let r=0; r<4; r++){
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(0.05 + r*0.018, 0.0035, 4, 16), bagMat);
+      ring.rotation.x = Math.PI/2;
+      ring.position.y = 0.05 - r*0.04;
+      this.bagGroup.add(ring);
+    }
+    // Collected orbs (hidden, appear as fragments are claimed)
+    this.sackOrbs = [];
+    for(let i=0; i<6; i++){  // cap visible at 6 — beyond that, the bag reads as 'full'
+      const orbMat = new THREE.MeshStandardMaterial({
+        color: 0xffd76a, emissive: 0xffd76a, emissiveIntensity: 1.6,
+        roughness: 0.3, transparent: true, opacity: 0
+      });
+      const orb = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(0.026, 0), orbMat);
+      orb.position.set(
+        (Math.random()-0.5)*0.06,
+        -0.05 - i*0.035,
+        0.01
+      );
+      orb.visible = false;
+      this.sackOrbs.push(orb);
+      this.bagGroup.add(orb);
+    }
+    this.group.add(this.bagGroup);
+
+    // ---- Left arm (holds the bag strap, at lower-left of view) ----
+    this.leftArm = new THREE.Group();
+    const lArm = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.032, 0.032, 0.22, 8), silMat);
+    lArm.position.y = -0.11;
+    this.leftArm.add(lArm);
+    const lHand = new THREE.Mesh(
+      new THREE.SphereGeometry(0.042, 10, 8), silMat);
+    lHand.position.y = -0.22;
+    this.leftArm.add(lHand);
+    this.leftArm.position.set(-0.16, -0.12, -0.30);
+    this.leftArm.rotation.z = 0.55;
+    this.group.add(this.leftArm);
+
+    // ---- Right arm (reaches forward on pickup, lower-right of view) ----
+    this.rightArm = new THREE.Group();
+    const rArm = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.042, 0.038, 0.24, 10), silMat);
+    rArm.position.y = -0.12;
+    this.rightArm.add(rArm);
+    const rHand = new THREE.Mesh(
+      new THREE.SphereGeometry(0.055, 12, 10), silMat);
+    rHand.position.y = -0.24;
+    this.rightArm.add(rHand);
+    this.rightArm.position.set(0.16, -0.12, -0.28);
+    this.rightArm.rotation.z = -0.45;
+    this.group.add(this.rightArm);
+
+      // Animation state
+      this.reachT = 0;            // 0 = rest, 1 = full reach forward
+      this.reachHold = 0;         // brief pause at peak reach
+      this.bagCount = 0;
+      this.time = 0;
+    // Safety: disable frustum culling on every descendant mesh (body is
+    // always in view by design — culling can drop it on edge frames)
+    this.group.traverse(o => { if(o.isMesh) o.frustumCulled = false; });
+    }
+
+    /* Called every frame from updateGame after player.update */
+    update(dt, player){
+      this.time += dt;
+      const moving = (player.vel && player.vel.lengthSq() > 0.04) || player.bobAmp > 0.02;
+
+      // Leg swing — driven by player.bobPhase (already tracked in physics)
+      const swing = moving ? Math.sin(player.bobPhase * 2) * 0.45 : 0;
+      this.legs[0].rotation.x = swing;
+      this.legs[1].rotation.x = -swing;
+      // Subtle knee lift when not grounded (jumping/falling)
+      if(!player.grounded){
+        this.legs[0].rotation.x = -0.5;
+        this.legs[1].rotation.x = -0.3;
+      }
+
+      // Body bob (player.bobAmp follows walking intensity)
+      this.group.position.y = -player.bobAmp * 0.025;
+
+      // Arm sway (counter-swing to legs)
+      const armSway = moving ? Math.sin(player.bobPhase * 2 + Math.PI) * 0.18 : 0;
+      this.leftArm.rotation.x = -armSway;
+      // Right arm: sway minus the reach offset (reach pulls arm forward = -X rotation)
+      this.rightArm.rotation.x = armSway - this.reachT * 1.55;
+      // Slight wrist raise during reach
+      this.rightArm.rotation.z = -0.45 + this.reachT * 0.35;
+
+      // Reach tween — hold briefly at peak, then ease back
+      if(this.reachHold > 0){
+        this.reachHold = Math.max(0, this.reachHold - dt);
+      } else if(this.reachT > 0){
+        this.reachT = Math.max(0, this.reachT - dt * 2.2);
+      }
+
+      // Bag orb visibility + pulsing
+      for(let i=0; i<this.sackOrbs.length; i++){
+        const orb = this.sackOrbs[i];
+        if(i < this.bagCount){
+          orb.visible = true;
+          orb.material.opacity = 0.92 + 0.08 * Math.sin(this.time*4 + i);
+        } else {
+          orb.visible = false;
+          orb.material.opacity = 0;
+        }
+      }
+      // Subtle bag sway during walk
+      this.bagGroup.rotation.z = (moving ? Math.sin(player.bobPhase*2 + 0.5) * 0.10 : 0);
+    }
+
+    /* Trigger the right-hand reach animation (called from Fragment.collect) */
+    triggerReach(){
+      this.reachT = 1;
+      this.reachHold = 0.10;  // 100ms hold at peak
+    }
+
+    /* Add a collected orb to the bag (gold for fragments, purple for cores) */
+    addBagOrb(isCore){
+      if(this.bagCount >= this.sackOrbs.length) return;
+      const orb = this.sackOrbs[this.bagCount];
+      const col = isCore ? 0xa97bff : 0xffd76a;
+      orb.material.color.setHex(col);
+      orb.material.emissive.setHex(col);
+      this.bagCount++;
+    }
+
+    /* Reset the bag to empty (called from startLevel) */
+    resetBag(){
+      this.bagCount = 0;
+      for(const orb of this.sackOrbs){ orb.visible = false; orb.material.opacity = 0; }
+    }
+}
+
+/* ============================================================
    9. ORB FRAGMENTS
    ============================================================ */
 class Fragment{
@@ -4174,6 +4392,11 @@ class Fragment{
     this.mesh.visible=false; this.halo.visible=false; this.light.intensity=0;
     const got=this.L.fragments.filter(f=>f.collected).length;
     SND.fragment(got, this.mesh.position);
+    /* v19: trigger first-person hand reach + bag fill */
+    if(playerBody){
+      playerBody.triggerReach();
+      playerBody.addBagOrb(this.isCore);
+    }
     buzz(14);
     /* v8: one notch louder pickup — 46 particles, a slightly deeper screen
        pulse; the ring + HUD pulse + arpeggio stay as they were (they worked) */
@@ -5267,6 +5490,7 @@ function startLevel(i, opts={}){
   buildMotes(L.bounds);
   player.snapTo(L.spawn.pos, L.spawn.yaw, new THREE.Quaternion());
   player.archCd=0.3;
+  if(playerBody) playerBody.resetBag(); // v19: empty the bag on level load
   GAME.carry=null;
   GAME.levelTime=0;
   GAME.levelStartT=GAME.t;
@@ -5788,6 +6012,7 @@ function updateGame(dt){
   /* systems */
   for(const a of L.arches) a.update(dt, GAME.t);
   if(GAME.state!=='menu') player.update(dt);
+  if(playerBody && GAME.state!=='menu') playerBody.update(dt, player); // v19 viewmodel
   for(const mv of L.movers) mv.update(dt, GAME.t);
   for(const c of L.cubes) c.update(dt);
   for(const f of L.fragments) f.update(dt, GAME.t);
