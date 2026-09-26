@@ -427,12 +427,15 @@ body.touch .touch-only{display:flex}
 #err{z-index:80;background:rgba(6,7,12,.94)}
 #err .panel{max-width:480px;border-color:rgba(255,84,104,.4)}
 
-/* toast (bottom center notices) */
-#toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);z-index:50;
-  font-family:var(--mono);font-size:13px;letter-spacing:.18em;color:var(--ink);
-  background:var(--glass-2);border:1px solid var(--line-2);border-radius:10px;
-  padding:12px 22px;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap}
-#toast.on{opacity:1;transform:translateX(-50%) translateY(-8px)}
+/* toast (v17 instrument notice) */
+#toast{position:fixed;left:50%;bottom:max(100px, calc(88px + env(safe-area-inset-bottom)));
+  transform:translateX(-50%) translateY(6px);z-index:50;
+  font-family:var(--mono);font-size:12px;letter-spacing:.16em;color:var(--ink);
+  background:rgba(8,10,16,.92);border:1px solid var(--line-2);border-radius:var(--radius);
+  padding:12px 20px;opacity:0;transition:opacity .28s,transform .28s;pointer-events:none;
+  max-width:min(92vw,420px);text-align:center;white-space:normal;line-height:1.45;
+  box-shadow:0 16px 48px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.03)}
+#toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
 #toast b{color:var(--gold)}
 #toast.red b{color:var(--red)}
 
@@ -539,12 +542,12 @@ body.touch .ctl-grid kbd{display:none}
   #hud-obj{font-size:16px}
 }
 
-/* ============ v5 FLOW — paradox chain meter ============ */
-#chain{position:fixed;left:50%;bottom:calc(30px + env(safe-area-inset-bottom,0px));
+/* ============ paradox chain meter (v17 instrument) ============ */
+#chain{position:fixed;left:50%;bottom:calc(28px + env(safe-area-inset-bottom,0px));
   transform:translateX(-50%);z-index:15;display:flex;align-items:center;gap:12px;
-  background:var(--glass);border:1px solid var(--line);border-radius:999px;
-  padding:9px 20px;backdrop-filter:blur(8px);opacity:0;transition:opacity .25s;
-  pointer-events:none;box-shadow:0 10px 34px rgba(0,0,0,.45)}
+  background:rgba(8,10,16,.82);border:1px solid var(--line);border-radius:var(--radius);
+  padding:10px 18px;backdrop-filter:blur(10px);opacity:0;transition:opacity .25s;
+  pointer-events:none;box-shadow:0 12px 40px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.03)}
 #chain.on{opacity:1}
 #chain.pop{animation:chainPop .32s cubic-bezier(.2,1.4,.4,1)}
 @keyframes chainPop{0%{transform:translateX(-50%) scale(1.22)}100%{transform:translateX(-50%) scale(1)}}
@@ -783,6 +786,29 @@ body.touch #pause .pl-note{display:none}
   .big-title{font-size:clamp(28px,9vw,40px)}
 }
 
+
+/* ============ v17 HUD instrument pass ============ */
+#hud{padding:0}
+.hud-tl{top:max(14px, env(safe-area-inset-top));left:max(14px, env(safe-area-inset-left));
+  max-width:min(360px, 56vw)}
+.hud-tr{top:max(14px, env(safe-area-inset-top));right:max(14px, env(safe-area-inset-right))}
+.hud-bl{bottom:max(14px, env(safe-area-inset-bottom));left:max(14px, env(safe-area-inset-left))}
+.hud-br{bottom:max(14px, env(safe-area-inset-bottom));right:max(14px, env(safe-area-inset-right));
+  background:linear-gradient(270deg,rgba(8,10,16,.5),transparent);
+  padding:8px 10px;border-radius:var(--radius)}
+#hud-level{letter-spacing:.28em}
+#hud-obj{font-size:clamp(16px,2.4vw,20px)}
+#lesson-checklist{border-radius:var(--radius)!important;
+  background:rgba(8,10,16,.78)!important;border:1px solid var(--line)!important}
+body.touch .hud-tl{max-width:min(280px,70vw)}
+body.touch .hud-br{font-size:11px}
+@media (max-width:420px){
+  .hud-tl{max-width:min(220px,62vw);padding:8px 10px}
+  #hud-obj{font-size:15px}
+  #compass{padding:8px 10px;gap:8px}
+  #compass .dial{width:42px;height:42px}
+}
+
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -794,7 +820,7 @@ body.touch #pause .pl-note{display:none}
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V16</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V17</span>
   <div class="menu-plate">
     <div class="kicker">AN ESCHER GRAVITY PUZZLE</div>
     <h1>The Impossible Room</h1>
