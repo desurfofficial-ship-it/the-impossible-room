@@ -7437,7 +7437,13 @@ function setupMenu(){
     DOM.vignette.style.opacity=0; toMenu(); };
   /* pointer lock plumbing (desktop only — touch mode never locks) */
   addEventListener('click', ()=>{
-    if(!IS_TOUCH && GAME.state==='playing' && plc && !plc.isLocked && !GAME.qa) plc.lock();
+    if(GAME.state==='playing') lockPointer();
+  });
+  /* browsers may reject a lock request (no gesture, raced with Esc, document
+     hidden) — swallow those rejections so nothing hits the console as an error */
+  addEventListener('unhandledrejection', e=>{
+    const m=String((e.reason&&e.reason.message)||e.reason||'');
+    if(/pointer lock/i.test(m)) e.preventDefault();
   });
   document.addEventListener('pointerlockchange', ()=>{
     if(!plc || IS_TOUCH) return;
@@ -7452,10 +7458,16 @@ function setupMenu(){
     }
   });
 }
+/* single funnel for every lock request: never during QA (the bot steers
+   directly), never on touch, never twice, and never an uncaught rejection */
+function lockPointer(){
+  if(IS_TOUCH || GAME.qa || !plc || plc.isLocked || GAME.state!=='playing') return;
+  try{ const r=plc.lock(); if(r && r.catch) r.catch(()=>{}); }catch(e){}
+}
 function resumeGame(){
   hideScreen(DOM.pause);
   GAME.state='playing';
-  if(!IS_TOUCH && plc && !plc.isLocked) plc.lock();
+  lockPointer();
 }
 function enterGame(i){
   DOM.menu.classList.add('hidden');
@@ -7469,7 +7481,7 @@ function enterGame(i){
     document.documentElement.requestFullscreen().catch(()=>{});
   }
   startLevel(i);
-  if(!IS_TOUCH && plc && !plc.isLocked) plc.lock();
+  lockPointer();
 }
 function toMenu(){
   DOM.menu.classList.remove('hidden');
