@@ -460,20 +460,21 @@ body.touch .touch-only{display:flex}
   text-shadow:0 0 12px rgba(255,158,224,.6)}
 #cheat-tag.on{opacity:1}
 #tb-cheat{top:calc(14px + env(safe-area-inset-top,0px));
-  right:calc(64px + env(safe-area-inset-right,0px));width:44px;height:44px;font-size:17px;
-  border-color:rgba(255,158,224,.5);color:#ff9ee0}
+  right:calc(70px + env(safe-area-inset-right,0px));width:44px;height:44px;font-size:17px;
+  border-color:rgba(255,158,224,.5);color:#ff9ee0;display:none}
+body.touch.cheats #tb-cheat{display:flex}
 body:not(.touch) #tb-cheat{display:none}
 
 /* ============ TOUCH CONTROLS ============ */
 #touchui{position:fixed;inset:0;z-index:12;display:none;touch-action:none}
 body.touch #touchui.on{display:block}
-#joy-base{position:fixed;left:-300px;top:-300px;width:124px;height:124px;
-  margin:-62px 0 0 -62px;border-radius:50%;pointer-events:none;opacity:0;
+#joy-base{position:fixed;left:-300px;top:-300px;width:132px;height:132px;
+  margin:-66px 0 0 -66px;border-radius:50%;pointer-events:none;opacity:0;
   border:1.5px solid rgba(255,255,255,.28);
   background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.10),rgba(255,255,255,.02) 72%);
   transition:opacity .16s}
 #joy-base.live{opacity:1}
-#joy-stick{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;
+#joy-stick{position:absolute;left:50%;top:50%;width:58px;height:58px;margin:-29px 0 0 -29px;
   border-radius:50%;pointer-events:none;
   background:rgba(57,213,200,.28);border:1.5px solid rgba(57,213,200,.75);
   box-shadow:0 0 22px rgba(57,213,200,.35)}
@@ -483,14 +484,15 @@ body.touch #touchui.on{display:block}
   font-family:var(--mono);letter-spacing:.08em;touch-action:none;
   -webkit-user-select:none;user-select:none}
 .tbtn:active{transform:scale(.9);border-color:var(--accent);color:#bffef7}
-#tb-jump{right:calc(24px + env(safe-area-inset-right,0px));
-  bottom:calc(106px + env(safe-area-inset-bottom,0px));width:88px;height:88px;font-size:13px}
-#tb-use{right:calc(128px + env(safe-area-inset-right,0px));
-  bottom:calc(176px + env(safe-area-inset-bottom,0px));width:68px;height:68px;font-size:11px;
-  border-color:rgba(232,193,90,.55);color:var(--gold)}
+#tb-jump{right:calc(18px + env(safe-area-inset-right,0px));
+  bottom:calc(100px + env(safe-area-inset-bottom,0px));width:100px;height:100px;font-size:14px;
+  font-weight:700;letter-spacing:.12em}
+#tb-use{right:calc(130px + env(safe-area-inset-right,0px));
+  bottom:calc(172px + env(safe-area-inset-bottom,0px));width:78px;height:78px;font-size:12px;
+  border-color:rgba(232,193,90,.55);color:var(--gold);font-weight:700}
 #tb-use.hot{border-color:var(--gold);box-shadow:0 0 26px rgba(232,193,90,.4);color:#ffe9ad}
 #tb-pause{top:calc(14px + env(safe-area-inset-top,0px));
-  right:calc(14px + env(safe-area-inset-right,0px));width:44px;height:44px;font-size:15px}
+  right:calc(14px + env(safe-area-inset-right,0px));width:48px;height:48px;font-size:15px}
 /* touch HUD shuffles: keep stats clear of thumbs */
 body.touch .hud-tl{top:calc(14px + env(safe-area-inset-top,0px));left:16px;max-width:215px}
 body.touch .hud-tr{top:calc(14px + env(safe-area-inset-top,0px));
@@ -500,7 +502,7 @@ body.touch .hud-br{bottom:auto;top:calc(120px + env(safe-area-inset-top,0px));ri
 body.touch #hud-module{min-width:150px;padding:9px 12px}
 body.touch .mod-big{font-size:21px}
 body.touch #compass{padding:8px 12px;gap:9px}
-body.touch #toast{bottom:calc(244px + env(safe-area-inset-bottom,0px));font-size:11px}
+body.touch #toast{bottom:calc(250px + env(safe-area-inset-bottom,0px));font-size:11px}
 body.touch #prompt b{display:none}
 body.touch #prompt{top:calc(50% + 46px);font-size:11px}
 body.touch #hud-obj{font-size:15px}
@@ -509,10 +511,15 @@ body.touch .ctl-grid kbd{display:none}
 /* rotate hint (portrait phones) */
 #rotate-tip{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:50%;
   transform:translateX(-50%);z-index:44;display:none;align-items:center;gap:8px;
-  font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--ink-dim);
-  background:var(--glass);border:1px solid var(--line);border-radius:999px;
-  padding:8px 16px;pointer-events:none;white-space:nowrap}
+  font-family:var(--mono);font-size:11px;letter-spacing:.18em;color:var(--ink);
+  background:rgba(8,10,16,.92);border:1px solid rgba(196,163,90,.45);border-radius:var(--radius);
+  padding:10px 16px;pointer-events:none;white-space:nowrap;
+  box-shadow:0 12px 40px rgba(0,0,0,.5)}
 @media (orientation:portrait){ body.touch #rotate-tip{display:flex} }
+@media (orientation:portrait) and (max-width:420px){
+  body.touch #rotate-tip{font-size:10px;letter-spacing:.12em;padding:8px 12px;white-space:normal;
+    max-width:92vw;text-align:center;line-height:1.4}
+}
 
 @media (max-width:720px){
   .lvl-grid{grid-template-columns:repeat(3,1fr)}
@@ -536,10 +543,11 @@ body.touch .ctl-grid kbd{display:none}
 
 /* mobile-first: bigger action buttons on compact phones */
 @media (max-width:420px){
-  #tb-jump{width:96px;height:96px;font-size:14px}
-  #tb-use{width:74px;height:74px}
-  body.touch .hud-tl{max-width:170px}
-  #hud-obj{font-size:16px}
+  #tb-jump{width:104px;height:104px;font-size:14px}
+  #tb-use{width:82px;height:82px;font-size:12px}
+  #tb-pause{width:48px;height:48px}
+  body.touch .hud-tl{max-width:160px}
+  #hud-obj{font-size:15px}
 }
 
 /* ============ paradox chain meter (v17 instrument) ============ */
@@ -571,11 +579,11 @@ body.touch .ctl-grid kbd{display:none}
 #chain.shielded #chain-fill{background:#54e08a !important;box-shadow:0 0 12px rgba(84,224,138,.9)}
 #chain.shielded #chain-tier{color:#54e08a}
 #chain.shielded #chain-bar{box-shadow:0 0 10px rgba(84,224,138,.55)}
-body.touch #chain{bottom:calc(258px + env(safe-area-inset-bottom,0px));padding:7px 16px;
+body.touch #chain{bottom:calc(230px + env(safe-area-inset-bottom,0px));padding:8px 14px;
   gap:9px}
 body.touch #chain-mult{font-size:18px;min-width:36px}
 body.touch #chain-bar{width:64px}
-@media (max-height:560px){ body.touch #chain{bottom:calc(210px + env(safe-area-inset-bottom,0px))} }
+@media (max-height:560px){ body.touch #chain{bottom:calc(230px + env(safe-area-inset-bottom,0px))} }
 
 /* score HUD line */
 #hud-score{font-family:var(--mono);font-size:12px;color:var(--gold);letter-spacing:.06em;
@@ -820,7 +828,7 @@ body.touch .hud-br{font-size:11px}
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V18</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V19</span>
   <div class="menu-plate">
     <div class="kicker">AN ESCHER GRAVITY PUZZLE</div>
     <h1>The Impossible Room</h1>
@@ -987,7 +995,7 @@ body.touch .hud-br{font-size:11px}
   <div class="tbtn" id="tb-pause">II</div>
   <div class="tbtn" id="tb-cheat">⌁</div>
 </div>
-<div id="rotate-tip">ROTATE FOR A WIDER ROOM</div>
+<div id="rotate-tip">ROTATE TO LANDSCAPE — THE ROOM NEEDS WIDTH</div>
 
 <!-- ===================== CHEAT CONSOLE ===================== -->
 <div id="cheatbar">
@@ -1126,7 +1134,7 @@ const _touchQ = new URLSearchParams(location.search).get('touch');
 const IS_TOUCH = _touchQ!==null ? _touchQ==='1'
   : (matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window
      || (navigator.maxTouchPoints||0) > 0);
-const PIX_CAP = IS_TOUCH ? 1.6 : 1.75;   // device-pixel-ratio ceiling per platform
+const PIX_CAP = IS_TOUCH ? 1.5 : 1.75;   // device-pixel-ratio ceiling per platform
 let BASE_FOV = 75;                        // widened on narrow / portrait viewports
 if(IS_TOUCH) document.body.classList.add('touch');
 
@@ -7714,6 +7722,7 @@ function setupCheats(){
   const open=(v)=>{
     CHEATS.barOpen=v;
     bar.classList.toggle('on', v);
+    document.body.classList.toggle('cheats', !!v || CHEATS.god || CHEATS.noclip);
     if(v){ input.value=''; setTimeout(()=>input.focus(), 30); }
     else{ input.blur(); }
   };
@@ -8080,9 +8089,10 @@ function loop(){
     /* adaptive quality — touch only, never in QA (deterministic frames) */
     if(IS_TOUCH && GAME.state==='playing' && ADAPT.stage<2){
       ADAPT.t+=dt;
-      if(ADAPT.t>4){
+      if(ADAPT.t>3.2){
         ADAPT.t=0;
-        if(FPS.avg<44 && ADAPT.checked<3){ ADAPT.stage++; applyAdaptStage(); }
+        /* v19: step down sooner on phones — keep the puzzle readable, not pretty */
+        if(FPS.avg<48 && ADAPT.checked<4){ ADAPT.stage++; applyAdaptStage(); }
       }
     }
     if(GAME.state==='paused'){ PARTS.update(dt); updateFade(dt); render(); return; }
