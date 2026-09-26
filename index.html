@@ -9,12 +9,24 @@
 <meta name="theme-color" content="#05060a">
 <title>The Impossible Room — A Gravity Escape</title>
 <meta name="description" content="A walkable M.C. Escher atrium. Learn the four gravities in The Academy, then escape fifteen impossible chambers — and the endless vaults beyond.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="The Impossible Room — A Gravity Escape">
+<meta property="og:description" content="Bend gravity through colored arches. Collect the shards. Chase the S rank. Fifteen chambers + endless vaults. Free in the browser.">
+<meta property="og:url" content="https://desurfofficial-ship-it.github.io/the-impossible-room/">
+<meta property="og:image" content="https://desurfofficial-ship-it.github.io/the-impossible-room/banner.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The Impossible Room — A Gravity Escape">
+<meta name="twitter:description" content="Bend gravity through colored arches. Collect the shards. Chase the S rank. Free in the browser.">
+<meta name="twitter:image" content="https://desurfofficial-ship-it.github.io/the-impossible-room/banner.png">
+<link rel="canonical" href="https://desurfofficial-ship-it.github.io/the-impossible-room/">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!--
   ============================================================================
-  THE IMPOSSIBLE ROOM — production build (v9 "Release polish")
+  THE IMPOSSIBLE ROOM — production build (v10 "Ship ready")
   ----------------------------------------------------------------------------
   Single-file, self-contained WebGL game (Three.js r170 via UNPKG CDN).
   Engine highlights:
@@ -599,7 +611,7 @@ body.touch #chain-bar{width:64px}
 
 <!-- ===================== MAIN MENU ===================== -->
 <div id="menu" class="screen">
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V9</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V10</span>
   <div class="kicker">AN ESCHER GRAVITY PUZZLE</div>
   <h1>The Impossible Room<span class="narrow">FIFTEEN CHAMBERS · FOUR GRAVITIES · ONE EXIT</span></h1>
   <div class="arch-legend">
@@ -797,6 +809,7 @@ body.touch #chain-bar{width:64px}
   <div class="btn-row">
     <button id="btn-next" class="primary">NEXT CHAMBER</button>
     <button id="btn-replay">REPLAY</button>
+    <button id="btn-share" class="hidden">SHARE RUN</button>
     <button id="btn-bonus" class="hidden">BONUS CHAMBERS</button>
     <button id="btn-vmenu">MENU</button>
   </div>
@@ -989,7 +1002,7 @@ const DOM = {
   chainFill:$('chain-fill'), hudScore:$('hud-score'), popups:$('popups'),
   menuStats:$('menu-stats'),
   tut:$('tut'), tutTitle:$('tut-title'), tutList:$('tut-list'),
-  btnNext:$('btn-next'), btnReplay:$('btn-replay'), btnBonus:$('btn-bonus'),
+  btnNext:$('btn-next'), btnShare:$('btn-share'), btnReplay:$('btn-replay'), btnBonus:$('btn-bonus'),
   fTitle:$('f-title'), fSub:$('f-sub')
 };
 
@@ -3136,7 +3149,8 @@ const player=new Player();
 
 /* camera shake helper */
 let shakeT=0, shakeAmp=0;
-function shake(a){ shakeAmp=Math.max(shakeAmp,a); shakeT=0.35; }
+const REDUCE_MOTION = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+function shake(a){ if(REDUCE_MOTION) return; shakeAmp=Math.max(shakeAmp,a); shakeT=0.35; }
 function applyShake(dt){
   if(shakeAmp<=0.001){ DOM.shake.style.opacity=0; return; }
   shakeT-=dt; if(shakeT<=0){ shakeAmp=0; DOM.shake.style.opacity=0; return; }
@@ -5053,6 +5067,21 @@ function levelComplete(){
   }else DOM.vRankHint.innerHTML='';
   DOM.btnNext.classList.toggle('hidden', last);
   DOM.btnNext.textContent=isDaily?'BACK TO THE VAULTS':(endless?'DESCEND DEEPER':'NEXT CHAMBER');
+  /* v10: share a clean summary of strong runs */
+  if(DOM.btnShare){
+    const shareable = !tainted && rank && (rank==='S' || rank==='A');
+    DOM.btnShare.classList.toggle('hidden', !shareable);
+    if(shareable){
+      const peakTier=tierFor(FLOW.peak);
+      const peakName=peakTier>=0?TIERS[peakTier].name:'';
+      DOM.btnShare.dataset.share =
+        `The Impossible Room — ${LEVELS[GAME.levelIndex].name}\n`+
+        `${RANK_INFO[rank].name} · ${fmtRace(t)}`+(medal?` · ${medal}`:'')+
+        (FLOW.peak?` · Peak ×${FLOW.peak}`+(peakName?' '+peakName:''):'')+
+        `\nhttps://desurfofficial-ship-it.github.io/the-impossible-room/`;
+    }
+  }
+
   DOM.btnBonus.classList.toggle('hidden', !(finale&&LEVELS.length>CAMPAIGN_N));
   showScreen(DOM.victory);
   if(plc && plc.isLocked) plc.unlock();
@@ -7892,6 +7921,19 @@ function setupMenu(){
     const nxt=GAME.levelIndex+1;
     if(nxt>=LEVELS.length){ toMenu(); return; }
     enterGame(nxt); };
+  $('btn-share').onclick=()=>{
+    const msg=DOM.btnShare.dataset.share||'The Impossible Room — https://desurfofficial-ship-it.github.io/the-impossible-room/';
+    const done=()=>{ toast('<b>COPIED</b> — RUN SUMMARY IN CLIPBOARD', 2200); SND.uiClick(); };
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(msg).then(done).catch(()=>{
+        try{ const ta=document.createElement('textarea'); ta.value=msg; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }
+        catch(e){ toast('Could not copy', 1800); }
+      });
+    }else{
+      try{ const ta=document.createElement('textarea'); ta.value=msg; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }
+      catch(e){ toast('Could not copy', 1800); }
+    }
+  };
   $('btn-replay').onclick=()=>{ SND.uiClick(); hideScreen(DOM.victory);
     DOM.vignette.style.opacity=0; enterGame(GAME.levelIndex); };
   $('btn-bonus').onclick=()=>{ SND.uiClick(); hideScreen(DOM.victory);
