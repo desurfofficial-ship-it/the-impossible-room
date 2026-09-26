@@ -6,7 +6,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#05060a">
+<meta name="theme-color" content="#07080c">
 <title>The Impossible Room — A Gravity Escape</title>
 <meta name="description" content="A walkable M.C. Escher atrium. Learn the four gravities in The Academy, then escape fifteen impossible chambers — and the endless vaults beyond.">
 <meta property="og:type" content="website">
@@ -54,17 +54,20 @@
 -->
 <style>
 :root{
-  --ink:#e8ecf4; --ink-dim:#9aa3b5; --ink-faint:#5d6577;
-  --glass:rgba(13,16,24,.62); --glass-2:rgba(13,16,24,.82);
-  --line:rgba(255,255,255,.10); --line-2:rgba(255,255,255,.22);
-  --accent:#39d5c8; --gold:#e8c15a; --red:#ff5468; --blue:#4da3ff;
-  --green:#54e08a; --violet:#a97bff;
+  /* v14: palette drawn from the atrium — void stone, brass, four gravity planes */
+  --ink:#e6e2d8; --ink-dim:#9a9488; --ink-faint:#5c574e;
+  --void:#07080c; --stone:#12141c; --stone-2:#1a1d28;
+  --glass:rgba(12,14,20,.78); --glass-2:rgba(8,10,16,.92);
+  --line:rgba(232,226,216,.10); --line-2:rgba(232,226,216,.20);
+  --brass:#c4a35a; --accent:#5ec8c0; --gold:#e8c15a;
+  --red:#ff5468; --blue:#4da3ff; --green:#54e08a; --violet:#a97bff; --magenta:#ff9ee0;
   --mono:ui-monospace,"Cascadia Mono","JetBrains Mono",Menlo,Consolas,monospace;
   --serif:"Iowan Old Style",Palatino,"Palatino Linotype","Book Antiqua",Georgia,serif;
   --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --radius:4px;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;background:#05060a;color:var(--ink);
+html,body{width:100%;height:100%;overflow:hidden;background:var(--void);color:var(--ink);
   font-family:var(--sans);-webkit-user-select:none;user-select:none;
   touch-action:none;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
 canvas{display:block;position:fixed;inset:0}
@@ -77,117 +80,157 @@ kbd{font-family:var(--mono);font-size:.78em;background:rgba(255,255,255,.08);
 /* ============ generic overlay plumbing ============ */
 .ui{position:fixed;inset:0;z-index:10}
 .screen{position:fixed;inset:0;z-index:20;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:22px;
-  background:radial-gradient(120% 90% at 50% 10%,rgba(10,14,26,.25),rgba(4,5,10,.88));
-  backdrop-filter:blur(3px);transition:opacity .45s ease}
+  align-items:center;justify-content:center;gap:18px;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%,rgba(94,200,192,.06),transparent 55%),
+    radial-gradient(ellipse 70% 60% at 50% 100%,rgba(8,10,16,.95),rgba(4,5,10,.92)),
+    linear-gradient(180deg,rgba(7,8,12,.55),rgba(7,8,12,.82));
+  backdrop-filter:blur(2px);transition:opacity .45s ease}
 .screen.off{opacity:0;pointer-events:none}
-.panel{background:var(--glass);border:1px solid var(--line);border-radius:16px;
-  padding:26px 30px;box-shadow:0 24px 70px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
-  backdrop-filter:blur(12px)}
-button{font-family:var(--sans);cursor:pointer;border:1px solid var(--line-2);
-  background:rgba(255,255,255,.05);color:var(--ink);border-radius:11px;
-  padding:12px 24px;font-size:14.5px;font-weight:600;letter-spacing:.08em;
-  text-transform:uppercase;transition:all .16s ease}
-button:hover{background:rgba(255,255,255,.12);border-color:var(--accent);
-  transform:translateY(-1px);box-shadow:0 6px 22px rgba(57,213,200,.18)}
-button:active{transform:translateY(0)}
-button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-button.primary{border-color:rgba(57,213,200,.7);color:#bffef7;
-  background:linear-gradient(180deg,rgba(57,213,200,.22),rgba(57,213,200,.06));
-  font-weight:700;box-shadow:0 4px 24px rgba(57,213,200,.16)}
-button.primary:hover{box-shadow:0 10px 34px rgba(57,213,200,.4);
-  background:linear-gradient(180deg,rgba(57,213,200,.3),rgba(57,213,200,.08))}
-button:disabled{opacity:.32;cursor:not-allowed;transform:none;box-shadow:none}
-.btn-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.panel{background:var(--glass-2);border:1px solid var(--line);
+  border-radius:var(--radius);padding:24px 28px;
+  box-shadow:0 28px 80px rgba(0,0,0,.65), inset 0 0 0 1px rgba(255,255,255,.03);
+  backdrop-filter:blur(14px);
+  position:relative}
+.panel::before,.panel::after{content:'';position:absolute;width:14px;height:14px;
+  border-color:var(--brass);border-style:solid;opacity:.55;pointer-events:none}
+.panel::before{top:8px;left:8px;border-width:1px 0 0 1px}
+.panel::after{bottom:8px;right:8px;border-width:0 1px 1px 0}
+button{font-family:var(--mono);cursor:pointer;border:1px solid var(--line-2);
+  background:var(--stone);color:var(--ink);border-radius:var(--radius);
+  padding:13px 22px;font-size:12px;font-weight:600;letter-spacing:.18em;
+  text-transform:uppercase;transition:border-color .15s,background .15s,color .15s,box-shadow .15s;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+button:hover{background:var(--stone-2);border-color:var(--brass);color:#fff;
+  box-shadow:0 0 0 1px rgba(196,163,90,.15), inset 0 1px 0 rgba(255,255,255,.06)}
+button:active{background:#0c0e14}
+button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+button.primary{
+  border-color:rgba(94,200,192,.55);color:#d4fffb;
+  background:linear-gradient(180deg,rgba(94,200,192,.18),rgba(18,22,30,.9));
+  letter-spacing:.22em;font-weight:700;
+  box-shadow:0 0 24px rgba(94,200,192,.12), inset 0 1px 0 rgba(94,200,192,.2)}
+button.primary:hover{
+  border-color:rgba(94,200,192,.9);color:#fff;
+  box-shadow:0 0 36px rgba(94,200,192,.28), inset 0 1px 0 rgba(94,200,192,.35)}
+button.daily{border-color:rgba(255,158,224,.4);color:#ffd6f0}
+button.daily:hover{border-color:rgba(255,158,224,.8);box-shadow:0 0 20px rgba(255,158,224,.2)}
+button:disabled{opacity:.32;cursor:not-allowed;box-shadow:none}
+.btn-row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 
-/* ============ main menu (v6 — the live world shows through) ============ */
-#menu{z-index:30;
-  background:linear-gradient(180deg,rgba(4,6,12,.82) 0%,rgba(4,6,12,.38) 34%,
-    rgba(4,6,12,.5) 62%,rgba(4,6,12,.9) 100%);
-  backdrop-filter:blur(2px)}
-#menu .kicker{font-family:var(--mono);font-size:12px;letter-spacing:.5em;
-  color:var(--ink-dim);text-transform:uppercase}
+/* ============ main menu (v14 — the room's own language) ============ */
+#menu{z-index:30;gap:0;padding:clamp(16px,4vh,40px) 16px}
+#menu .room-frame{position:absolute;inset:18px;pointer-events:none;z-index:0}
+#menu .rf{position:absolute;width:28px;height:28px;border-style:solid;border-color:transparent}
+#menu .rf-tl{top:0;left:0;border-width:2px 0 0 2px;border-color:var(--blue)}
+#menu .rf-tr{top:0;right:0;border-width:2px 2px 0 0;border-color:var(--red)}
+#menu .rf-bl{bottom:0;left:0;border-width:0 0 2px 2px;border-color:var(--green)}
+#menu .rf-br{bottom:0;right:0;border-width:0 2px 2px 0;border-color:var(--gold)}
+#menu .rf-rail{position:absolute;left:40px;right:40px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(232,226,216,.12),transparent)}
+#menu .rf-top{top:13px} #menu .rf-bot{bottom:13px}
+#menu .menu-version{position:absolute;top:28px;right:36px;z-index:2;
+  font-family:var(--mono);font-size:9px;letter-spacing:.28em;color:var(--ink-faint);
+  border:1px solid var(--line);padding:6px 10px;border-radius:var(--radius);
+  background:rgba(8,10,16,.55)}
+#menu .menu-plate{position:relative;z-index:1;display:flex;flex-direction:column;
+  align-items:center;gap:18px;max-width:720px;width:100%;
+  padding:clamp(28px,5vh,48px) clamp(18px,4vw,40px);
+  background:linear-gradient(180deg,rgba(18,20,28,.72),rgba(10,12,18,.88));
+  border:1px solid var(--line);
+  box-shadow:0 40px 100px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.04)}
+#menu .kicker{font-family:var(--mono);font-size:11px;letter-spacing:.48em;
+  color:var(--brass);text-transform:uppercase}
 #menu h1{font-family:var(--serif);font-style:italic;font-weight:600;
-  font-size:clamp(40px,7vw,84px);line-height:1.02;text-align:center;
-  background:linear-gradient(115deg,#ffffff 25%,#9ff2ea 45%,#39d5c8 60%,#ffffff 80%);
-  background-size:220% 100%;
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-  filter:drop-shadow(0 0 34px rgba(57,213,200,.28));
-  animation:titleSheen 9s ease-in-out infinite}
-@keyframes titleSheen{0%,100%{background-position:0% 0}50%{background-position:100% 0}}
-#menu h1 .narrow{display:block;font-size:.4em;letter-spacing:.34em;
-  font-style:normal;font-family:var(--mono);font-weight:400;color:var(--ink-dim);
-  -webkit-text-fill-color:var(--ink-dim);margin-top:14px}
-#menu .tag{color:var(--ink-dim);font-size:15px;max-width:560px;text-align:center;
-  line-height:1.55}
-.arch-legend{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
-.arch-chip{display:flex;align-items:center;gap:8px;font-family:var(--mono);
-  font-size:11px;letter-spacing:.12em;padding:7px 13px;border-radius:999px;
-  border:1px solid var(--line);background:rgba(10,14,22,.55);backdrop-filter:blur(6px)}
-.arch-chip i{width:10px;height:10px;border-radius:50%;display:inline-block;
-  box-shadow:0 0 12px 2px currentColor}
+  font-size:clamp(42px,7.2vw,86px);line-height:.98;text-align:center;
+  color:#f2eee6;text-shadow:0 2px 40px rgba(0,0,0,.8),0 0 60px rgba(94,200,192,.12);
+  margin:0}
+#menu .title-rule{display:flex;width:min(320px,70%);height:3px;gap:0;margin:2px 0 4px}
+#menu .title-rule span{flex:1}
+#menu .tr-blue{background:var(--blue)} #menu .tr-red{background:var(--red)}
+#menu .tr-yellow{background:var(--gold)} #menu .tr-green{background:var(--green)}
+#menu .narrow{font-family:var(--mono);font-size:11px;letter-spacing:.34em;
+  color:var(--ink-dim);text-align:center}
+#menu .tag{color:var(--ink-dim);font-size:14px;max-width:520px;text-align:center;
+  line-height:1.65;font-family:var(--serif);font-style:italic}
+.arch-legend{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;width:100%;max-width:560px}
+.arch-chip{display:flex;flex-direction:column;align-items:center;gap:4px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  padding:12px 8px 10px;border-radius:var(--radius);
+  border:1px solid var(--line);background:rgba(8,10,16,.65);
+  text-align:center}
+.arch-chip b{font-weight:700;letter-spacing:.2em;font-size:11px}
+.arch-chip em{font-style:normal;color:var(--ink-faint);font-size:9px;letter-spacing:.16em}
+.arch-chip i{width:12px;height:12px;border-radius:50%;display:inline-block;
+  box-shadow:0 0 14px 2px currentColor;margin-bottom:2px}
 /* v11 colorblind-safe markers: shape + color */
 .arch-chip i.shape-blue{border-radius:50%}
 .arch-chip i.shape-red{border-radius:2px}
 .arch-chip i.shape-yellow{
   width:0;height:0;border-radius:0;background:transparent!important;
-  border-left:6px solid transparent;border-right:6px solid transparent;
-  border-bottom:11px solid currentColor;box-shadow:none}
+  border-left:7px solid transparent;border-right:7px solid transparent;
+  border-bottom:12px solid currentColor;box-shadow:none}
 .arch-chip i.shape-green{
-  width:9px;height:9px;border-radius:1px;transform:rotate(45deg);
-  box-shadow:0 0 10px 1px currentColor}
-#menu .foot{position:absolute;bottom:26px;font-family:var(--mono);font-size:11px;
-  color:var(--ink-faint);letter-spacing:.2em}
-#menu .menu-version{position:absolute;top:22px;right:26px;font-family:var(--mono);
-  font-size:10px;letter-spacing:.28em;color:var(--ink-faint);
-  border:1px solid var(--line);border-radius:999px;padding:6px 12px;
-  background:rgba(10,14,22,.5);backdrop-filter:blur(6px)}
+  width:10px;height:10px;border-radius:1px;transform:rotate(45deg);
+  box-shadow:0 0 12px 1px currentColor}
+#menu .menu-actions{margin-top:4px}
+#menu .menu-actions .primary{min-width:min(100%,280px);padding:16px 28px;font-size:13px}
+#menu-stats{font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  color:var(--ink-faint);text-align:center;line-height:1.7;min-height:1.2em}
+#menu .foot{position:absolute;bottom:22px;left:0;right:0;text-align:center;
+  font-family:var(--mono);font-size:9px;letter-spacing:.28em;color:var(--ink-faint);z-index:1}
+@media (max-width:640px){
+  .arch-legend{grid-template-columns:repeat(2,1fr)}
+  #menu .room-frame{inset:10px}
+  #menu .menu-version{top:16px;right:16px;font-size:8px;padding:4px 8px}
+}
 
-/* level select grid (v6 — Academy / Escape / Vault sections) */
-#levels{max-width:820px}
+/* level select grid (v14 — chamber plaques) */
+#levels{max-width:860px;width:min(860px,94vw)}
+#levels .h2{margin-bottom:4px}
 .grid-h{grid-column:1/-1;font-family:var(--mono);font-size:10px;letter-spacing:.34em;
   color:var(--ink-dim);text-transform:uppercase;display:flex;align-items:center;gap:12px;
-  margin:8px 0 2px}
+  margin:10px 0 2px}
 .grid-h::before,.grid-h::after{content:"";height:1px;flex:1;
   background:linear-gradient(90deg,transparent,var(--line-2),transparent)}
 .grid-h b{color:var(--accent);font-weight:400}
 .grid-h.gold b{color:var(--gold)}
-.lvl-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:16px;
+.lvl-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px;
   max-height:48vh;overflow-y:auto;padding-right:4px;scrollbar-width:thin;
-  scrollbar-color:rgba(255,255,255,.18) transparent}
-.lvl-grid::-webkit-scrollbar{width:6px}
-.lvl-grid::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}
-.lvl{position:relative;padding:14px 10px 12px;text-align:center;border-radius:12px;
-  cursor:pointer;border:1px solid var(--line);background:rgba(16,20,30,.72);
-  transition:all .16s ease;overflow:hidden;--ac:#39d5c8}
-.lvl::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;
-  background:linear-gradient(90deg,transparent,var(--ac),transparent);opacity:.9}
-.lvl::after{content:"";position:absolute;inset:0;border-radius:12px;pointer-events:none;
-  box-shadow:inset 0 0 0 1px transparent;transition:box-shadow .16s ease}
-.lvl:hover:not(.locked){border-color:var(--ac);background:rgba(22,28,40,.9);
-  transform:translateY(-2px);box-shadow:0 10px 28px rgba(0,0,0,.5), 0 0 22px -6px var(--ac)}
-.lvl .n{font-family:var(--serif);font-style:italic;font-size:23px;color:var(--ink);
+  scrollbar-color:rgba(196,163,90,.25) transparent}
+.lvl-grid::-webkit-scrollbar{width:5px}
+.lvl-grid::-webkit-scrollbar-thumb{background:rgba(196,163,90,.3);border-radius:2px}
+.lvl{position:relative;padding:16px 10px 12px;text-align:center;border-radius:var(--radius);
+  cursor:pointer;border:1px solid var(--line);background:rgba(14,16,22,.88);
+  transition:border-color .15s,background .15s,box-shadow .15s;overflow:hidden;--ac:var(--accent)}
+.lvl::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--ac);opacity:.85}
+.lvl:hover:not(.locked){border-color:var(--ac);background:rgba(20,24,32,.95);
+  box-shadow:0 0 0 1px color-mix(in srgb, var(--ac) 35%, transparent),
+    0 12px 32px rgba(0,0,0,.45)}
+.lvl .n{font-family:var(--serif);font-style:italic;font-size:22px;color:var(--ink);
   line-height:1.1}
-.lvl .t{font-family:var(--mono);font-size:8.5px;letter-spacing:.06em;color:var(--ink-dim);
-  margin-top:5px;line-height:1.45;min-height:24px}
+.lvl .t{font-family:var(--mono);font-size:8.5px;letter-spacing:.08em;color:var(--ink-dim);
+  margin-top:6px;line-height:1.45;min-height:24px}
 .lvl .lvl-meta{display:flex;align-items:center;justify-content:center;gap:7px;
-  margin-top:5px;font-family:var(--mono);font-size:9px;color:var(--ink-faint)}
+  margin-top:6px;font-family:var(--mono);font-size:9px;color:var(--ink-faint)}
 .lvl .stars{color:var(--gold);letter-spacing:.05em}
 .lvl .best{color:var(--ink-dim)}
 .lvl .md-chip{font-family:var(--mono);font-size:7.5px;letter-spacing:.14em;
-  border:1px solid currentColor;border-radius:3px;padding:1px 4px;opacity:.95}
+  border:1px solid currentColor;border-radius:2px;padding:1px 4px;opacity:.95}
 .lvl .b{font-family:var(--mono);font-size:9px;color:var(--gold);margin-top:3px}
 .lvl .b .mG{color:#ffd76a}.lvl .b .mS{color:#d7dde8}.lvl .b .mB{color:#d09a6a}
 .lvl .lesson-chip{position:absolute;top:6px;left:8px;font-family:var(--mono);
   font-size:7.5px;letter-spacing:.18em;color:var(--ac);opacity:.9}
 .lvl .rk{position:absolute;top:5px;right:9px;font-family:var(--serif);font-style:italic;
   font-size:16px;font-weight:700;line-height:1}
-.lvl.locked{opacity:.35;cursor:not-allowed;filter:saturate(.4)}
-.lvl.locked .t::after{content:"LOCKED";display:block;color:var(--ink-faint)}
-.lvl .rk.rk-s{color:#ff9ee0;text-shadow:0 0 12px rgba(255,158,224,.7)}
-.lvl .rk.rk-a{color:#ffd76a;text-shadow:0 0 12px rgba(255,215,106,.6)}
+.lvl.locked{opacity:.38;cursor:not-allowed;filter:saturate(.35)}
+.lvl.locked .t::after{content:"LOCKED";display:block;color:var(--ink-faint);margin-top:2px}
+.lvl .rk.rk-s{color:#ff9ee0;text-shadow:0 0 12px rgba(255,158,224,.55)}
+.lvl .rk.rk-a{color:#ffd76a;text-shadow:0 0 12px rgba(255,215,106,.45)}
 .lvl .rk.rk-b{color:#54e08a}
-.lvl .rk.rk-c{color:#9aa3b5}
+.lvl .rk.rk-c{color:#9a9488}
 
 /* settings */
 .set-row{display:flex;align-items:center;justify-content:space-between;gap:26px;
@@ -210,15 +253,17 @@ button:disabled{opacity:.32;cursor:not-allowed;transform:none;box-shadow:none}
 #help .panel{max-width:640px}
 .ctl-grid{display:grid;grid-template-columns:auto 1fr;gap:9px 20px;margin-top:12px;
   font-size:13.5px;color:var(--ink-dim);align-items:center}
-.h2{font-family:var(--mono);font-size:11px;letter-spacing:.3em;color:var(--accent);
+.h2{font-family:var(--mono);font-size:11px;letter-spacing:.32em;color:var(--brass);
   text-transform:uppercase;margin:18px 0 8px}
 .h2:first-child{margin-top:0}
 
 /* ============ HUD ============ */
 #hud{position:fixed;inset:0;z-index:15;pointer-events:none;opacity:0;transition:opacity .4s}
 #hud.on{opacity:1}
-.hud-tl{position:absolute;top:20px;left:22px;max-width:340px;padding-left:14px;
-  border-left:3px solid var(--accent)}
+.hud-tl{position:absolute;top:18px;left:18px;max-width:340px;padding:10px 14px 10px 14px;
+  border-left:2px solid var(--accent);
+  background:linear-gradient(90deg,rgba(8,10,16,.55),transparent);
+  border-radius:0 var(--radius) var(--radius) 0}
 body.touch .hud-tl{border-left-width:2px}
 .hud-tr{position:absolute;top:20px;right:22px;text-align:right}
 .hud-bl{position:absolute;bottom:20px;left:22px;display:flex;align-items:center;gap:14px}
@@ -239,9 +284,9 @@ body:not(.touch) .hud-best:empty{display:none}
   margin-top:4px;text-shadow:0 2px 18px rgba(0,0,0,.8)}
 #hud-status{font-family:var(--mono);font-size:11px;color:var(--ink-dim);
   margin-top:7px;letter-spacing:.06em;line-height:1.6}
-#hud-module{background:var(--glass);border:1px solid var(--line);border-radius:12px;
+#hud-module{background:rgba(8,10,16,.72);border:1px solid var(--line);border-radius:var(--radius);
   padding:12px 16px;min-width:180px;backdrop-filter:blur(8px);
-  box-shadow:0 14px 44px rgba(0,0,0,.4)}
+  box-shadow:0 14px 44px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.03)}
 .mod-title{font-family:var(--mono);font-size:9px;letter-spacing:.3em;
   color:var(--ink-faint);text-transform:uppercase;margin-bottom:8px}
 .mod-big{font-family:var(--mono);font-size:26px;color:var(--ink);letter-spacing:.05em}
@@ -325,9 +370,9 @@ body.touch .tstep{font-size:10px}
 #prompt b{color:var(--accent);font-weight:600}
 
 /* gravity compass */
-#compass{display:flex;align-items:center;gap:12px;background:var(--glass);
-  border:1px solid var(--line);border-radius:14px;padding:10px 16px;
-  backdrop-filter:blur(8px)}
+#compass{display:flex;align-items:center;gap:12px;background:rgba(8,10,16,.78);
+  border:1px solid var(--line);border-radius:var(--radius);padding:10px 14px;
+  backdrop-filter:blur(8px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.03)}
 #compass .dial{position:relative;width:52px;height:52px;border-radius:50%;
   border:1px solid var(--line-2);background:
   radial-gradient(circle at 50% 40%,rgba(255,255,255,.06),transparent 70%)}
@@ -370,8 +415,11 @@ body.touch .tstep{font-size:10px}
 #pause,#victory,#failed{z-index:40}
 #pause .pl-note{font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:.2em}
 body.touch #pause .pl-note{display:none}
-.big-title{font-family:var(--serif);font-style:italic;font-size:clamp(30px,5vw,52px);
-  color:#fff;text-align:center}
+.big-title{font-family:var(--serif);font-style:italic;font-size:clamp(32px,5.2vw,56px);
+  color:#f2eee6;text-align:center;text-shadow:0 4px 40px rgba(0,0,0,.7)}
+#victory .kicker,#pause .kicker,#failed .kicker{
+  font-family:var(--mono);font-size:11px;letter-spacing:.4em;color:var(--brass)}
+#victory .panel{max-width:440px}
 .stat-rows{font-family:var(--mono);font-size:13px;color:var(--ink-dim);
   min-width:300px;margin:4px 0 8px}
 .stat-rows .row{display:flex;justify-content:space-between;gap:40px;padding:6px 2px;
@@ -612,7 +660,7 @@ body.touch #chain-bar{width:64px}
 #btn-guide:active{border-color:var(--gold)}
 /* v7 — the daily vault gets its own accent: magenta like the paradox tier */
 #btn-daily{border-color:rgba(255,158,224,.45);color:#ff9ee0;font-size:13px}
-#btn-daily::before{content:'✦';margin-right:8px;font-size:11px;color:#ff9ee0}
+#btn-daily::before{content:'✦';margin-right:8px;font-size:10px;color:#ff9ee0}
 #btn-daily:active{border-color:#ff9ee0}
 
 </style>
@@ -621,27 +669,37 @@ body.touch #chain-bar{width:64px}
 
 <!-- ===================== MAIN MENU ===================== -->
 <div id="menu" class="screen">
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V13</span>
-  <div class="kicker">AN ESCHER GRAVITY PUZZLE</div>
-  <h1>The Impossible Room<span class="narrow">FIFTEEN CHAMBERS · FOUR GRAVITIES · ONE EXIT</span></h1>
-  <div class="arch-legend">
-    <span class="arch-chip" style="color:#4da3ff"><i class="shape-blue" style="background:#4da3ff;color:#4da3ff"></i>BLUE&nbsp;→&nbsp;WALL A</span>
-    <span class="arch-chip" style="color:#ff5468"><i class="shape-red" style="background:#ff5468;color:#ff5468"></i>RED&nbsp;→&nbsp;WALL B</span>
-    <span class="arch-chip" style="color:#e8c15a"><i class="shape-yellow" style="color:#e8c15a"></i>YELLOW&nbsp;→&nbsp;CEILING</span>
-    <span class="arch-chip" style="color:#54e08a"><i class="shape-green" style="background:#54e08a;color:#54e08a"></i>GREEN&nbsp;→&nbsp;FLOOR</span>
+  <div class="room-frame" aria-hidden="true">
+    <span class="rf rf-tl"></span><span class="rf rf-tr"></span>
+    <span class="rf rf-bl"></span><span class="rf rf-br"></span>
+    <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <div class="tag">Five Academy chambers teach you the room — walk, jump, and bend gravity
-    through the colored arches. Then escape ten impossible machines, and the endless
-    vaults beyond. Collect the shards. Chase the S rank.</div>
-  <div class="btn-row">
-    <button id="btn-start" class="primary">ENTER THE ROOM</button>
-    <button id="btn-levels">CHAMBERS</button>
-    <button id="btn-daily" class="daily">DAILY VAULT</button>
-    <button id="btn-help">HOW TO PLAY</button>
-    <button id="btn-settings">SETTINGS</button>
-    <button id="btn-install" class="hidden">INSTALL APP</button>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V14</span>
+  <div class="menu-plate">
+    <div class="kicker">AN ESCHER GRAVITY PUZZLE</div>
+    <h1>The Impossible Room</h1>
+    <div class="title-rule" aria-hidden="true">
+      <span class="tr-blue"></span><span class="tr-red"></span>
+      <span class="tr-yellow"></span><span class="tr-green"></span>
+    </div>
+    <div class="narrow">FIFTEEN CHAMBERS · FOUR GRAVITIES · ONE EXIT</div>
+    <div class="arch-legend" role="list">
+      <span class="arch-chip" role="listitem" style="color:#4da3ff"><i class="shape-blue" style="background:#4da3ff;color:#4da3ff"></i><b>BLUE</b><em>WALL A</em></span>
+      <span class="arch-chip" role="listitem" style="color:#ff5468"><i class="shape-red" style="background:#ff5468;color:#ff5468"></i><b>RED</b><em>WALL B</em></span>
+      <span class="arch-chip" role="listitem" style="color:#e8c15a"><i class="shape-yellow" style="color:#e8c15a"></i><b>YELLOW</b><em>CEILING</em></span>
+      <span class="arch-chip" role="listitem" style="color:#54e08a"><i class="shape-green" style="background:#54e08a;color:#54e08a"></i><b>GREEN</b><em>FLOOR</em></span>
+    </div>
+    <div class="tag">Walk the atrium. Pass the arches. Collect the shards. The Academy teaches four gravities — then ten machines try to keep you in. Chase the S rank. The vaults never end.</div>
+    <div class="btn-row menu-actions">
+      <button id="btn-start" class="primary">ENTER THE ROOM</button>
+      <button id="btn-levels">CHAMBERS</button>
+      <button id="btn-daily" class="daily">DAILY VAULT</button>
+      <button id="btn-help">HOW TO PLAY</button>
+      <button id="btn-settings">SETTINGS</button>
+      <button id="btn-install" class="hidden">INSTALL APP</button>
+    </div>
+    <div id="menu-stats"></div>
   </div>
-  <div id="menu-stats"></div>
   <div class="panel hidden" id="levels">
     <div class="h2">Select Chamber</div>
     <div class="lvl-grid" id="lvl-grid"></div>
