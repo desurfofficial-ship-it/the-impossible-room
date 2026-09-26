@@ -26,7 +26,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <!--
   ============================================================================
-  THE IMPOSSIBLE ROOM — production build (v11 "Access + presence")
+  THE IMPOSSIBLE ROOM — production build (v12 "Glyphs + Monument credits")
   ----------------------------------------------------------------------------
   Single-file, self-contained WebGL game (Three.js r170 via UNPKG CDN).
   Engine highlights:
@@ -621,7 +621,7 @@ body.touch #chain-bar{width:64px}
 
 <!-- ===================== MAIN MENU ===================== -->
 <div id="menu" class="screen">
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V11</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V12</span>
   <div class="kicker">AN ESCHER GRAVITY PUZZLE</div>
   <h1>The Impossible Room<span class="narrow">FIFTEEN CHAMBERS · FOUR GRAVITIES · ONE EXIT</span></h1>
   <div class="arch-legend">
@@ -3617,6 +3617,30 @@ function LText(L, x,y,z, lines, o={}){
 /* ============================================================
    8. GRAVITY ARCHES
    ============================================================ */
+
+/* v12: colorblind shape glyph baked to a small canvas plane on each arch lintel */
+function makeArchGlyph(type, colHex){
+  const c=document.createElement('canvas'); c.width=128; c.height=128;
+  const g=c.getContext('2d');
+  g.clearRect(0,0,128,128);
+  g.fillStyle='#ffffff';
+  if(type==='blue'){ g.beginPath(); g.arc(64,64,42,0,Math.PI*2); g.fill(); }
+  else if(type==='red'){ g.fillRect(26,26,76,76); }
+  else if(type==='yellow'){
+    g.beginPath(); g.moveTo(64,14); g.lineTo(114,108); g.lineTo(14,108); g.closePath(); g.fill();
+  }else{
+    g.beginPath(); g.moveTo(64,12); g.lineTo(116,64); g.lineTo(64,116); g.lineTo(12,64); g.closePath(); g.fill();
+  }
+  const tex=new THREE.CanvasTexture(c);
+  tex.needsUpdate=true;
+  const mat=new THREE.MeshBasicMaterial({
+    map:tex, color:colHex, transparent:true, depthWrite:false,
+    blending:THREE.AdditiveBlending, side:THREE.DoubleSide
+  });
+  mat.userData={owned:true};
+  return new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.62), mat);
+}
+
 function t2h(tall){ return tall?3.75:1.25; }
 class GravityArch{
   constructor(L, type, base, U, F, o={}){
@@ -3657,6 +3681,13 @@ class GravityArch{
     portal.renderOrder=2;
     WORLD.add(portal);
     L.disposables.push(portal);
+    /* v12: shape glyph on the lintel — readable without hue */
+    const glyph=makeArchGlyph(type, col);
+    glyph.position.copy(base).addScaledVector(U, FR_H+0.28).addScaledVector(F, 0.22);
+    glyph.quaternion.copy(portal.quaternion);
+    glyph.renderOrder=4;
+    WORLD.add(glyph);
+    L.disposables.push(glyph);
     /* light */
     const light=new THREE.PointLight(col, tall?2.2:1.6, tall?12:8.5, 1.8);
     light.position.copy(base).addScaledVector(U, tall?2.2:1.6).addScaledVector(F, tall?1.6:1.1);
@@ -5109,20 +5140,46 @@ function campaignVictory(){
   if(SAVE.campaignBest===null||GAME.campaignTime<SAVE.campaignBest){
     SAVE.campaignBest=GAME.campaignTime; persist();
   }
-  DOM.vKick.textContent='CAMPAIGN COMPLETE';
+  /* v12: Monument credits — the room acknowledges the full clear */
+  DOM.vKick.textContent='THE MONUMENT YIELDS · CAMPAIGN COMPLETE';
   DOM.vTitle.textContent='The Impossible Room';
+  if(DOM.vRank){
+    DOM.vRank.classList.remove('hidden');
+    DOM.vRankLetter.textContent='✦';
+    DOM.vRankLetter.className='shimmer rk-s';
+    DOM.vRankName.textContent='MONUMENT CLEARED';
+  }
   let rows='';
   for(let i=0;i<Math.min(15,LEVELS.length);i++){
-    rows+=`<div class="row"><span>${ROMAN[i]} · ${LEVELS[i].name}</span><b>${SAVE.best[i]!==undefined?fmtRace(SAVE.best[i]):'—'}</b></div>`;
+    const rk=SAVE.ranks[i]||'';
+    const rkBit=rk?` <span class="rk-${rk.toLowerCase()}">${rk}</span>`:'';
+    rows+=`<div class="row"><span>${ROMAN[i]} · ${LEVELS[i].name}${rkBit}</span><b>${SAVE.best[i]!==undefined?fmtRace(SAVE.best[i]):'—'}</b></div>`;
   }
   rows+=`<div class="row"><span>TOTAL</span><b class="gold">${fmtRace(GAME.campaignTime)}</b></div>`;
   rows+=`<div class="row"><span>BEST CAMPAIGN</span><b class="gold">${fmtRace(SAVE.campaignBest)}</b></div>`;
   rows+=`<div class="row"><span>DEATHS</span><b>${GAME.totalDeaths||0}</b></div>`;
   rows+=`<div class="row"><span>JUMPS</span><b>${GAME.totalJumps||0}</b></div>`;
+  const sCount=Object.values(SAVE.ranks||{}).filter(r=>r==='S').length;
+  rows+=`<div class="row"><span>S RANKS</span><b class="gold">${sCount} / 15</b></div>`;
   DOM.vStats.innerHTML=rows;
-  DOM.vRankHint.innerHTML='';
+  DOM.vRankHint.innerHTML=
+    `<div style="text-align:center;max-width:420px;line-height:1.55;color:var(--ink-dim);font-family:var(--mono);font-size:12px;letter-spacing:.08em">
+      Fifteen chambers. Four gravities. One exit.<br>
+      The vaults go deeper still — <b style="color:#ff9ee0">how far can you fall upward?</b>
+    </div>`;
   DOM.btnNext.classList.add('hidden');
   DOM.btnBonus.classList.toggle('hidden', LEVELS.length<=15);
+  if(DOM.btnShare){
+    DOM.btnShare.classList.remove('hidden');
+    DOM.btnShare.dataset.share=
+      `The Impossible Room — Campaign cleared\n`+
+      `Total ${fmtRace(GAME.campaignTime)} · ${sCount} S-ranks\n`+
+      `https://desurfofficial-ship-it.github.io/the-impossible-room/`;
+  }
+  /* confetti for the monument */
+  for(let k=0;k<5;k++) PARTS.burst(
+    player.pos.clone().add(V((Math.random()-0.5)*4, 2+k*0.5, (Math.random()-0.5)*4)),
+    new THREE.Color([0xffd76a,0xff9ee0,0x54e08a,0x4da3ff,0xe8c15a][k]), 30, 5, 3, 1.4);
   showScreen(DOM.victory);
   if(plc && plc.isLocked) plc.unlock();
   DOM.hud.classList.remove('on');
