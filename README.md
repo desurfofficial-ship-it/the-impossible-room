@@ -3,7 +3,7 @@
 *A walkable M.C. Escher atrium. Bend gravity. Fall sideways and upward. Escape.*
 
 **The Impossible Room** is a fully self-contained, browser-based 3D puzzle game delivered as a
-**single `index.html` file**. It runs on [Three.js](https://threejs.org/) loaded from a CDN and
+**single `index.html` file**. Current build: **v10** (Open Graph sharing, SHARE RUN on strong clears, reduced-motion aware). It runs on [Three.js](https://threejs.org/) loaded from a CDN and
 synthesizes **every sound at runtime** with the Web Audio API — zero external assets.
 
 > **Desktop:** open `index.html` and click **ENTER THE ROOM**.
@@ -17,7 +17,7 @@ synthesizes **every sound at runtime** with the Web Audio API — zero external 
 
 ![Banner](banner.png)
 
-## Ten Worlds, One Room
+## Fifteen Chambers, One Room
 
 Every chamber now lives inside its own environment — a themed sky visible through
 skylight ceilings and clerestory glass, with matching sun, weather and light:
