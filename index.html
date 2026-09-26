@@ -262,6 +262,31 @@ body.touch #pause .pl-note{display:none}
 #toast b{color:var(--gold)}
 #toast.red b{color:var(--red)}
 
+/* ============ CHEAT CONSOLE ============ */
+#cheatbar{position:fixed;left:50%;bottom:64px;transform:translateX(-50%) translateY(14px);
+  z-index:46;display:flex;align-items:center;gap:10px;opacity:0;pointer-events:none;
+  background:var(--glass-2);border:1px solid rgba(255,158,224,.4);border-radius:12px;
+  padding:10px 16px;transition:all .22s ease;min-width:340px;max-width:min(92vw,560px);
+  box-shadow:0 18px 60px rgba(255,100,180,.18)}
+#cheatbar.on{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+#cheatbar .cheat-sigil{font-family:var(--mono);color:#ff9ee0;font-size:18px;
+  text-shadow:0 0 16px rgba(255,158,224,.8)}
+#cheat-input{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--line-2);
+  border-radius:8px;color:var(--ink);font-family:var(--mono);font-size:14px;
+  padding:9px 12px;outline:none;letter-spacing:.04em}
+#cheat-input:focus{border-color:#ff9ee0;box-shadow:0 0 22px rgba(255,158,224,.25)}
+#cheat-input::placeholder{color:var(--ink-faint);font-size:12px}
+#cheat-tag{position:absolute;top:calc(16px + env(safe-area-inset-top,0px));left:50%;
+  transform:translateX(-50%);font-family:var(--mono);font-size:10px;letter-spacing:.28em;
+  color:#ff9ee0;border:1px solid rgba(255,158,224,.5);background:rgba(30,10,26,.55);
+  border-radius:999px;padding:5px 14px;opacity:0;transition:opacity .3s;pointer-events:none;
+  text-shadow:0 0 12px rgba(255,158,224,.6)}
+#cheat-tag.on{opacity:1}
+#tb-cheat{top:calc(14px + env(safe-area-inset-top,0px));
+  right:calc(64px + env(safe-area-inset-right,0px));width:44px;height:44px;font-size:17px;
+  border-color:rgba(255,158,224,.5);color:#ff9ee0}
+body:not(.touch) #tb-cheat{display:none}
+
 /* ============ TOUCH CONTROLS ============ */
 #touchui{position:fixed;inset:0;z-index:12;display:none;touch-action:none}
 body.touch #touchui.on{display:block}
@@ -410,8 +435,16 @@ body.touch .ctl-grid kbd{display:none}
   <div class="tbtn" id="tb-jump">JUMP</div>
   <div class="tbtn" id="tb-use">USE</div>
   <div class="tbtn" id="tb-pause">II</div>
+  <div class="tbtn" id="tb-cheat">⌁</div>
 </div>
 <div id="rotate-tip">ROTATE FOR A WIDER ROOM</div>
+
+<!-- ===================== CHEAT CONSOLE ===================== -->
+<div id="cheatbar">
+  <span class="cheat-sigil">⌁</span>
+  <input id="cheat-input" type="text" autocomplete="off" spellcheck="false"
+    placeholder="type a cheat — help for the list — ` or ESC to close">
+</div>
 
 <!-- ===================== HUD ===================== -->
 <div id="hud">
@@ -432,6 +465,7 @@ body.touch .ctl-grid kbd{display:none}
     </div>
   </div>
   <div class="hud-br"><span id="hud-time">0:00</span><br><span id="hud-fps"></span></div>
+  <div id="cheat-tag">⌁ CHEATS ACTIVE</div>
   <div id="reticle"><div class="ring"></div><div class="dot"></div></div>
   <div id="prompt"><b>E</b>&nbsp;<span id="prompt-txt"></span></div>
 </div>
@@ -818,7 +852,7 @@ function initRenderer(){
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.22;
+    renderer.toneMappingExposure = 1.38;
   }catch(e){
     GAME.logicOnly = true;
     console.log('QA|INFO|WebGL unavailable — logic-only mode');
@@ -1077,7 +1111,7 @@ scene.add(PARTS.points);
 /* drifting motes near the structure */
 const MOTES = { points:null, n: IS_TOUCH ? 130 : 260, data:null };
 function buildMotes(box){
-  if(MOTES.points){ VOID.remove(MOTES.points); MOTES.points.geometry.dispose(); }
+  if(MOTES.points){ scene.remove(MOTES.points); MOTES.points.geometry.dispose(); }
   const n=MOTES.n;
   const pos=new Float32Array(n*3);
   MOTES.data=[];
@@ -1093,7 +1127,7 @@ function buildMotes(box){
     map:GLOW_TEX, depthWrite:false, blending:THREE.AdditiveBlending, sizeAttenuation:true});
   MOTES.points=new THREE.Points(g,m);
   MOTES.points.frustumCulled=false;
-  VOID.add(MOTES.points);
+  scene.add(MOTES.points);   // scene-level: VOID visibility (stars) is theme-driven
 }
 function updateMotes(t){
   if(!MOTES.points) return;
@@ -1107,16 +1141,369 @@ function updateMotes(t){
 }
 
 /* ============================================================
+   3b. ENVIRONMENT THEMES — sky dome, sun/moon, clouds, aurora,
+       light shafts, ambient particles. One distinct world per
+       chamber: dawn atrium, emerald twilight, sandstone noon,
+       polar lab, solar storm, midnight orchid, glacial depths,
+       golden summit, biolume lagoon, nebula rose.
+   ============================================================ */
+const SKY=new THREE.Group();
+scene.add(SKY);
+
+/* ---- sky dome (gradient + sun glow) ---- */
+const skyMat=new THREE.ShaderMaterial({
+  uniforms:{
+    uTop:{value:new THREE.Color(0x9db8d8)},
+    uHorizon:{value:new THREE.Color(0xe8c8a8)},
+    uBottom:{value:new THREE.Color(0x8a7a68)},
+    uSunDir:{value:new THREE.Vector3(0,1,0)},
+    uSunGlow:{value:new THREE.Color(0xffe8c0)},
+    uGlowAmt:{value:0.5}
+  },
+  vertexShader:`
+    varying vec3 vDir;
+    void main(){
+      vDir=normalize(position);
+      gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);
+    }`,
+  fragmentShader:`
+    uniform vec3 uTop; uniform vec3 uHorizon; uniform vec3 uBottom;
+    uniform vec3 uSunDir; uniform vec3 uSunGlow; uniform float uGlowAmt;
+    varying vec3 vDir;
+    void main(){
+      float h=clamp(vDir.y*0.5+0.5, 0.0, 1.0);
+      vec3 col = h<0.5
+        ? mix(uBottom, uHorizon, smoothstep(0.28,0.5,h))
+        : mix(uHorizon, uTop, smoothstep(0.5,0.85,h));
+      float s=pow(max(dot(vDir,uSunDir),0.0), 24.0);
+      col += uSunGlow*s*uGlowAmt*0.85;
+      gl_FragColor=vec4(col,1.0);
+    }`,
+  side:THREE.BackSide, depthWrite:false, fog:false
+});
+const skyDome=new THREE.Mesh(new THREE.SphereGeometry(300, 40, 24), skyMat);
+skyDome.renderOrder=-10;
+skyDome.frustumCulled=false;
+SKY.add(skyDome);
+
+/* ---- sun / moon disc ---- */
+function makeGlowTex(stops){
+  const c=document.createElement('canvas'); c.width=c.height=256;
+  const x=c.getContext('2d');
+  const g=x.createRadialGradient(128,128,4,128,128,128);
+  stops.forEach(s=>g.addColorStop(s[0],s[1]));
+  x.fillStyle=g; x.fillRect(0,0,256,256);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t;
+}
+const SUN_TEX=makeGlowTex([[0,'rgba(255,255,255,1)'],[0.18,'rgba(255,255,255,0.95)'],
+  [0.42,'rgba(255,255,255,0.32)'],[1,'rgba(255,255,255,0)']]);
+const sunSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:SUN_TEX,
+  transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, fog:false}));
+sunSprite.scale.set(60,60,1);
+sunSprite.renderOrder=-8;
+SKY.add(sunSprite);
+const moonSprite=new THREE.Sprite(new THREE.SpriteMaterial({map:SUN_TEX,
+  color:0xcfd8ff, transparent:true, depthWrite:false, opacity:0.85,
+  blending:THREE.AdditiveBlending, fog:false}));
+moonSprite.scale.set(26,26,1);
+moonSprite.renderOrder=-8;
+SKY.add(moonSprite);
+
+/* ---- drifting clouds ---- */
+const CLOUD_TEX=makeGlowTex([[0,'rgba(255,255,255,0.85)'],[0.5,'rgba(255,255,255,0.35)'],
+  [1,'rgba(255,255,255,0)']]);
+const CLOUDS=[];
+for(let i=0;i<8;i++){
+  const sp=new THREE.Sprite(new THREE.SpriteMaterial({map:CLOUD_TEX,
+    transparent:true, depthWrite:false, opacity:0.3, fog:false}));
+  const a=Math.random()*TAU, r=90+Math.random()*90;
+  sp.position.set(Math.cos(a)*r, 55+Math.random()*70, Math.sin(a)*r);
+  const s=36+Math.random()*46;
+  sp.scale.set(s, s*0.42, 1);
+  sp.renderOrder=-7;
+  sp.userData.drift=0.6+Math.random()*1.4;
+  SKY.add(sp); CLOUDS.push(sp);
+}
+
+/* ---- aurora ribbons (glacial theme) ---- */
+function makeAurora(){
+  const mat=new THREE.ShaderMaterial({
+    uniforms:{uTime:{value:0}, uHue:{value:new THREE.Color(0x54e0c8)}},
+    vertexShader:`varying vec2 vUv; void main(){ vUv=uv;
+      gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`,
+    fragmentShader:`
+      uniform float uTime; uniform vec3 uHue; varying vec2 vUv;
+      void main(){
+        float wave=sin(vUv.x*9.0+uTime*0.5)*0.5+0.5;
+        float band=smoothstep(0.05,0.45,vUv.y)*smoothstep(1.0,0.55,vUv.y);
+        float a=band*(0.16+0.2*wave);
+        vec3 col=uHue*(0.7+0.6*wave)+vec3(0.15,0.0,0.25)*band;
+        gl_FragColor=vec4(col,a);
+      }`,
+    transparent:true, depthWrite:false, blending:THREE.AdditiveBlending, side:THREE.DoubleSide, fog:false
+  });
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(240, 60, 48, 1), mat);
+  m.renderOrder=-6;
+  return m;
+}
+const AURORAS=[makeAurora(), makeAurora()];
+AURORAS[0].position.set(0, 85, -60); AURORAS[0].rotation.x=0.5;
+AURORAS[1].position.set(40, 105, 70); AURORAS[1].rotation.x=0.42;
+AURORAS.forEach(a=>SKY.add(a));
+
+/* ---- light shafts (god rays through the glazing) ---- */
+const SHAFT_TEX=(()=>{ const c=document.createElement('canvas'); c.width=8; c.height=128;
+  const x=c.getContext('2d');
+  const g=x.createLinearGradient(0,0,0,128);
+  g.addColorStop(0,'rgba(255,255,255,0.9)'); g.addColorStop(0.65,'rgba(255,255,255,0.28)');
+  g.addColorStop(1,'rgba(255,255,255,0)');
+  x.fillStyle=g; x.fillRect(0,0,8,128);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; return t; })();
+const SHAFTS=[];
+function buildShafts(list){
+  for(const s of SHAFTS){ SKY.remove(s); s.geometry.dispose(); s.material.dispose(); }
+  SHAFTS.length=0;
+  if(!list) return;
+  for(const d of list){
+    const mat=new THREE.MeshBasicMaterial({ color:d.color, transparent:true,
+      opacity:d.opacity??0.16, alphaMap:SHAFT_TEX, blending:THREE.AdditiveBlending,
+      depthWrite:false, side:THREE.DoubleSide, fog:false });
+    const g=new THREE.CylinderGeometry(d.r0??d.r, d.r1??(d.r*1.8), d.h, 14, 1, true);
+    const m=new THREE.Mesh(g, mat);
+    m.position.set(d.x, d.y, d.z);
+    m.renderOrder=4;
+    SKY.add(m); SHAFTS.push(m);
+  }
+}
+
+/* ---- ambient particle weather (dust, embers, snow, fireflies...) ---- */
+const AMBIENT_FX={mode:'none', color:new THREE.Color(0xffffff), rate:5, t:0};
+function ambientFxUpdate(dt, t){
+  if(AMBIENT_FX.mode==='none') return;
+  const L=GAME.level; if(!L) return;
+  const b=L.bounds;
+  const m=AMBIENT_FX.mode;
+  const n=Math.floor(AMBIENT_FX.rate*dt + (Math.random()<AMBIENT_FX.rate*dt%1?1:0));
+  for(let i=0;i<n;i++){
+    const x=b.min.x+Math.random()*(b.max.x-b.min.x);
+    const z=b.min.z+Math.random()*(b.max.z-b.min.z);
+    if(m==='dust'){
+      const y=b.min.y+Math.random()*(b.max.y-b.min.y);
+      PARTS.spawn(V(x,y,z), V((Math.random()-0.5)*0.25, 0.06+Math.random()*0.12, (Math.random()-0.5)*0.25),
+        AMBIENT_FX.color, 5+Math.random()*4, 0.9);
+    }else if(m==='embers'){
+      PARTS.spawn(V(x, b.min.y+Math.random()*2, z), V((Math.random()-0.5)*0.5, 1.1+Math.random()*1.6, (Math.random()-0.5)*0.5),
+        AMBIENT_FX.color, 2.2+Math.random()*1.8, 1.1);
+    }else if(m==='snow'){
+      const y=b.max.y-0.5-Math.random()*3;
+      PARTS.spawn(V(x,y,z), V((Math.random()-0.5)*0.5, -0.55-Math.random()*0.5, (Math.random()-0.5)*0.5),
+        AMBIENT_FX.color, 6+Math.random()*5, 1.05);
+    }else if(m==='fireflies'){
+      const y=b.min.y+0.5+Math.random()*Math.min(6, b.max.y-b.min.y);
+      PARTS.spawn(V(x,y,z), V((Math.random()-0.5)*0.35, (Math.random()-0.5)*0.25, (Math.random()-0.5)*0.35),
+        AMBIENT_FX.color, 3.5+Math.random()*3, 1.3);
+    }else if(m==='spores'){
+      const y=b.min.y+Math.random()*(b.max.y-b.min.y);
+      PARTS.spawn(V(x,y,z), V((Math.random()-0.5)*0.2, 0.2+Math.random()*0.3, (Math.random()-0.5)*0.2),
+        AMBIENT_FX.color, 5+Math.random()*4, 1.0);
+    }else if(m==='caustics'){
+      const y=b.min.y+Math.random()*(b.max.y-b.min.y);
+      PARTS.spawn(V(x,y,z), V((Math.random()-0.5)*0.15, 0.35+Math.random()*0.4, (Math.random()-0.5)*0.15),
+        AMBIENT_FX.color, 4+Math.random()*3, 0.9);
+    }else if(m==='sparks'){
+      PARTS.spawn(V(x, b.min.y+Math.random()*3, z), V((Math.random()-0.5)*0.6, 0.7+Math.random()*1.1, (Math.random()-0.5)*0.6),
+        AMBIENT_FX.color, 1.8+Math.random()*1.4, 1.0);
+    }
+  }
+}
+
+/* ---- the ten chamber worlds ---- */
+const THEMES=[
+  { /* 0 — L1 The Initiation : DAWN ATRIUM (natural) */
+    dome:true, stars:false, sun:{dir:[0.5,0.38,-0.42], color:0xffe2b0, size:58}, moon:false,
+    clouds:true,
+    sky:{top:0x8fb0d8, horizon:0xf0cfa8, bottom:0x9a8a72, glow:0xffe2b0, glowAmt:0.6},
+    hemi:{sky:0xd8e2f0, ground:0x8a7a5e, int:1.05},
+    dir:{color:0xffe8c0, int:1.7, pos:[10,17,7]},
+    fog:{color:0x94a0b4, density:0.0075},
+    motes:{color:0xd8c8a0}, exposure:1.38,
+    shafts:[{x:0,y:6.3,z:0,h:11.4,r:1.5,r1:3.0,color:0xffe8c0,opacity:0.2},
+            {x:0,y:1.6,z:-12,h:3.4,r:1.1,r1:2.0,color:0x9fd8ff,opacity:0.13},
+            {x:0,y:1.5,z:10.1,h:3.0,r:1.0,r1:1.8,color:0x9fe8c0,opacity:0.13}],
+    fx:{mode:'dust', color:0xd8c8a0, rate:5}
+  },
+  { /* 1 — L2 The Looping Escape : EMERALD TWILIGHT (natural) */
+    dome:true, stars:false, sun:{dir:[-0.7,0.16,0.3], color:0xa8ffd0, size:34}, moon:false,
+    clouds:true,
+    sky:{top:0x16342e, horizon:0x3f7a62, bottom:0x122420, glow:0x9fe8b8, glowAmt:0.4},
+    hemi:{sky:0x9fc8b8, ground:0x3a4a40, int:1.18},
+    dir:{color:0xd8ffd0, int:1.6, pos:[-14,12,6]},
+    fog:{color:0x44544c, density:0.009},
+    motes:{color:0xa8e888}, exposure:1.4,
+    shafts:[{x:9,y:4.2,z:0,h:7.6,r:1.2,r1:2.2,color:0xa8ffd0,opacity:0.12},
+            {x:31,y:4.2,z:0,h:7.6,r:1.2,r1:2.2,color:0xa8ffd0,opacity:0.12},
+            {x:53,y:4.2,z:0,h:7.6,r:1.2,r1:2.2,color:0xa8ffd0,opacity:0.12}],
+    fx:{mode:'fireflies', color:0xd8f090, rate:4}
+  },
+  { /* 2 — L3 Weight & Gravity : SANDSTONE NOON (natural) */
+    dome:true, stars:false, sun:{dir:[0.25,0.9,-0.2], color:0xfff8e0, size:46}, moon:false,
+    clouds:true,
+    sky:{top:0x6a9cd8, horizon:0xd8e2e8, bottom:0x9a8a6a, glow:0xfff4d8, glowAmt:0.5},
+    hemi:{sky:0xfff0d8, ground:0x8a7a5e, int:1.28},
+    dir:{color:0xfff4d8, int:1.85, pos:[6,20,4]},
+    fog:{color:0xc0b49a, density:0.007},
+    motes:{color:0xe8d8b0}, exposure:1.45,
+    shafts:[{x:0,y:7.2,z:-4.2,h:13.2,r:1.4,r1:2.6,color:0xfff0c0,opacity:0.18},
+            {x:0,y:1.6,z:8.5,h:3.4,r:1.0,r1:1.8,color:0xfff0c0,opacity:0.14},
+            {x:0,y:1.6,z:-10.5,h:3.2,r:1.0,r1:1.8,color:0xffd8a0,opacity:0.14}],
+    fx:{mode:'dust', color:0xe8d8b0, rate:4}
+  },
+  { /* 3 — L4 The Switchboard : POLAR LAB (bright clinical) */
+    dome:true, stars:false, sun:{dir:[0.35,0.8,0.3], color:0xffffff, size:40}, moon:false,
+    clouds:true,
+    sky:{top:0xcfe0f0, horizon:0xeef4fa, bottom:0xaebcc8, glow:0xffffff, glowAmt:0.35},
+    hemi:{sky:0xf0f6ff, ground:0x8a94a8, int:1.15},
+    dir:{color:0xffffff, int:1.85, pos:[8,22,6]},
+    fog:{color:0xc8d4e4, density:0.006},
+    motes:{color:0xcfe0f0}, exposure:1.45,
+    shafts:[{x:0,y:8,z:0,h:15.6,r:1.6,r1:3.0,color:0xe8f4ff,opacity:0.16},
+            {x:0,y:1.8,z:6,h:3.4,r:1.1,r1:2.0,color:0x9fd8ff,opacity:0.14}],
+    fx:{mode:'dust', color:0xdce8f4, rate:3}
+  },
+  { /* 4 — L5 The Chrono-Void : SOLAR STORM (natural dramatic) */
+    dome:true, stars:false, sun:{dir:[-0.45,0.42,-0.55], color:0xffa860, size:66}, moon:false,
+    clouds:true,
+    sky:{top:0x6a3420, horizon:0xe8843c, bottom:0x4a2418, glow:0xffb060, glowAmt:0.85},
+    hemi:{sky:0xffb890, ground:0x5a3a2a, int:1.0},
+    dir:{color:0xffc890, int:1.75, pos:[-10,26,-8]},
+    fog:{color:0x9a5c40, density:0.008},
+    motes:{color:0xffb890}, exposure:1.4,
+    shafts:[{x:0,y:17,z:0,h:33.5,r:2.0,r1:4.4,color:0xffb060,opacity:0.16},
+            {x:0,y:1.6,z:9,h:3.4,r:1.1,r1:2.0,color:0xffc890,opacity:0.14}],
+    fx:{mode:'embers', color:0xffa050, rate:7}
+  },
+  { /* 5 — L6 The Silent Inversion : MIDNIGHT ORCHID (night, visible) */
+    dome:true, stars:true, sun:{dir:[0.4,0.5,0.35], color:0xcfd8ff, size:26}, moon:true,
+    clouds:false,
+    sky:{top:0x0e0a1e, horizon:0x3a2c5e, bottom:0x141020, glow:0xb8a8e8, glowAmt:0.3},
+    hemi:{sky:0xb8a8d8, ground:0x443860, int:1.3},
+    dir:{color:0xcabfff, int:1.75, pos:[8,16,7]},
+    fog:{color:0x5c5278, density:0.008},
+    motes:{color:0xc8b8ff}, exposure:1.45,
+    shafts:[{x:0,y:6,z:0,h:11.6,r:1.4,r1:2.6,color:0xb8a8e8,opacity:0.14},
+            {x:-11,y:1.4,z:-11,h:3,r:1,r1:1.8,color:0xa97bff,opacity:0.13}],
+    fx:{mode:'spores', color:0xb898ff, rate:5}
+  },
+  { /* 6 — L7 The Reversed Chasm : GLACIAL DEPTHS (natural ice) */
+    dome:true, stars:false, sun:{dir:[0.3,0.6,-0.5], color:0xe8f8ff, size:38}, moon:false,
+    clouds:true, aurora:true,
+    sky:{top:0x7fa8c8, horizon:0xd8ecf8, bottom:0x8aa0b4, glow:0xe8f8ff, glowAmt:0.5},
+    hemi:{sky:0xe8f4ff, ground:0x5a7086, int:1.08},
+    dir:{color:0xdff0ff, int:1.7, pos:[6,20,-8]},
+    fog:{color:0xa8c4d8, density:0.0068},
+    motes:{color:0xcfe8f8}, exposure:1.42,
+    shafts:[{x:0,y:8,z:0,h:15.6,r:1.8,r1:3.6,color:0xd8f0ff,opacity:0.17},
+            {x:12.4,y:7,z:0,h:12.8,r:1.2,r1:2.2,color:0xd8f0ff,opacity:0.12}],
+    fx:{mode:'snow', color:0xf0f8ff, rate:9}
+  },
+  { /* 7 — L8 The Monument of Escher : GOLDEN SUMMIT (natural majestic) */
+    dome:true, stars:false, sun:{dir:[0.55,0.3,0.5], color:0xffd080, size:62}, moon:false,
+    clouds:true,
+    sky:{top:0x3a5a8a, horizon:0xe8a860, bottom:0x6a5a42, glow:0xffd080, glowAmt:0.75},
+    hemi:{sky:0xffd8a0, ground:0x6a5a42, int:1.02},
+    dir:{color:0xffeec0, int:1.85, pos:[14,30,12]},
+    fog:{color:0xb09878, density:0.0052},
+    motes:{color:0xe8d0a0}, exposure:1.42,
+    shafts:[{x:0,y:17.5,z:0,h:35,r:2.2,r1:5.0,color:0xffd890,opacity:0.18},
+            {x:0,y:17,z:-19.4,h:35,r:1.4,r1:3.0,color:0xffd890,opacity:0.12},
+            {x:0,y:6,z:14,h:12,r:1.0,r1:2.0,color:0xffe8c0,opacity:0.1}],
+    fx:{mode:'dust', color:0xe8d0a0, rate:5}
+  },
+  { /* 8 — L9 The Fractal Well : BIOLUME LAGOON (grotto) */
+    dome:true, stars:false, sun:{dir:[0,0.85,0.2], color:0xa8ffe8, size:30}, moon:false,
+    clouds:false,
+    sky:{top:0x0e3a36, horizon:0x1f6a5e, bottom:0x0a2a26, glow:0x7fe8c8, glowAmt:0.45},
+    hemi:{sky:0x7fd8c8, ground:0x2a4a46, int:1.32},
+    dir:{color:0xb8ffe8, int:1.75, pos:[4,18,4]},
+    fog:{color:0x3a6a66, density:0.0085},
+    motes:{color:0x8fe8d0}, exposure:1.42,
+    shafts:[{x:0,y:7,z:0,h:13.6,r:1.5,r1:2.8,color:0xa8ffe8,opacity:0.15}],
+    fx:{mode:'caustics', color:0x8fe8d0, rate:6}
+  },
+  { /* 9 — L10 The Escher Machine : NEBULA ROSE (cosmic) */
+    dome:true, stars:true, sun:{dir:[-0.4,0.45,0.4], color:0xf0c8ff, size:34}, moon:false,
+    clouds:false,
+    sky:{top:0x241436, horizon:0x7a4a80, bottom:0x1a0e2a, glow:0xe8a8ff, glowAmt:0.55},
+    hemi:{sky:0xd8a8e8, ground:0x503c64, int:1.48},
+    dir:{color:0xf0c8ff, int:2.0, pos:[-10,16,8]},
+    fog:{color:0x605070, density:0.007},
+    motes:{color:0xe8b8ff}, exposure:1.5,
+    shafts:[{x:0,y:7,z:0,h:13.6,r:1.5,r1:2.8,color:0xe8b0ff,opacity:0.14}],
+    fx:{mode:'sparks', color:0xff9ee0, rate:5}
+  }
+];
+
+function applyTheme(i){
+  const th=THEMES[i%THEMES.length];
+  /* sky dome */
+  SKY.visible=true;
+  skyMat.uniforms.uTop.value.setHex(th.sky.top);
+  skyMat.uniforms.uHorizon.value.setHex(th.sky.horizon);
+  skyMat.uniforms.uBottom.value.setHex(th.sky.bottom);
+  skyMat.uniforms.uSunGlow.value.setHex(th.sky.glow);
+  skyMat.uniforms.uGlowAmt.value=th.sky.glowAmt;
+  const sd=V(); sunSprite.position.set(0,0,0);
+  if(th.sun){
+    sd.set(th.sun.dir[0], th.sun.dir[1], th.sun.dir[2]).normalize();
+    skyMat.uniforms.uSunDir.value.copy(sd);
+    sunSprite.position.copy(sd).multiplyScalar(240);
+    sunSprite.material.color.setHex(th.sun.color);
+    sunSprite.scale.set(th.sun.size, th.sun.size, 1);
+  }
+  sunSprite.visible=!!th.sun;
+  moonSprite.visible=!!th.moon;
+  if(th.moon){ moonSprite.position.set(-sd.x, Math.abs(sd.y)*0.8, -sd.z).normalize().multiplyScalar(230); }
+  CLOUDS.forEach(c=>c.visible=!!th.clouds);
+  AURORAS.forEach(a=>a.visible=!!th.aurora);
+  /* starfield / nebulae (VOID) — only cosmic themes */
+  VOID.visible=!!th.stars;
+  /* lights */
+  hemiLight.color.setHex(th.hemi.sky);
+  hemiLight.groundColor.setHex(th.hemi.ground);
+  hemiLight.intensity=th.hemi.int;
+  dirLight.color.setHex(th.dir.color);
+  dirLight.intensity=th.dir.int;
+  dirLight.position.set(th.dir.pos[0], th.dir.pos[1], th.dir.pos[2]);
+  /* fog */
+  scene.fog=new THREE.FogExp2(th.fog.color, th.fog.density);
+  scene.background=new THREE.Color(th.fog.color);
+  if(!GAME.logicOnly) renderer.setClearColor(th.fog.color);
+  /* motes */
+  if(MOTES.points){
+    MOTES.points.material.color.setHex(th.motes.color);
+  }
+  /* shafts */
+  buildShafts(th.shafts);
+  /* weather */
+  AMBIENT_FX.mode=th.fx?th.fx.mode:'none';
+  AMBIENT_FX.color.setHex(th.fx?th.fx.color:0xffffff);
+  AMBIENT_FX.rate=th.fx?th.fx.rate:5;
+  /* exposure (cheats can push it further) */
+  if(!GAME.logicOnly) renderer.toneMappingExposure=(th.exposure??1.38)*(1+ (window.CHEATS?CHEATS.bright:0));
+}
+
+/* ============================================================
    4. INPUT
    ============================================================ */
 const INPUT = {
-  f:false, b:false, l:false, r:false, jump:false, sprint:false,
+  f:false, b:false, l:false, r:false, jump:false, sprint:false, keyC:false,
   jumpBuf:0, interactEdge:false, interactHold:false,
   joyX:0, joyY:0      // analog virtual-stick axes (-1..1), merged into wish dir
 };
 function bindInput(){
   addEventListener('keydown', e=>{
     if(e.repeat) return;
+    if(CHEATS && CHEATS.barOpen) return;   // typing in the cheat console
     switch(e.code){
       case 'KeyW': case 'ArrowUp': INPUT.f=true; break;
       case 'KeyS': case 'ArrowDown': INPUT.b=true; break;
@@ -1125,6 +1512,7 @@ function bindInput(){
       case 'Space': INPUT.jump=true; INPUT.jumpBuf=0.14; e.preventDefault(); break;
       case 'ShiftLeft': case 'ShiftRight': INPUT.sprint=true; break;
       case 'KeyE': INPUT.interactEdge=true; INPUT.interactHold=true; break;
+      case 'KeyC': INPUT.keyC=true; break;
       case 'KeyR': if(GAME.state==='playing') restartLevel(); break;
     }
   });
@@ -1137,6 +1525,7 @@ function bindInput(){
       case 'Space': INPUT.jump=false; break;
       case 'ShiftLeft': case 'ShiftRight': INPUT.sprint=false; break;
       case 'KeyE': INPUT.interactHold=false; break;
+      case 'KeyC': INPUT.keyC=false; break;
     }
   });
   addEventListener('mousemove', e=>{
@@ -1398,6 +1787,7 @@ class Player{
     if(!this.enabled) return;
     const wasGrounded=this.grounded;
     this.jumpedThisFrame=false;
+    if(CHEATS && CHEATS.noclip){ this.noclipMove(dt); return; }
     // depenetration guard (moving platforms, cube squeeze)
     this.depenetrate();
     /* --- wish direction from view basis projected on the walking plane --- */
@@ -1409,7 +1799,7 @@ class Player{
     const wish=V().copy(this.lastMoveFwd).multiplyScalar(iz).addScaledVector(right, ix);
     if(wish.lengthSq()>1) wish.normalize();
     const joyMag=Math.hypot(INPUT.joyX, INPUT.joyY);
-    const speed=(INPUT.sprint||joyMag>0.88)?SPRINT:WALK;
+    const speed=(INPUT.sprint||joyMag>0.88?SPRINT:WALK)*((CHEATS&&CHEATS.speed)||1);
     wish.multiplyScalar(speed);
     /* --- accelerate --- */
     const vu=this.vel.dot(this.up);
@@ -1426,7 +1816,7 @@ class Player{
     this.vel.addScaledVector(this.gravityDir, GRAV*dt);
     if(this.vel.length()>30) this.vel.setLength(30);   // terminal velocity safety
     if(this.jumpBufT>0 && (this.grounded || this.coyote>0)){
-      this.vel.addScaledVector(this.up, JUMP);
+      this.vel.addScaledVector(this.up, JUMP*((CHEATS&&CHEATS.jump)||1));
       this.vel.addScaledVector(this.gravityDir, -GRAV*dt); // cancel this frame's pull
       this.jumpBufT=0; this.coyote=0; this.grounded=false;
       this.jumpedThisFrame=true;
@@ -1478,6 +1868,23 @@ class Player{
       this.bobAmp=damp(this.bobAmp,1,8,dt);
     }else this.bobAmp=damp(this.bobAmp,0,8,dt);
     this.landDip=damp(this.landDip,0,7,dt);
+  }
+  /* cheat: free flight — move along the view ray, ignore all geometry */
+  noclipMove(dt){
+    const dir=V(0,0,-1).applyQuaternion(camera.quaternion);
+    const right=V(1,0,0).applyQuaternion(camera.quaternion);
+    const wish=V();
+    if(INPUT.f) wish.add(dir);
+    if(INPUT.b) wish.sub(dir);
+    if(INPUT.r) wish.add(right);
+    if(INPUT.l) wish.sub(right);
+    if(INPUT.jump) wish.y+=1;
+    if(INPUT.keyC) wish.y-=1;
+    if(wish.lengthSq()>0.001) wish.normalize();
+    const sp=14*((CHEATS&&CHEATS.speed)||1)*(INPUT.sprint?2.6:1);
+    this.pos.addScaledVector(wish, sp*dt);
+    this.vel.set(0,0,0);
+    this.grounded=false; this.airTime=0; this.coyote=0;
   }
   depenetrate(){
     const b=this._pbox||(this._pbox={min:V(),max:V()});
@@ -1803,12 +2210,26 @@ function buildPalette(p){
       roughness:0.85, metalness:0.12 }),
     trim: new THREE.MeshStandardMaterial({ color:0x10141c,
       emissive:p.trim||0x39d5c8, emissiveIntensity:1.9, roughness:0.5 }),
+    /* glazed architecture — skylight ceilings + clerestory windows.
+       Colliders stay fully solid (wall/ceiling walking is untouched); only
+       the visual material is translucent so the themed sky reads through. */
+    wallGlass: new THREE.MeshStandardMaterial({ color:p.glassTint||0xa8c8d8,
+      transparent:true, opacity:p.glassOpacity??0.26, roughness:0.14, metalness:0.5,
+      emissive:p.glassGlow||0x0a0e14, emissiveIntensity:0.35, side:THREE.DoubleSide }),
+    ceilGlass: new THREE.MeshStandardMaterial({ color:p.ceilGlassTint||p.glassTint||0xb8d0dc,
+      transparent:true, opacity:p.ceilGlassOpacity??(p.glassOpacity??0.26)*0.8,
+      roughness:0.12, metalness:0.55, emissive:p.glassGlow||0x0a0e14, emissiveIntensity:0.4,
+      side:THREE.DoubleSide }),
+    frame: new THREE.MeshStandardMaterial({ color:p.frame||0x2a3242,
+      roughness:0.6, metalness:0.35 }),
     glow: (hex,intensity=2.2)=>new THREE.MeshStandardMaterial({ color:0x0b0e14,
       emissive:hex, emissiveIntensity:intensity, roughness:0.4 }),
     portal: (hex)=>makePortalMat(hex)
   };
   pal.platform.userData={owned:true};
   pal.trim.userData={owned:true};
+  pal.wallGlass.userData={owned:true}; pal.ceilGlass.userData={owned:true};
+  pal.frame.userData={owned:true};
   pal.floor.userData.owned=true; pal.wall.userData.owned=true;
   return pal;
 }
@@ -1857,11 +2278,22 @@ function LStairs(L, x0, y0, z0, dir, steps, opts={}){
   L.disposables.push(mesh);
   return {x, y, z};
 }
-/* trimmed shell room with optional center holes (hatches) */
+/* glazed wall helper: solid lower band + translucent clerestory band.
+   Both bands carry their own colliders (coplanar — seam-free for plane walkers). */
+function LGlazeWall(L, cx, cy0, cz, w, d, h, o={}){
+  const frac=o.glass??0.4;                 // fraction of height that shows sky
+  const gh=h*frac, sh=h-gh;
+  if(sh>0.01) LBox(L, cx, cy0+sh/2, cz, w, sh, d, o.mat||'wall', {tag:o.tag});
+  LBox(L, cx, cy0+h-gh/2, cz, w, gh, d, 'wallGlass', {tag:(o.tag||'wall')+'Glass'});
+}
+
+/* trimmed shell room with optional center holes (hatches).
+   o.glaze = {wall:0.42, ceil:true} — clerestory bands + skylight ceiling */
 function LShell(L, o={}){
   const w=o.w??34, h=o.h??12, d=o.d??34, th=o.th??0.6;
   const holeC=o.ceilHole||0, holeF=o.floorHole||0;
   const x0=-w/2, x1=w/2, z0=-d/2, z1=d/2;
+  const ceilMat=(o.glaze&&o.glaze.ceil!==false)?'ceilGlass':'floor';
   const slab=(cx,cy,cz,sw,sd,sy,mat,tag)=>{
     const m=LBox(L,cx,cy,cz,sw,sy,sd,mat,{tag});
     return m;
@@ -1882,7 +2314,7 @@ function LShell(L, o={}){
       }
     }else slab(0,-th/2,0,w,d,th,'floor','floor');
   })();
-  /* ceiling (bottom at y=h) */
+  /* ceiling (bottom at y=h) — glass skylight when glazed */
   (function ceilWithHole(){
     const hh=holeC/2;
     if(hh>0){
@@ -1894,15 +2326,33 @@ function LShell(L, o={}){
       ];
       for(const s of parts){
         if(s[3]<=0.01||s[4]<=0.01) continue;
-        slab(s[0],s[1],s[2],s[3],s[4],th,'floor','ceiling');
+        slab(s[0],s[1],s[2],s[3],s[4],th,ceilMat,'ceiling');
       }
-    }else slab(0,h+th/2,0,w,d,th,'floor','ceiling');
+    }else slab(0,h+th/2,0,w,d,th,ceilMat,'ceiling');
+    /* skylight mullions — thin frames giving the glass a structural read */
+    if(o.glaze&&o.glaze.ceil!==false){
+      for(let mx=x0+4; mx<x1-1; mx+=5){
+        LBox(L, mx, h+0.06, 0, 0.16, 0.12, d-1, 'frame', {solid:false, castShadow:false});
+      }
+      for(let mz=z0+4; mz<z1-1; mz+=5){
+        LBox(L, 0, h+0.06, mz, w-1, 0.12, 0.16, 'frame', {solid:false, castShadow:false});
+      }
+    }
   })();
-  /* walls */
-  if(o.wallX0!==false) slab(x0-th/2, h/2, 0, th, d, h, 'wall','wallX0');
-  if(o.wallX1!==false) slab(x1+th/2, h/2, 0, th, d, h, 'wall','wallX1');
-  if(o.wallZ0!==false) slab(0, h/2, z0-th/2, w, th, h, 'wall','wallZ0');
-  if(o.wallZ1!==false) slab(0, h/2, z1+th/2, w, th, h, 'wall','wallZ1');
+  /* walls — solid lower band + glass clerestory when glazed */
+  const gw=(o.glaze&&o.glaze.wall!==false)?(o.glaze.wall??0.4):0;
+  if(gw>0){
+    const mkWall=(cx,cz,sw,sd,tag)=>LGlazeWall(L, cx, 0, cz, sw, sd, h, {glass:gw, tag});
+    if(o.wallX0!==false) mkWall(x0-th/2, 0, th, d, 'wallX0');
+    if(o.wallX1!==false) mkWall(x1+th/2, 0, th, d, 'wallX1');
+    if(o.wallZ0!==false) mkWall(0, z0-th/2, w, th, 'wallZ0');
+    if(o.wallZ1!==false) mkWall(0, z1+th/2, w, th, 'wallZ1');
+  }else{
+    if(o.wallX0!==false) slab(x0-th/2, h/2, 0, th, d, h, 'wall','wallX0');
+    if(o.wallX1!==false) slab(x1+th/2, h/2, 0, th, d, h, 'wall','wallX1');
+    if(o.wallZ0!==false) slab(0, h/2, z0-th/2, w, th, h, 'wall','wallZ0');
+    if(o.wallZ1!==false) slab(0, h/2, z1+th/2, w, th, h, 'wall','wallZ1');
+  }
   /* glowing seam where floor meets walls + baseboard */
   const t=0.1;
   const trim=(x,y,z,sw,sd)=>{
@@ -2531,7 +2981,7 @@ function renderBeam(L, segs, sensorHit){
     if(!cyl){
       cyl=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,1,8,1,true), beamMat);
       cyl.renderOrder=4;
-      WORLD.add(cyl);
+      scene.add(cyl);          // scene-level: survives per-level WORLD disposal
       BEAM_POOL[i]=cyl;
     }
     cyl.visible=true;
@@ -2601,8 +3051,8 @@ class Sweeper{
       this.tickT-=dt;
       if(this.tickT<=0){ SND.hazardTick(); this.tickT=clamp(d/14,0.12,0.5); }
     }
-    /* player hit */
-    if(this.deadly && GAME.state==='playing'){
+    /* player hit (god-mode immunity) */
+    if(this.deadly && GAME.state==='playing' && !(window.CHEATS&&CHEATS.god)){
       const b=player.box(_swpBox);
       if(b.min.x<this.box.max.x-0.15 && b.max.x>this.box.min.x+0.15 &&
          b.min.y<this.box.max.y-0.15 && b.max.y>this.box.min.y+0.15 &&
@@ -2703,6 +3153,11 @@ class Sequence{
   onArch(arch){
     if(this.done) return;
     const c=arch.type;
+    /* GREEN arches are pure gravity normalizers (recovery / tall gates) —
+       they must NEVER break an in-progress sequence, otherwise levels whose
+       colored arches only fire from the floor (L2, L8 gate 1) become
+       unwinnable: returning to the floor REQUIRES a green pass. */
+    if(c==='green') return;
     if(c===this.colors[this.progress]){
       this.progress++;
       SND.seqNote(this.progress);
@@ -2879,17 +3334,15 @@ function startLevel(i, opts={}){
   const def=LEVELS[i];
   if(GAME.level){ GAME.level.dispose(); GAME.level=null; }
   for(const b of BEAM_POOL) if(b) b.visible=false;
+  _laserLevel=0; SND.laserHum(0);       // kill any laser hum leaking from the previous chamber
   const L=new LevelContext(GAME, def);
   GAME.level=L;
   const pal=def.palette;
   L.palette=buildPalette(pal);
-  scene.fog=new THREE.FogExp2(pal.fog, pal.fogDensity??0.014);
-  scene.background=new THREE.Color(pal.fog);
-  if(!GAME.logicOnly) renderer.setClearColor(pal.fog);
-  hemiLight.color.setHex(pal.hemiSky??0x8fb5c8);
-  hemiLight.groundColor.setHex(pal.hemiGround??0x1a1410);
-  dirLight.color.setHex(pal.dirColor??0xffe8c0);
-  dirLight.intensity=pal.dirInt??1.15;
+  /* environment theme — per-chamber sky, sun/moon, clouds, fog, lights,
+     weather + light shafts (overrides the palette's flat fog/hemi values) */
+  applyTheme(i);
+  L.updaters.push(ambientFxUpdate);
   /* shadow frustum fit */
   const ext=def.shadowExt??{x:20,z:20,y:16};
   dirLight.position.set(ext.x*0.7, ext.y*1.8, ext.z*0.5);
@@ -3129,6 +3582,7 @@ function updateHUD(dt){
   }
   /* status line */
   if(L.vars.status) DOM.hudStatus.innerHTML=L.vars.status;
+  updateCheatTag();
 }
 
 /* ============================================================
@@ -3251,8 +3705,8 @@ function updateGame(dt){
   if(L.hatch) L.hatch.update(dt);
   if(L.def.update) L.def.update(L, dt, GAME.t);
   for(const u of L.updaters) u(dt, GAME.t);
-  /* void safety net */
-  if(playing && !L.bounds.containsPoint(player.pos)) voidRespawn();
+  /* void safety net (god / noclip ignore the void) */
+  if(playing && !CHEATS.god && !CHEATS.noclip && !L.bounds.containsPoint(player.pos)) voidRespawn();
   /* laser hum follows power */
   SND.laserHum(_laserLevel);
   updateHUD(dt);
@@ -3272,12 +3726,13 @@ LEVELS.push({
   objective:'Collect 3 orb fragments — the ceiling hatch awakens',
   hud:'fragments',
   ambient:55,
-  palette:{ fog:0x070b12, fogDensity:0.014, trim:0x39d5c8, plat:0x2b3345,
-    checkerA:'#232b39', checkerB:'#181e2a', panel:'#1f2836', panelLine:'#2a3547',
-    floorRepX:8, floorRepY:8, wallRepX:5, hemiSky:0x8fb5c8, dirColor:0xffe8c0 },
+  palette:{ trim:0x39d5c8, plat:0x5a6478,
+    checkerA:'#8c94a8', checkerB:'#5a6278', panel:'#6a7488', panelLine:'#8a94ac',
+    floorRepX:8, floorRepY:8, wallRepX:5,
+    glassTint:0xd8c8b0, glassOpacity:0.24, frame:0x4a4238 },
   shadowExt:{x:20,z:20,y:12},
   build(L){
-    LShell(L, {w:34, h:12, d:34, ceilHole:2.6});
+    LShell(L, {w:34, h:12, d:34, ceilHole:2.6, glaze:{wall:0.42, ceil:true}});
     /* spawn dais + green arch (respawn anchor) */
     LPlatform(L, 0, 0.25, 11, 3.6, 3.6, {mat:'platform'});
     L.spawn={pos:V(0, 1.2, 12.4), yaw:0};
@@ -3288,11 +3743,15 @@ LEVELS.push({
     LText(L, 3.4, 0.02, 9.6, ['SPACE — JUMP'], {normal:'y+', up:'z-', w:3.6, h:0.9, size:46, color:'#bcd2e8'});
     LText(L, -3.4, 0.02, 9.6, ['E — INTERACT'], {normal:'y+', up:'z-', w:3.4, h:0.9, size:46, color:'#bcd2e8'});
     LText(L, 0, 0.02, 2.5, ['STEP THROUGH THE COLORED ARCHES'], {normal:'y+', up:'z-', w:6.4, h:1.0, size:40, color:'#7d8ba0'});
-    /* arch legend behind spawn */
+    /* arch legend behind spawn AND ahead (north wall — visible on spawn view) */
     LText(L, -5.2, 7.6, 16.94, ['BLUE — WALL A'], {normal:'z-', up:'y+', w:3.2, h:0.8, size:54, color:ARCH_COLORS.blue, glowColor:ARCH_COLORS.blue});
     LText(L, -1.7, 7.6, 16.94, ['RED — WALL B'], {normal:'z-', up:'y+', w:3.0, h:0.8, size:54, color:ARCH_COLORS.red, glowColor:ARCH_COLORS.red});
     LText(L, 1.8, 7.6, 16.94, ['YELLOW — CEILING'], {normal:'z-', up:'y+', w:3.4, h:0.8, size:48, color:ARCH_COLORS.yellow, glowColor:ARCH_COLORS.yellow});
     LText(L, 5.6, 7.6, 16.94, ['GREEN — FLOOR'], {normal:'z-', up:'y+', w:3.0, h:0.8, size:54, color:ARCH_COLORS.green, glowColor:ARCH_COLORS.green});
+    LText(L, -5.2, 6.6, -16.94, ['BLUE — WALL A'], {normal:'z+', up:'y+', w:3.2, h:0.8, size:54, color:ARCH_COLORS.blue, glowColor:ARCH_COLORS.blue});
+    LText(L, -1.7, 6.6, -16.94, ['RED — WALL B'], {normal:'z+', up:'y+', w:3.0, h:0.8, size:54, color:ARCH_COLORS.red, glowColor:ARCH_COLORS.red});
+    LText(L, 1.8, 6.6, -16.94, ['YELLOW — CEILING'], {normal:'z+', up:'y+', w:3.4, h:0.8, size:48, color:ARCH_COLORS.yellow, glowColor:ARCH_COLORS.yellow});
+    LText(L, 5.6, 6.6, -16.94, ['GREEN — FLOOR'], {normal:'z+', up:'y+', w:3.0, h:0.8, size:54, color:ARCH_COLORS.green, glowColor:ARCH_COLORS.green});
     /* floor parkour flavor (kept clear of the spawn -> blue arch path) */
     LPlatform(L, -7.2, 1.68, 1, 5, 4.2, {mat:'platform'});
     LStairs(L, 6.2, 0, 1, 'x+', 4, {});
@@ -3354,20 +3813,20 @@ LEVELS.push({
   objective:'Break the sequence — read the inverted paint',
   hud:'sequence',
   ambient:65.4,
-  palette:{ fog:0x0a0f0b, fogDensity:0.02, trim:0x7dc98f, plat:0x27352c,
-    checkerA:'#222b25', checkerB:'#171d19', panel:'#1e2..', panelLine:'#2a3a2f',
+  palette:{ trim:0x7dc98f, plat:0x54644f,
+    checkerA:'#64746a', checkerB:'#46524a', panel:'#54624f', panelLine:'#68786a',
     floorRepX:26, floorRepY:4, wallRepX:14, wallRepY:1.4,
-    hemiSky:0x9fbf9f, dirColor:0xd8ffc8, dirInt:0.9 },
+    glassTint:0x9fd8c0, glassOpacity:0.24, frame:0x2e3a32 },
   shadowExt:{x:34,z:8,y:10},
   build(L){
     const LEN=60, W=8, H=8;
-    /* corridor shell (manual — asymmetric along X) */
+    /* corridor shell (manual — asymmetric along X) — glazed: skylight + clerestories */
     LBox(L, LEN/2, -0.3, 0, LEN, 0.6, W, 'floor', {tag:'floor'});
-    LBox(L, LEN/2, H+0.3, 0, LEN, 0.6, W, 'floor', {tag:'ceiling'});
-    LBox(L, LEN/2, H/2, -W/2-0.3, LEN, H, 0.6, 'wall', {tag:'wallZ0'});
-    LBox(L, LEN/2, H/2,  W/2+0.3, LEN, H, 0.6, 'wall', {tag:'wallZ1'});
-    LBox(L, -0.3, H/2, 0, 0.6, H, W, 'wall', {tag:'wallX0'});
-    LBox(L, LEN+0.3, H/2, 0, 0.6, H, W, 'wall', {tag:'wallX1'});
+    LBox(L, LEN/2, H+0.3, 0, LEN, 0.6, W, 'ceilGlass', {tag:'ceiling'});
+    LGlazeWall(L, LEN/2, 0, -W/2-0.3, LEN, 0.6, H, {glass:0.45, tag:'wallZ0'});
+    LGlazeWall(L, LEN/2, 0,  W/2+0.3, LEN, 0.6, H, {glass:0.45, tag:'wallZ1'});
+    LGlazeWall(L, -0.3, 0, 0, 0.6, W, H, {glass:0.45, tag:'wallX0'});
+    LGlazeWall(L, LEN+0.3, 0, 0, 0.6, W, H, {glass:0.45, tag:'wallX1'});
     L.bounds=new THREE.Box3(V(-1.5,-2.5,-5.5), V(LEN+1.5, H+1.6, 5.5));
     /* long trim rails */
     L._trimGeos.push((()=>{const g=new THREE.BoxGeometry(LEN-2,0.07,0.12); g.translate(LEN/2,0.035,-W/2+0.35); return g;})());
@@ -3475,12 +3934,13 @@ LEVELS.push({
   objective:'Seat a gravity cube on each anchor — the vault will yield',
   hud:'plates',
   ambient:49,
-  palette:{ fog:0x0c0a08, fogDensity:0.015, trim:0xe0a54d, plat:0x35302a,
-    checkerA:'#2b2620', checkerB:'#1c1915', panel:'#241f1a', panelLine:'#332c24',
-    floorRepX:7, floorRepY:7, wallRepX:5, hemiSky:0xc8b594, dirColor:0xffd9a0 },
+  palette:{ trim:0xe0a54d, plat:0x8a7658,
+    checkerA:'#a89478', checkerB:'#7a6a52', panel:'#96826a', panelLine:'#b09a7e',
+    floorRepX:7, floorRepY:7, wallRepX:5,
+    glassTint:0xf0d8b0, glassOpacity:0.22, frame:0x5a4c38 },
   shadowExt:{x:18,z:18,y:14},
   build(L){
-    LShell(L, {w:30, h:14, d:30});
+    LShell(L, {w:30, h:14, d:30, glaze:{wall:0.4, ceil:true}});
     L.spawn={pos:V(0, 1.2, 12.5), yaw:0};
     L.respawn={pos:V(0, 1.2, 12.5), yaw:0};
     LPlatform(L, 0, 0.25, 11, 3.4, 3.4, {mat:'platform'});
@@ -3577,12 +4037,13 @@ LEVELS.push({
   objective:'Rotate the mirror pillars — feed the sensor for 2 seconds',
   hud:'laser',
   ambient:58.3,
-  palette:{ fog:0x060a12, fogDensity:0.013, trim:0x4da3ff, plat:0x24303e,
-    checkerA:'#1f2833', checkerB:'#151c26', panel:'#1a2430', panelLine:'#26313f',
-    floorRepX:8, floorRepY:8, wallRepX:5, hemiSky:0x8fb0d8, dirColor:0xc8dcff, dirInt:0.95 },
+  palette:{ trim:0x4da3ff, plat:0x8a96ac,
+    checkerA:'#a8b4c8', checkerB:'#78849a', panel:'#96a2b8', panelLine:'#b0bcd0',
+    floorRepX:8, floorRepY:8, wallRepX:5,
+    glassTint:0xd8ecff, glassOpacity:0.2, frame:0x4a5468 },
   shadowExt:{x:20,z:20,y:16},
   build(L){
-    LShell(L, {w:34, h:16, d:34});
+    LShell(L, {w:34, h:16, d:34, glaze:{wall:0.45, ceil:true}});
     L.spawn={pos:V(0, 1.2, 13), yaw:0};
     L.respawn={pos:V(0, 1.2, 13), yaw:0};
     LPlatform(L, 0, 0.25, 11.5, 3.4, 3.4, {mat:'platform'});
@@ -3664,12 +4125,13 @@ LEVELS.push({
   objective:'Ascend to the spire crown before stabilization collapses',
   hud:'timer',
   ambient:43.6,
-  palette:{ fog:0x120806, fogDensity:0.011, trim:0xe8633c, plat:0x3a2b26,
-    checkerA:'#2e2118', checkerB:'#1e150f', panel:'#261a12', panelLine:'#38271b',
-    floorRepX:6, floorRepY:6, wallRepX:4, hemiSky:0xd8a888, dirColor:0xffc890, dirInt:1.05 },
+  palette:{ trim:0xe8633c, plat:0x8a6048,
+    checkerA:'#a87858', checkerB:'#7a543c', panel:'#96684c', panelLine:'#b07a58',
+    floorRepX:6, floorRepY:6, wallRepX:4,
+    glassTint:0xffc890, glassOpacity:0.24, frame:0x5a3c2a },
   shadowExt:{x:16,z:16,y:34},
   build(L){
-    LShell(L, {w:26, h:34, d:26, topTrim:false});
+    LShell(L, {w:26, h:34, d:26, topTrim:false, glaze:{wall:0.32, ceil:true}});
     L.vars.timeLimit=90;
     L.vars.shiftEvery=20;
     L.vars.nextShift=20;
@@ -3785,12 +4247,13 @@ LEVELS.push({
   objective:'Take 3 energy cores — touch nothing red',
   hud:'cores',
   ambient:73.4,
-  palette:{ fog:0x0a0612, fogDensity:0.016, trim:0xa97bff, plat:0x2c2440,
-    checkerA:'#241f33', checkerB:'#171325', panel:'#1d1830', panelLine:'#2a2340',
-    floorRepX:7, floorRepY:7, wallRepX:5, hemiSky:0x9f8fd8, dirColor:0xcabfff, dirInt:0.85 },
+  palette:{ trim:0xa97bff, plat:0x7c6e9c,
+    checkerA:'#9c8cb8', checkerB:'#6a5c8c', panel:'#8a7aa8', panelLine:'#a292c0',
+    floorRepX:7, floorRepY:7, wallRepX:5,
+    glassTint:0xcabfff, glassOpacity:0.24, frame:0x443c60 },
   shadowExt:{x:18,z:18,y:12},
   build(L){
-    LShell(L, {w:30, h:12, d:30, floorHole:2.6});
+    LShell(L, {w:30, h:12, d:30, floorHole:2.6, glaze:{wall:0.4, ceil:true}});
     L.spawn={pos:V(0, 1.2, 12.2), yaw:0};
     L.respawn={pos:V(0, 1.2, 12.2), yaw:0};
     LPlatform(L, 0, 0.25, 11, 3.4, 3.4, {mat:'platform'});
@@ -3875,13 +4338,14 @@ LEVELS.push({
   objective:'Cross the bridge of the worthy plane — ride the void elevator',
   hud:'escape',
   ambient:61.7,
-  palette:{ fog:0x04070c, fogDensity:0.012, trim:0x39d5c8, plat:0x22303c,
-    checkerA:'#1c2833', checkerB:'#121a24', panel:'#18222e', panelLine:'#242f3c',
-    floorRepX:8, floorRepY:8, wallRepX:5, hemiSky:0x7fa8c8, dirColor:0xb8d0e8, dirInt:0.95 },
+  palette:{ trim:0x39d5c8, plat:0x8a9cb4,
+    checkerA:'#a8bcd0', checkerB:'#7894ac', panel:'#96a8c0', panelLine:'#b0c4d8',
+    floorRepX:8, floorRepY:8, wallRepX:5,
+    glassTint:0xd8f0ff, glassOpacity:0.22, frame:0x4a5a6e },
   shadowExt:{x:20,z:20,y:16},
   build(L){
     /* floor only exists as a perimeter ring — the center is the chasm */
-    LShell(L, {w:34, h:16, d:34, floorHole:27.6});
+    LShell(L, {w:34, h:16, d:34, floorHole:27.6, glaze:{wall:0.4, ceil:true}});
     L.spawn={pos:V(0, 1.2, 15.2), yaw:0};
     L.respawn={pos:V(0, 1.2, 15.2), yaw:0};
     LPlatform(L, 0, 0.25, 14.2, 3.4, 3.4, {mat:'platform'});
@@ -3976,12 +4440,13 @@ LEVELS.push({
   objective:'Rebuild the Core Anchor — sequence, light, resonance, socket',
   hud:'final',
   ambient:36.7,
-  palette:{ fog:0x0d0c08, fogDensity:0.008, trim:0xe8c15a, plat:0x38322a,
-    checkerA:'#2e2a20', checkerB:'#1d1a14', panel:'#262218', panelLine:'#3a3426',
-    floorRepX:10, floorRepY:10, wallRepX:6, hemiSky:0xd8c890, dirColor:0xffeec0, dirInt:1.2 },
+  palette:{ trim:0xe8c15a, plat:0x8a7a58,
+    checkerA:'#a89878', checkerB:'#786848', panel:'#96866a', panelLine:'#b09e7e',
+    floorRepX:10, floorRepY:10, wallRepX:6,
+    glassTint:0xffd8a0, glassOpacity:0.2, frame:0x5a4c34 },
   shadowExt:{x:22,z:22,y:36},
   build(L){
-    LShell(L, {w:40, h:36, d:40});
+    LShell(L, {w:40, h:36, d:40, glaze:{wall:0.35, ceil:true}});
     L.spawn={pos:V(0, 1.2, 14), yaw:0};
     L.respawn={pos:V(0, 1.2, 14), yaw:0};
     LPlatform(L, 0, 0.25, 12.8, 3.4, 3.4, {mat:'platform'});
@@ -4234,6 +4699,182 @@ function ringFixY(L){ return L.vars.ringY; }
 const _l8box={min:V(),max:V()};
 
 /* ============================================================
+   19d. CHEAT CONSOLE — press ` (Backquote) or the ⌁ touch button.
+   Commands: help, god, noclip, speed, jump, gravity, level, win,
+   frags, tp, timescale, bright, reset.  Konami code supported.
+   ============================================================ */
+const CHEATS={ god:false, noclip:false, speed:1, jump:1, bright:0,
+  barOpen:false, any:false };
+window.CHEATS=CHEATS;
+
+const PLANE_QUATS={
+  floor:new THREE.Quaternion(),
+  wallA:new THREE.Quaternion().setFromAxisAngle(V(1,0,0), Math.PI/2),
+  ceil: new THREE.Quaternion().setFromAxisAngle(V(1,0,0), Math.PI),
+  wallB:new THREE.Quaternion().setFromAxisAngle(V(1,0,0), -Math.PI/2)
+};
+function cheatActive(){ return CHEATS.god||CHEATS.noclip||CHEATS.speed!==1||
+  CHEATS.jump!==1||CHEATS.bright!==0||GAME.timeScale!==1; }
+function updateCheatTag(){
+  const el=$('cheat-tag'); if(!el) return;
+  const on=cheatActive();
+  CHEATS.any=on;
+  el.classList.toggle('on', on);
+}
+function cheatToast(msg){ toast('<span style="color:#ff9ee0">⌁</span> '+msg, 2400); }
+
+const CHEAT_CMDS={
+  help(a){
+    const rows=[ ['god','invulnerable — sentinels, lasers, the void'],
+      ['noclip','fly anywhere, through walls (Space up, C down)'],
+      ['speed <n>','movement speed multiplier (0.5 – 6)'],
+      ['jump <n>','jump power multiplier (0.5 – 5)'],
+      ['gravity <p>','floor | ceil | wallA | wallB'],
+      ['level <n>','warp to chamber 1 – 10'],
+      ['win','complete the current chamber'],
+      ['frags','collect every fragment / core in the chamber'],
+      ['tp <x y z>','teleport to coordinates'],
+      ['timescale <n>','slow-motion / fast-forward (0.2 – 3)'],
+      ['bright <n>','exposure boost (-0.5 – 1)'],
+      ['reset','clear all cheats'] ];
+    toast('CHEATS — <b>`</b> closes · ' + rows.map(r=>'<b>'+r[0]+'</b>').join(' · '), 9000);
+    console.log('%c THE IMPOSSIBLE ROOM — CHEAT SHEET ', 'background:#2a1e3a;color:#ff9ee0;font-weight:bold');
+    rows.forEach(r=>console.log('  '+r[0].padEnd(14)+' '+r[1]));
+    return 'console printed the full list';
+  },
+  iddqd(){ return CHEAT_CMDS.god(); },
+  god(){
+    CHEATS.god=!CHEATS.god;
+    return CHEATS.god?'GOD MODE — the void forgives you':'god mode off';
+  },
+  noclip(){
+    CHEATS.noclip=!CHEATS.noclip;
+    if(CHEATS.noclip){ player.frozen=false; player.transition=null; player.reground=null; }
+    return CHEATS.noclip?'NOCLIP — fly free (Space up · C down · Shift boost)':'noclip off';
+  },
+  speed(a){
+    const v=clamp(parseFloat(a[0])||1, 0.5, 6);
+    CHEATS.speed=v; return 'speed ×'+v.toFixed(2);
+  },
+  jump(a){
+    const v=clamp(parseFloat(a[0])||1, 0.5, 5);
+    CHEATS.jump=v; return 'jump ×'+v.toFixed(2);
+  },
+  gravity(a){
+    const k={floor:'floor',f:'floor',ceil:'ceil',ceiling:'ceil',c:'ceil',
+      walla:'wallA',a:'wallA','wall-a':'wallA',wallb:'wallB',b:'wallB','wall-b':'wallB'}[(a[0]||'').toLowerCase()];
+    if(!k) return 'usage: gravity floor|ceil|wallA|wallB';
+    player.snapTo(player.pos, player.yaw, PLANE_QUATS[k].clone());
+    return 'gravity → '+k.toUpperCase();
+  },
+  level(a){
+    const n=Math.round(parseFloat(a[0]));
+    if(!n||n<1||n>LEVELS.length) return 'usage: level 1–'+LEVELS.length;
+    const i=n-1;
+    SAVE.unlocked=Math.max(SAVE.unlocked, i+1); persist();
+    hideScreen(DOM.victory); hideScreen(DOM.failed); hideScreen(DOM.pause);
+    DOM.vignette.style.opacity=0;
+    startLevel(i, {silent:true});
+    GAME.state='playing';
+    DOM.hud.classList.add('on');
+    return 'warped to CHAMBER '+ROMAN[i]+' — '+LEVELS[i].name;
+  },
+  win(){
+    if(GAME.state!=='playing') return 'not playing';
+    levelComplete();
+    return 'chamber complete';
+  },
+  frags(){
+    const L=GAME.level; if(!L) return 'no level';
+    let n=0;
+    for(const f of L.fragments){ if(!f.collected){ f.collect(); n++; } }
+    return n?('collected '+n+' fragment'+(n>1?'s':'')):'nothing left to collect';
+  },
+  tp(a){
+    const x=parseFloat(a[0]), y=parseFloat(a[1]), z=parseFloat(a[2]);
+    if([x,y,z].some(v=>isNaN(v))) return 'usage: tp x y z';
+    player.pos.set(x,y,z); player.vel.set(0,0,0);
+    player.frozen=false; player.transition=null; player.reground=null;
+    return 'teleported to '+x.toFixed(1)+', '+y.toFixed(1)+', '+z.toFixed(1);
+  },
+  timescale(a){
+    const v=clamp(parseFloat(a[0])||1, 0.2, 3);
+    GAME.timeScale=v; return 'time flows ×'+v.toFixed(2);
+  },
+  bright(a){
+    const v=clamp(parseFloat(a[0])||0, -0.5, 1);
+    CHEATS.bright=v;
+    applyTheme(GAME.levelIndex);
+    return v===0?'exposure reset':'exposure '+(v>0?'+':'')+v.toFixed(2);
+  },
+  reset(){
+    CHEATS.god=false; CHEATS.noclip=false; CHEATS.speed=1; CHEATS.jump=1;
+    CHEATS.bright=0; GAME.timeScale=1;
+    applyTheme(GAME.levelIndex);
+    return 'all cheats cleared';
+  }
+};
+function executeCheat(line){
+  const parts=line.trim().split(/\s+/);
+  const cmd=parts.shift().toLowerCase();
+  const fn=CHEAT_CMDS[cmd];
+  if(!fn) return 'unknown command: '+cmd+' — try help';
+  try{ return fn(parts); }catch(e){ return 'error: '+e.message; }
+}
+
+/* ---- console bar UI ---- */
+function setupCheats(){
+  const bar=$('cheatbar'), input=$('cheat-input');
+  if(!bar) return;
+  const open=(v)=>{
+    CHEATS.barOpen=v;
+    bar.classList.toggle('on', v);
+    if(v){ input.value=''; setTimeout(()=>input.focus(), 30); }
+    else{ input.blur(); }
+  };
+  CHEATS.open=open;
+  input.addEventListener('keydown', e=>{
+    e.stopPropagation();
+    if(e.code==='Enter'){
+      const line=input.value.trim();
+      if(line){ const msg=executeCheat(line); cheatToast(msg); }
+      input.value='';
+    }else if(e.code==='Escape'){ open(false); }
+  });
+  input.addEventListener('keyup', e=>e.stopPropagation());
+  /* desktop hotkey */
+  addEventListener('keydown', e=>{
+    if(e.code==='Backquote'){
+      e.preventDefault();
+      open(!CHEATS.barOpen);
+    }
+  });
+  /* touch: ⌁ button beside the pause button */
+  if(IS_TOUCH){
+    const btn=$('tb-cheat');
+    if(btn) btn.addEventListener('touchstart', e=>{
+      e.preventDefault(); e.stopPropagation();
+      open(!CHEATS.barOpen);
+    }, {passive:false});
+  }
+  /* Konami code — ↑ ↑ ↓ ↓ ← → ← → B A */
+  const KONAMI=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','KeyB','KeyA'];
+  let kIdx=0;
+  addEventListener('keydown', e=>{
+    if(CHEATS.barOpen) return;
+    kIdx = (e.code===KONAMI[kIdx]) ? kIdx+1 : (e.code===KONAMI[0]?1:0);
+    if(kIdx>=KONAMI.length){
+      kIdx=0;
+      SAVE.unlocked=LEVELS.length; persist();
+      CHEATS.god=true; CHEATS.speed=1.6;
+      SND.winBig(); flashScreen('#ff9ee0', 0.6); shake(0.8);
+      cheatToast('<b>KONAMI</b> — ALL CHAMBERS UNSEALED · GOD MODE · SPEED ×1.6');
+      PARTS.burst(player.pos, new THREE.Color(0xff9ee0), 60, 5, 3, 1.2);
+    }
+  });
+}
+
+/* ============================================================
    20. PROCEDURAL BONUS LEVELS (Level 9+, seeded)
    ============================================================ */
 function procLevel(seed, name, sub, palette, ambient){
@@ -4242,7 +4883,7 @@ function procLevel(seed, name, sub, palette, ambient){
     palette, shadowExt:{x:17,z:17,y:14},
     build(L){
       const rng=mulberry32(seed);
-      LShell(L, {w:30, h:14, d:30, ceilHole:2.6});
+      LShell(L, {w:30, h:14, d:30, ceilHole:2.6, glaze:{wall:0.4, ceil:true}});
       L.spawn={pos:V(0, 1.2, 11.5), yaw:0};
       L.respawn={pos:V(0, 1.2, 11.5), yaw:0};
       LPlatform(L, 0, 0.25, 10.2, 3.4, 3.4, {mat:'platform'});
@@ -4364,14 +5005,16 @@ function procLevel(seed, name, sub, palette, ambient){
 }
 LEVELS.push(procLevel(20260926, 'The Fractal Well',
   'Collect 4 sigils in the generated vault',
-  { fog:0x051012, fogDensity:0.015, trim:0x2fd4b0, plat:0x213332,
-    checkerA:'#1d2f2c', checkerB:'#13211f', panel:'#182825', panelLine:'#253a36',
-    floorRepX:7, floorRepY:7, wallRepX:5, hemiSky:0x8fc8b8, dirColor:0xc0ffe8 }, 51.9));
+  { trim:0x2fd4b0, plat:0x5a8a80,
+    checkerA:'#5e8e84', checkerB:'#41645c', panel:'#4a746c', panelLine:'#5e8e84',
+    floorRepX:7, floorRepY:7, wallRepX:5,
+    glassTint:0xa8ffe8, glassOpacity:0.24, frame:0x2a423e }, 51.9));
 LEVELS.push(procLevel(31415926, 'The Escher Machine',
   'Collect 4 sigils in the generated vault',
-  { fog:0x100514, fogDensity:0.015, trim:0xd455c8, plat:0x332138,
-    checkerA:'#2c1f2e', checkerB:'#1d141f', panel:'#251a28', panelLine:'#38263c',
-    floorRepX:7, floorRepY:7, wallRepX:5, hemiSky:0xc89fd8, dirColor:0xe8c0ff }, 46.2));
+  { trim:0xd455c8, plat:0x8e749a,
+    checkerA:'#9c84a8', checkerB:'#6e547c', panel:'#866e94', panelLine:'#a488b0',
+    floorRepX:7, floorRepY:7, wallRepX:5,
+    glassTint:0xe8c0ff, glassOpacity:0.24, frame:0x423252 }, 46.2));
 
 /* ============================================================
    21. MAIN LOOP, MENUS, BOOT
@@ -4385,9 +5028,9 @@ function render(){
   else renderer.render(scene, camera);
 }
 function loop(){
-  const dt=Math.min(0.05, clock.getDelta());
+  const dt=Math.min(0.05, clock.getDelta())*GAME.timeScale;
   /* fps meter */
-  FPS.acc+=dt; FPS.n++;
+  FPS.acc+=dt/GAME.timeScale; FPS.n++;
   if(FPS.acc>0.5){ FPS.avg=FPS.n/FPS.acc; FPS.acc=0; FPS.n=0; }
   if(!GAME.qa){
     if(GAME.state==='paused'){ PARTS.update(dt); updateFade(dt); render(); return; }
@@ -4459,18 +5102,27 @@ function setupMenu(){
       else document.documentElement.requestFullscreen().catch(()=>{});
     };
   }
-  /* pause / victory */
+  /* pause / victory — every exit path must dismiss the victory overlay
+     (bug found in playtest: it never hid, soft-locking the chain) */
   $('btn-resume').onclick=()=>{ SND.uiClick(); resumeGame(); };
   $('btn-restart').onclick=()=>{ SND.uiClick(); hideScreen(DOM.pause);
+    hideScreen(DOM.victory); DOM.vignette.style.opacity=0;
     restartLevel(); GAME.state='playing'; resumeGame(); };
-  $('btn-pmenu').onclick=()=>{ SND.uiClick(); hideScreen(DOM.pause); toMenu(); };
+  $('btn-pmenu').onclick=()=>{ SND.uiClick(); hideScreen(DOM.pause);
+    hideScreen(DOM.victory); toMenu(); };
   $('btn-next').onclick=()=>{ SND.uiClick();
+    hideScreen(DOM.victory); hideScreen(DOM.failed); DOM.vignette.style.opacity=0;
     const nxt=GAME.levelIndex+1;
     if(nxt>=LEVELS.length){ toMenu(); return; }
     enterGame(nxt); };
-  $('btn-replay').onclick=()=>{ SND.uiClick(); enterGame(GAME.levelIndex); };
-  $('btn-bonus').onclick=()=>{ SND.uiClick(); enterGame(8); };
-  $('btn-vmenu').onclick=()=>{ SND.uiClick(); toMenu(); };
+  $('btn-replay').onclick=()=>{ SND.uiClick(); hideScreen(DOM.victory);
+    DOM.vignette.style.opacity=0; enterGame(GAME.levelIndex); };
+  $('btn-bonus').onclick=()=>{ SND.uiClick(); hideScreen(DOM.victory);
+    DOM.vignette.style.opacity=0;
+    const nxt=(GAME.levelIndex>=8 && GAME.levelIndex<LEVELS.length-1)?GAME.levelIndex+1:8;
+    enterGame(nxt); };
+  $('btn-vmenu').onclick=()=>{ SND.uiClick(); hideScreen(DOM.victory);
+    DOM.vignette.style.opacity=0; toMenu(); };
   /* pointer lock plumbing (desktop only — touch mode never locks) */
   addEventListener('click', ()=>{
     if(!IS_TOUCH && GAME.state==='playing' && plc && !plc.isLocked && !GAME.qa) plc.lock();
@@ -4495,6 +5147,10 @@ function resumeGame(){
 }
 function enterGame(i){
   DOM.menu.classList.add('hidden');
+  hideScreen(DOM.victory);          // defensive: never carry overlays into play
+  hideScreen(DOM.failed);
+  hideScreen(DOM.pause);
+  DOM.vignette.style.opacity=0;
   GAME.campaignTime = i===0 ? 0 : GAME.campaignTime;
   /* on touch, ride the ENTER-tap gesture into fullscreen when allowed */
   if(IS_TOUCH && document.documentElement.requestFullscreen && !document.fullscreenElement){
@@ -4506,6 +5162,9 @@ function enterGame(i){
 function toMenu(){
   DOM.menu.classList.remove('hidden');
   DOM.hud.classList.remove('on');
+  hideScreen(DOM.victory);
+  hideScreen(DOM.failed);
+  DOM.vignette.style.opacity=0;
   GAME.state='menu';
   startLevel(0, {silent:true});
   GAME.state='menu';
@@ -4761,6 +5420,96 @@ function qaRun(){
     return true;
   }), 'perf.budgets');
 
+  /* 8 — UI chain: victory overlay must dismiss when NEXT CHAMBER is used
+     (playtest bug: it never did — every level after the first played behind
+      a frozen victory screen) */
+  log(guard(()=>{
+    startLevel(0,{silent:true});
+    GAME.state='playing'; player.frozen=false;
+    for(const f of L_FIX().fragments){ ctx.warp(f.pos.x, f.pos.y, f.pos.z); ctx.step(0.1); }
+    ctx.steps(1.7, 1/30);
+    player.pos.set(0, 12.5, 0); ctx.step(0.1);
+    if(GAME.state!=='victory') return 'level 1 did not complete (state='+GAME.state+')';
+    if(DOM.victory.classList.contains('hidden')) return 'victory screen missing';
+    $('btn-next').onclick();            // exactly what a player clicks
+    if(!DOM.victory.classList.contains('off')) return 'victory overlay did not dismiss on NEXT';
+    if(GAME.levelIndex!==1) return 'did not advance to level 2 (idx='+GAME.levelIndex+')';
+    if(GAME.state!=='levelcard' && GAME.state!=='playing') return 'bad state after next (state='+GAME.state+')';
+    return true;
+  }), 'ui.victory-dismiss');
+
+  /* 9 — green arches must not break an in-progress sequence
+     (playtest bug: L2 / L8 gate 1 were unwinnable — returning to the floor
+      REQUIRES a green pass, which reset the sequence) */
+  log(guard(()=>{
+    startLevel(1,{silent:true});
+    GAME.state='playing'; player.frozen=false; player.archCd=0;
+    const L2=L_FIX();
+    ctx.warp(26, 1.2, 0); ctx.steps(1.4, 1/30);      // blue -> WALL A
+    if(L2.sequences[0].progress!==1) return 'blue should be step 1';
+    /* pass the green tall gate at x=6 the way a player must */
+    player.snapTo(player.pos, player.yaw, QG.wallA.clone());
+    ctx.warp(6.1, 1.2, 0); ctx.steps(1.5, 1/30);     // green gate -> floor
+    if(gKey(player.gravityDir)!=='0,-1,0') return 'green gate did not normalize gravity';
+    if(L2.sequences[0].progress!==1) return 'green gate broke the sequence (progress='+L2.sequences[0].progress+')';
+    ctx.warp(12, 1.2, 0); ctx.steps(1.4, 1/30);      // yellow -> CEIL
+    if(L2.sequences[0].progress!==2) return 'yellow should be step 2 after green';
+    return true;
+  }), 'sequence.green-neutral');
+
+  /* 10 — laser beams survive level transitions
+     (playtest bug: beam meshes were added to WORLD — level disposal
+      orphaned them, so L8's beams were invisible after playing L4) */
+  log(guard(()=>{
+    startLevel(3,{silent:true}); GAME.state='playing'; player.frozen=false;
+    const L4=L_FIX();
+    L4.mirrors[0].idx=5; L4.mirrors[0].applyAngle(true);
+    L4.mirrors[1].idx=2; L4.mirrors[1].applyAngle(true);
+    L4.mirrors[2].idx=1; L4.mirrors[2].applyAngle(true);
+    ctx.step(0.05);
+    if(!BEAM_POOL[0] || BEAM_POOL[0].parent!==scene) return 'beam not created at scene level';
+    if(!BEAM_POOL[0].visible) return 'beam not visible on its own level';
+    startLevel(7,{silent:true}); GAME.state='playing'; player.frozen=false;
+    const L8=L_FIX();
+    L8.mirrors[0].idx=3; L8.mirrors[0].applyAngle(true);
+    L8.mirrors[1].idx=7; L8.mirrors[1].applyAngle(true);
+    ctx.step(0.05);
+    if(!BEAM_POOL[0] || BEAM_POOL[0].parent!==scene) return 'beam orphaned after level switch';
+    if(!BEAM_POOL[0].visible) return 'beam invisible on the second laser level';
+    return true;
+  }), 'laser.beam-persist');
+
+  /* 11 — no laser audio leaking across levels */
+  log(guard(()=>{
+    if(typeof _laserLevel==='undefined') return true;   // guard for older builds
+    startLevel(3,{silent:true}); GAME.state='playing'; player.frozen=false;
+    const L4=L_FIX();
+    L4.mirrors[0].idx=5; L4.mirrors[0].applyAngle(true);
+    L4.mirrors[1].idx=2; L4.mirrors[1].applyAngle(true);
+    L4.mirrors[2].idx=1; L4.mirrors[2].applyAngle(true);
+    ctx.step(0.1);
+    if(_laserLevel===0) return 'precondition: beam should be powered on L4';
+    startLevel(4,{silent:true}); GAME.state='playing'; player.frozen=false;
+    if(_laserLevel!==0) return 'laser level leaked into chamber V (_laserLevel='+_laserLevel+')';
+    return true;
+  }), 'laser.no-audio-leak');
+
+  /* 12 — cheat console: commands parse and act */
+  log(guard(()=>{
+    if(typeof executeCheat!=='function') return 'cheat system missing';
+    let r=executeCheat('god');
+    if(!CHEATS.god) return 'god cheat did not toggle: '+r;
+    r=executeCheat('speed 2');
+    if(CHEATS.speed!==2) return 'speed cheat did not apply: '+r;
+    r=executeCheat('level 3');
+    if(GAME.levelIndex!==2) return 'level cheat did not warp: '+r;
+    r=executeCheat('win');
+    if(GAME.state!=='victory') return 'win cheat did not complete (state='+GAME.state+')';
+    executeCheat('reset');
+    if(cheatActive()) return 'reset cheat did not clear';
+    return true;
+  }), 'cheats.console');
+
   const pass=results.filter(r=>r.ok).length;
   window.__QA_DONE__={pass, fail:results.length-pass, total:results.length,
     results:results.map(r=>(r.ok?'PASS ':'FAIL ')+r.name+(r.msg?' | '+r.msg:''))};
@@ -4794,6 +5543,7 @@ function boot(){
     plc.pointerSpeed=0;   // look is driven by our quaternion math; PLC manages lock lifecycle
   }catch(e){ plc=null; }
   setupMenu();
+  setupCheats();
   GAME.qa = location.search.includes('qa=1');
   if(GAME.qa){
     startLevel(0,{silent:true});
@@ -4815,7 +5565,7 @@ function boot(){
 /* public debug/automation handle (used by the QA harness and curious players) */
 window.__TIR__={ GAME, player, WORLD_COLLIDE, LEVELS, startLevel, updateGame,
   restartLevel, V, pickUp, dropCarried, PARTS, SND, traceBeams, BEAM_POOL, rayQuad,
-  pauseGame, IS_TOUCH, INPUT, TOUCH };
+  pauseGame, IS_TOUCH, INPUT, TOUCH, CHEATS, executeCheat, THEMES, laserLevel:()=>_laserLevel };
 boot();
 </script>
 </body>

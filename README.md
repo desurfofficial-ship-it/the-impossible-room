@@ -10,10 +10,29 @@ synthesizes **every sound at runtime** with the Web Audio API — zero external 
 > **Mobile:** open it on your phone or tablet, tap **ENTER THE ROOM** — full touch controls
 > load automatically (virtual stick, drag-look, JUMP / USE / pause buttons).
 > Landscape is recommended; the game asks for fullscreen on entry (optional).
+> **Cheat console:** press **`** (Backquote) — or the **⌁** button on touch — and type `help`.
 
 ---
 
 ![Banner](banner.png)
+
+## Ten Worlds, One Room
+
+Every chamber now lives inside its own environment — a themed sky visible through
+skylight ceilings and clerestory glass, with matching sun, weather and light:
+
+| # | Chamber | Environment |
+|---|---------|-------------|
+| I | The Initiation | **Dawn Atrium** — sunrise gold, drifting dust, god-rays through the hatch |
+| II | The Looping Escape | **Emerald Twilight** — dusk green, fireflies |
+| III | Weight & Gravity | **Sandstone Noon** — bright desert temple, hot sun |
+| IV | The Switchboard | **Polar Lab** — clinical white-blue daylight |
+| V | The Chrono-Void | **Solar Storm** — burnt-orange sky, rising embers |
+| VI | The Silent Inversion | **Midnight Orchid** — moonlit violet night with stars |
+| VII | The Reversed Chasm | **Glacial Depths** — pale ice sky, falling snow, aurora |
+| VIII | The Monument of Escher | **Golden Summit** — golden-hour clouds below the spire |
+| ✦ IX | The Fractal Well | **Biolume Lagoon** — teal grotto glow, caustic shimmer |
+| ✦ X | The Escher Machine | **Nebula Rose** — magenta nebula and drifting sparks |
 
 ## The Gravity Arches
 
@@ -45,17 +64,21 @@ Every wall and the ceiling are walkable surfaces — the room is the puzzle.
 
 ## Screenshots
 
-| Chamber I — the arches | Chamber II — the lying corridor |
+| Chamber I — dawn atrium | Chamber II — emerald twilight |
 |---|---|
 | ![](l1.png) | ![](l2.png) |
 
-| Chamber IV — the switchboard | Chamber V — the chrono-void |
+| Chamber IV — polar lab | Chamber V — solar storm |
 |---|---|
 | ![](l4.png) | ![](l5.png) |
 
-| Chamber VIII — the monument |
+| Chamber VII — glacial depths | Chamber VIII — golden summit |
+|---|---|
+| ![](l7.png) | ![](l8.png) |
+
+| Chamber X — nebula rose |
 |---|
-| ![](l8.png) |
+| ![](l10.png) |
 
 | On a phone — virtual stick + touch buttons |
 |---|
@@ -73,6 +96,30 @@ Every wall and the ceiling are walkable surfaces — the room is the puzzle.
 | `E` | Interact — carry/drop gravity cubes, rotate mirrors, insert the core matrix |
 | `R` | Restart chamber |
 | `ESC` | Pause (releases the mouse) |
+| `` ` `` | Cheat console (also `help`, see below) |
+
+**Cheat console** — press `` ` `` (on touch: the **⌁** button) and type:
+
+| Command | Effect |
+|---------|--------|
+| `god` | invulnerable — sentinels, lasers, the void |
+| `noclip` | free flight through walls (Space up, C down, Shift boost) |
+| `speed <n>` | movement multiplier (0.5–6) |
+| `jump <n>` | jump power multiplier (0.5–5) |
+| `gravity floor\|ceil\|wallA\|wallB` | snap gravity |
+| `level <n>` | warp to chamber 1–10 |
+| `win` | complete the current chamber |
+| `frags` | collect all fragments / cores here |
+| `tp x y z` | teleport |
+| `timescale <n>` | slow-motion / fast-forward (0.2–3) |
+| `bright <n>` | exposure boost (−0.5–1) |
+| `reset` | clear all cheats |
+
+Cheats never persist to your save, and a `⌁ CHEATS ACTIVE` tag marks the run.
+There is also a **Konami code** (↑ ↑ ↓ ↓ ← → ← → B A)…
+
+**Exploits that shipped as "features":** pausing (`ESC`) freezes Chamber V's 90-second
+timer; in Chamber VI you keep your cores when a sentinel catches you (only time is lost).
 
 **Mobile / touch** (auto-detected; force with `?touch=1` or `?touch=0`)
 
@@ -111,9 +158,16 @@ Fall into the void and you awake at the green arch — nothing is lost but time.
   gravity, fading to ghosts otherwise.
 - **Deterministic procedural levels** (IX–X) — mulberry32-seeded vaults that are winnable by
   construction.
-- **Built-in QA harness** — open the game with `?qa=1` to run 26 self-tests, including scripted
-  playthroughs of every level and synthetic-touch tests of the mobile controls
-  (`?qa=1&touch=1`). The release build passed **26/26** in both modes.
+- **Environment themes** — a per-chamber sky dome (gradient + sun glow shader), sun/moon
+  sprites, drifting clouds, aurora ribbons, volumetric-style light shafts, themed weather
+  particles (dust, embers, snow, fireflies, spores, caustics, sparks) and glazed architecture:
+  skylight ceilings + clerestory windows that show the sky while every surface stays fully
+  solid for plane-walkers.
+- **Cheat console + Konami code** — see above; also exposed as `window.CHEATS` for tinkerers.
+- **Built-in QA harness** — open the game with `?qa=1` to run 31 self-tests, including scripted
+  playthroughs of every level, synthetic-touch tests of the mobile controls (`?qa=1&touch=1`),
+  UI-chain checks (victory dismiss), sequence-neutrality of green arches, beam persistence
+  across levels and cheat-system tests. The release build passed **31/31** in both modes.
 
 ## Engineering Notes
 
@@ -133,6 +187,30 @@ Fall into the void and you awake at the green arch — nothing is lost but time.
 - **Local:** open `index.html` (or serve the folder: `python3 -m http.server`)
 - **Self-test:** `index.html?qa=1` (desktop) · `index.html?qa=1&touch=1` (mobile mode)
 - Debug/automation handle: `window.__TIR__` exposes the game state for tinkering.
+
+## Changelog
+
+**v3 — Worlds & Light (this release)**
+- Every chamber gets a distinct themed environment (sky dome, sun/moon, clouds, aurora,
+  weather particles, light shafts) — natural moods for most, cosmic for the finale.
+- Glazed architecture: skylight ceilings + clerestory windows; the sky is part of the room.
+- Global brightness overhaul: ~2–5× brighter materials, stronger lights, lighter fog
+  (measured mean scene luminance 14 → 25–70).
+- **Fixed:** victory overlay never dismissed after finishing a level (the next chamber
+  played invisibly behind a frozen screen).
+- **Fixed:** green arches reset sequence locks — Chamber II and Chamber VIII's first gate
+  were unwinnable in honest play.
+- **Fixed:** Chamber II wall palette contained a corrupted color (`#1e2..`) → black walls.
+- **Fixed:** laser beam meshes were orphaned on level change (invisible beams after the
+  first laser chamber in a session).
+- **Fixed:** laser hum audio leaked into following chambers.
+- **Fixed:** bonus-chamber navigation after Chamber IX.
+- Added the cheat console (`god`, `noclip`, `speed`, `jump`, `gravity`, `level`, `win`,
+  `frags`, `tp`, `timescale`, `bright`, `reset`) + Konami code.
+- Chamber I: arch legend now also painted on the north wall (visible at spawn).
+
+**v2** — full mobile/touch support.
+**v1** — initial release: 8 chambers + 2 procedural bonus vaults.
 
 ---
 Single file · Three.js · Web Audio synth · no assets, no build step.
