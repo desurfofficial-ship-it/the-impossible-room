@@ -879,7 +879,7 @@ body.touch #menu .room-frame{display:none}
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V20</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V21</span>
   <div class="menu-plate">
     <div class="kicker">gravity puzzle</div>
     <h1>The Impossible Room</h1>
@@ -1185,7 +1185,7 @@ const _touchQ = new URLSearchParams(location.search).get('touch');
 const IS_TOUCH = _touchQ!==null ? _touchQ==='1'
   : (matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window
      || (navigator.maxTouchPoints||0) > 0);
-const PIX_CAP = IS_TOUCH ? 1.5 : 1.75;   // device-pixel-ratio ceiling per platform
+const PIX_CAP = IS_TOUCH ? 1.25 : 2.0;   // v21: mobile fill-rate cap
 let BASE_FOV = 75;                        // widened on narrow / portrait viewports
 if(IS_TOUCH) document.body.classList.add('touch');
 document.body.classList.add('on-menu');
@@ -1281,8 +1281,12 @@ const SAVE = Object.assign({ unlocked:1, best:{}, campaignBest:null,
   sfxVol:1.0, ambVol:0.9, speedrun:true, haptics:true,
   score:0, levelScore:{}, ranks:{}, bestDepth:0, flowHintSeen:false,
   daily:null, chainHintSeen:false }, STORE.load());
-/* fresh installs on phones/tablets: start with bloom off for smooth framerates */
-if(IS_TOUCH){ try{ if(!localStorage.getItem('tir_save')) SAVE.bloom=false; }catch(e){} }
+/* fresh installs on phones/tablets: bloom + soft shadows off (fill-rate) */
+if(IS_TOUCH){
+  try{
+    if(!localStorage.getItem('tir_save')){ SAVE.bloom=false; SAVE.shadows=false; }
+  }catch(e){}
+}
 
 /* ---- v6 migration — the campaign grew a five-lesson Academy ----
    Old chambers I-VIII are now VI-XIII. Remap records so veterans keep
@@ -1786,11 +1790,17 @@ camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.08, 400);
 
 function initRenderer(){
   try{
-    renderer = new THREE.WebGLRenderer({canvas:$('c'), antialias:true, powerPreference:'high-performance'});
+    renderer = /* v21: MSAA off on touch; shadows follow SAVE; low-power preference on phones */
+    new THREE.WebGLRenderer({
+      canvas:$('c'),
+      antialias: !IS_TOUCH,
+      powerPreference: IS_TOUCH ? 'low-power' : 'high-performance',
+      alpha: false
+    });
     renderer.setPixelRatio(Math.min(devicePixelRatio||1, PIX_CAP));
     renderer.setSize(innerWidth, innerHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.enabled = !!SAVE.shadows;
+    renderer.shadowMap.type = IS_TOUCH ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.38;
   }catch(e){
@@ -8112,17 +8122,25 @@ const clock=new THREE.Clock();
 const ADAPT={t:0, stage:0, checked:0};
 function applyAdaptStage(){
   if(GAME.logicOnly) return;
-  const scale=[1, 0.85, 0.72][ADAPT.stage] || 1;
+  /* v21 stages: 0 full → 1 lower DPR + no shadows → 2 min DPR + no bloom */
+  const scale=[1, 0.85, 0.65][ADAPT.stage] || 0.65;
   const pr=Math.min(devicePixelRatio||1, PIX_CAP)*scale;
   try{
     renderer.setPixelRatio(pr);
-    composer.setSize(innerWidth, innerHeight);
+    if(composer) composer.setSize(innerWidth, innerHeight);
     if(PARTS.mat) PARTS.mat.uniforms.uPix.value=pr;
     if(starMat) starMat.uniforms.uPix.value=pr;
   }catch(e){}
-  if(ADAPT.stage===2 && SAVE.bloom){
+  if(ADAPT.stage>=1){
+    if(SAVE.shadows){
+      SAVE.shadows=false; persist();
+      try{ renderer.shadowMap.enabled=false; if(dirLight) dirLight.castShadow=false; }catch(e){}
+    }
+    if(ADAPT.stage===1) toast('PERFORMANCE — SHADOWS OFF', 2200);
+  }
+  if(ADAPT.stage>=2 && SAVE.bloom){
     SAVE.bloom=false; persist();
-    toast('PERFORMANCE MODE — BLOOM OFF', 2600);
+    toast('PERFORMANCE — BLOOM OFF', 2200);
   }
   ADAPT.checked++;
 }
@@ -8133,6 +8151,8 @@ function render(){
   else renderer.render(scene, camera);
 }
 function loop(){
+  /* v21: tab hidden — skip sim/render (setAnimationLoop still ticks) */
+  if(document.hidden && !GAME.qa) return;
   const dt=Math.min(0.05, clock.getDelta())*GAME.timeScale;
   /* fps meter */
   FPS.acc+=dt/GAME.timeScale; FPS.n++;
@@ -8327,7 +8347,12 @@ function setupMenu(){
   };
   sw('set-inv','invertY');
   sw('set-bloom','bloom');
-  sw('set-shadow','shadows',()=>{ dirLight.castShadow=SAVE.shadows; });
+  sw('set-shadow','shadows',()=>{
+    try{
+      renderer.shadowMap.enabled=!!SAVE.shadows;
+      if(dirLight) dirLight.castShadow=!!SAVE.shadows;
+    }catch(e){}
+  });
   sw('set-fps','fps');
   sw('set-motion','reduceMotion');
   sw('set-srt','speedrun');
