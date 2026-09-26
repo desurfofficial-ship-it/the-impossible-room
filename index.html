@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#05060a">
 <title>The Impossible Room — A Gravity Escape</title>
 <meta name="description" content="A walkable M.C. Escher atrium. Bend gravity through colored arches, collect orb fragments and escape eight impossible chambers.">
 <!--
@@ -43,7 +47,8 @@
 }
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:#05060a;color:var(--ink);
-  font-family:var(--sans);-webkit-user-select:none;user-select:none}
+  font-family:var(--sans);-webkit-user-select:none;user-select:none;
+  touch-action:none;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
 canvas{display:block;position:fixed;inset:0}
 #c{position:fixed;inset:0;z-index:0}
 .hidden{display:none!important}
@@ -232,6 +237,8 @@ button:disabled{opacity:.32;cursor:not-allowed;transform:none;box-shadow:none}
 
 /* pause / victory / fail */
 #pause,#victory,#failed{z-index:40}
+#pause .pl-note{font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:.2em}
+body.touch #pause .pl-note{display:none}
 .big-title{font-family:var(--serif);font-style:italic;font-size:clamp(30px,5vw,52px);
   color:#fff;text-align:center}
 .stat-rows{font-family:var(--mono);font-size:13px;color:var(--ink-dim);
@@ -255,10 +262,73 @@ button:disabled{opacity:.32;cursor:not-allowed;transform:none;box-shadow:none}
 #toast b{color:var(--gold)}
 #toast.red b{color:var(--red)}
 
+/* ============ TOUCH CONTROLS ============ */
+#touchui{position:fixed;inset:0;z-index:12;display:none;touch-action:none}
+body.touch #touchui.on{display:block}
+#joy-base{position:fixed;left:-300px;top:-300px;width:124px;height:124px;
+  margin:-62px 0 0 -62px;border-radius:50%;pointer-events:none;opacity:0;
+  border:1.5px solid rgba(255,255,255,.28);
+  background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.10),rgba(255,255,255,.02) 72%);
+  transition:opacity .16s}
+#joy-base.live{opacity:1}
+#joy-stick{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;
+  border-radius:50%;pointer-events:none;
+  background:rgba(57,213,200,.28);border:1.5px solid rgba(57,213,200,.75);
+  box-shadow:0 0 22px rgba(57,213,200,.35)}
+.tbtn{position:fixed;z-index:14;display:flex;align-items:center;justify-content:center;
+  border-radius:50%;border:1.5px solid var(--line-2);color:var(--ink);
+  background:rgba(13,16,24,.45);backdrop-filter:blur(4px);
+  font-family:var(--mono);letter-spacing:.08em;touch-action:none;
+  -webkit-user-select:none;user-select:none}
+.tbtn:active{transform:scale(.9);border-color:var(--accent);color:#bffef7}
+#tb-jump{right:calc(24px + env(safe-area-inset-right,0px));
+  bottom:calc(106px + env(safe-area-inset-bottom,0px));width:88px;height:88px;font-size:13px}
+#tb-use{right:calc(128px + env(safe-area-inset-right,0px));
+  bottom:calc(176px + env(safe-area-inset-bottom,0px));width:68px;height:68px;font-size:11px;
+  border-color:rgba(232,193,90,.55);color:var(--gold)}
+#tb-use.hot{border-color:var(--gold);box-shadow:0 0 26px rgba(232,193,90,.4);color:#ffe9ad}
+#tb-pause{top:calc(14px + env(safe-area-inset-top,0px));
+  right:calc(14px + env(safe-area-inset-right,0px));width:44px;height:44px;font-size:15px}
+/* touch HUD shuffles: keep stats clear of thumbs */
+body.touch .hud-tl{top:calc(14px + env(safe-area-inset-top,0px));left:16px;max-width:215px}
+body.touch .hud-tr{top:calc(14px + env(safe-area-inset-top,0px));
+  right:calc(68px + env(safe-area-inset-right,0px))}
+body.touch .hud-bl{bottom:calc(158px + env(safe-area-inset-bottom,0px));left:16px}
+body.touch .hud-br{bottom:auto;top:calc(120px + env(safe-area-inset-top,0px));right:22px}
+body.touch #hud-module{min-width:150px;padding:9px 12px}
+body.touch .mod-big{font-size:21px}
+body.touch #compass{padding:8px 12px;gap:9px}
+body.touch #toast{bottom:calc(244px + env(safe-area-inset-bottom,0px));font-size:11px}
+body.touch #prompt b{display:none}
+body.touch #prompt{top:calc(50% + 46px);font-size:11px}
+body.touch #hud-obj{font-size:15px}
+/* help: on touch hardware hide the key badges */
+body.touch .ctl-grid kbd{display:none}
+/* rotate hint (portrait phones) */
+#rotate-tip{position:fixed;top:calc(12px + env(safe-area-inset-top,0px));left:50%;
+  transform:translateX(-50%);z-index:44;display:none;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.22em;color:var(--ink-dim);
+  background:var(--glass);border:1px solid var(--line);border-radius:999px;
+  padding:8px 16px;pointer-events:none;white-space:nowrap}
+@media (orientation:portrait){ body.touch #rotate-tip{display:flex} }
+
 @media (max-width:720px){
   .lvl-grid{grid-template-columns:repeat(3,1fr)}
   .hud-tl{max-width:230px}
   #hud-obj{font-size:16px}
+  .panel{padding:18px 16px}
+  .screen{gap:14px}
+  #menu h1{font-size:clamp(34px,9vw,60px)}
+  .set-row{min-width:270px}
+  .ctl-grid{font-size:12.5px}
+  .arch-chip{font-size:10px}
+}
+@media (max-height:560px){
+  .screen{gap:10px}
+  #levelcard .lc-name{font-size:clamp(26px,6vw,40px)}
+  .big-title{font-size:clamp(24px,5vw,36px)}
+  button{padding:9px 16px;font-size:13px}
+  .stat-rows{font-size:11.5px}
 }
 </style>
 </head>
@@ -292,13 +362,14 @@ button:disabled{opacity:.32;cursor:not-allowed;transform:none;box-shadow:none}
     <div class="set-row"><label>Master volume</label>
       <input type="range" id="set-vol" min="0" max="100" value="70">
       <span class="val" id="set-vol-v">70</span></div>
-    <div class="set-row"><label>Mouse sensitivity</label>
+    <div class="set-row"><label>Look sensitivity</label>
       <input type="range" id="set-sens" min="20" max="200" value="100">
       <span class="val" id="set-sens-v">1.0</span></div>
     <div class="set-row"><label>Invert Y</label><div class="switch" id="set-inv"></div><span></span></div>
     <div class="set-row"><label>Bloom lighting</label><div class="switch on" id="set-bloom"></div><span></span></div>
     <div class="set-row"><label>Soft shadows</label><div class="switch on" id="set-shadow"></div><span></span></div>
     <div class="set-row"><label>FPS counter</label><div class="switch" id="set-fps"></div><span></span></div>
+    <div class="set-row hidden" id="row-fs"><label>Fullscreen</label><div class="switch" id="set-fs"></div><span></span></div>
     <div class="btn-row" style="margin-top:16px"><button id="btn-settings-back">BACK</button></div>
   </div>
   <div class="panel hidden" id="help">
@@ -311,6 +382,14 @@ button:disabled{opacity:.32;cursor:not-allowed;transform:none;box-shadow:none}
       <span><kbd>ESC</kbd></span><span>Pause (releases the mouse)</span>
       <span><kbd>R</kbd></span><span>Restart current chamber</span>
     </div>
+    <div class="h2">Touch Controls — phones &amp; tablets</div>
+    <div class="ctl-grid">
+      <span><b>LEFT THUMB</b></span><span>Virtual stick — drag to move; push to the rim to sprint</span>
+      <span><b>RIGHT THUMB</b></span><span>Drag anywhere on the right to look around</span>
+      <span><b>JUMP</b></span><span>Leap away from your current surface</span>
+      <span><b>USE</b></span><span>Pick up / drop cubes, rotate mirrors, insert cores</span>
+      <span><b>II</b></span><span>Pause</span>
+    </div>
     <div class="h2">The Arches</div>
     <div class="ctl-grid" style="grid-template-columns:1fr">
       <span><b style="color:#4da3ff">BLUE</b> rotates gravity +90° — you fall onto <b>Wall A</b>.
@@ -322,8 +401,17 @@ button:disabled{opacity:.32;cursor:not-allowed;transform:none;box-shadow:none}
     </div>
     <div class="btn-row" style="margin-top:16px"><button id="btn-help-back">BACK</button></div>
   </div>
-  <div class="foot">SINGLE FILE · THREE.JS · WEB AUDIO SYNTH · NO ASSETS</div>
+  <div class="foot">SINGLE FILE · THREE.JS · WEB AUDIO SYNTH · DESKTOP &amp; MOBILE</div>
 </div>
+
+<!-- ===================== TOUCH CONTROLS ===================== -->
+<div id="touchui">
+  <div id="joy-base"><div id="joy-stick"></div></div>
+  <div class="tbtn" id="tb-jump">JUMP</div>
+  <div class="tbtn" id="tb-use">USE</div>
+  <div class="tbtn" id="tb-pause">II</div>
+</div>
+<div id="rotate-tip">ROTATE FOR A WIDER ROOM</div>
 
 <!-- ===================== HUD ===================== -->
 <div id="hud">
@@ -363,7 +451,7 @@ button:disabled{opacity:.32;cursor:not-allowed;transform:none;box-shadow:none}
     <button id="btn-restart">RESTART CHAMBER</button>
     <button id="btn-pmenu">ABANDON TO MENU</button>
   </div>
-  <div style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:.2em">
+  <div style="font-family:var(--mono);font-size:11px;color:var(--ink-faint);letter-spacing:.2em" class="pl-note">
     MOUSE RELEASED — CLICK RESUME TO RECAPTURE</div>
 </div>
 
@@ -423,6 +511,17 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 
+/* ---- platform / input-mode detection -------------------------------
+   Touch mode can be forced with ?touch=1 (or disabled with ?touch=0)
+   for testing on desktop hardware. */
+const _touchQ = new URLSearchParams(location.search).get('touch');
+const IS_TOUCH = _touchQ!==null ? _touchQ==='1'
+  : (matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window
+     || (navigator.maxTouchPoints||0) > 0);
+const PIX_CAP = IS_TOUCH ? 1.6 : 1.75;   // device-pixel-ratio ceiling per platform
+let BASE_FOV = 75;                        // widened on narrow / portrait viewports
+if(IS_TOUCH) document.body.classList.add('touch');
+
 /* ============================================================
    0. CONSTANTS, UTILITIES, PERSISTENCE
    ============================================================ */
@@ -467,6 +566,8 @@ const STORE = {
 };
 const SAVE = Object.assign({ unlocked:1, best:{}, campaignBest:null,
   vol:0.7, sens:1.0, invertY:false, bloom:true, shadows:true, fps:false }, STORE.load());
+/* fresh installs on phones/tablets: start with bloom off for smooth framerates */
+if(IS_TOUCH){ try{ if(!localStorage.getItem('tir_save')) SAVE.bloom=false; }catch(e){} }
 
 function persist(){ STORE.save(SAVE); }
 
@@ -712,7 +813,7 @@ camera = new THREE.PerspectiveCamera(75, innerWidth/innerHeight, 0.08, 400);
 function initRenderer(){
   try{
     renderer = new THREE.WebGLRenderer({canvas:$('c'), antialias:true, powerPreference:'high-performance'});
-    renderer.setPixelRatio(Math.min(devicePixelRatio||1, 1.75));
+    renderer.setPixelRatio(Math.min(devicePixelRatio||1, PIX_CAP));
     renderer.setSize(innerWidth, innerHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -729,9 +830,13 @@ function initRenderer(){
   composer.addPass(bloomPass);
   composer.addPass(new OutputPass());
   window.addEventListener('resize', onResize);
+  window.addEventListener('orientationchange', ()=>setTimeout(onResize, 160));
 }
 function onResize(){
   camera.aspect = innerWidth/innerHeight;
+  /* widen the lens on narrow/portrait viewports so the room stays readable */
+  BASE_FOV = camera.aspect < 0.8 ? 88 : (IS_TOUCH ? 78 : 75);
+  camera.fov = BASE_FOV;
   camera.updateProjectionMatrix();
   if(!GAME.logicOnly){
     renderer.setSize(innerWidth, innerHeight);
@@ -745,7 +850,7 @@ scene.add(hemiLight);
 dirLight = new THREE.DirectionalLight(0xffe8c0, 1.15);
 dirLight.position.set(14, 30, 8);
 dirLight.castShadow = true;
-dirLight.shadow.mapSize.set(2048, 2048);
+dirLight.shadow.mapSize.set(IS_TOUCH?1024:2048, IS_TOUCH?1024:2048);
 dirLight.shadow.bias = -0.0006;
 dirLight.shadow.normalBias = 0.03;
 scene.add(dirLight);
@@ -756,7 +861,7 @@ const VOID = new THREE.Group();
 scene.add(VOID);
 let starMat;
 function buildVoid(){
-  const N = 2400;
+  const N = IS_TOUCH ? 1100 : 2400;
   const pos = new Float32Array(N*3), phase = new Float32Array(N), size = new Float32Array(N);
   const R = 150;
   for(let i=0;i<N;i++){
@@ -772,7 +877,7 @@ function buildVoid(){
   g.setAttribute('aPhase', new THREE.BufferAttribute(phase,1));
   g.setAttribute('aSize', new THREE.BufferAttribute(size,1));
   starMat = new THREE.ShaderMaterial({
-    uniforms:{ uTime:{value:0}, uPix:{value:Math.min(devicePixelRatio||1,1.75)} },
+    uniforms:{ uTime:{value:0}, uPix:{value:PIX_CAP} },
     vertexShader:`
       attribute float aPhase; attribute float aSize; uniform float uTime; uniform float uPix;
       varying float vA;
@@ -905,7 +1010,7 @@ class ParticlePool{
     g.setAttribute('aSize', new THREE.BufferAttribute(this.aSize,1));
     this.geo=g;
     this.mat=new THREE.ShaderMaterial({
-      uniforms:{uTex:{value:GLOW_TEX},uPix:{value:Math.min(devicePixelRatio||1,1.75)}},
+      uniforms:{uTex:{value:GLOW_TEX},uPix:{value:PIX_CAP}},
       vertexShader:`
         attribute vec3 aCol; attribute float aSize; uniform float uPix;
         varying vec3 vC;
@@ -966,11 +1071,11 @@ class ParticlePool{
       this.geo.attributes.aCol.needsUpdate=true; this._ever=true; }
   }
 }
-const PARTS = new ParticlePool(700);
+const PARTS = new ParticlePool(IS_TOUCH ? 420 : 700);
 scene.add(PARTS.points);
 
 /* drifting motes near the structure */
-const MOTES = { points:null, n:260, data:null };
+const MOTES = { points:null, n: IS_TOUCH ? 130 : 260, data:null };
 function buildMotes(box){
   if(MOTES.points){ VOID.remove(MOTES.points); MOTES.points.geometry.dispose(); }
   const n=MOTES.n;
@@ -1006,7 +1111,8 @@ function updateMotes(t){
    ============================================================ */
 const INPUT = {
   f:false, b:false, l:false, r:false, jump:false, sprint:false,
-  jumpBuf:0, interactEdge:false, interactHold:false
+  jumpBuf:0, interactEdge:false, interactHold:false,
+  joyX:0, joyY:0      // analog virtual-stick axes (-1..1), merged into wish dir
 };
 function bindInput(){
   addEventListener('keydown', e=>{
@@ -1298,11 +1404,12 @@ class Player{
     const pf=this.planeForward(this._tmp);
     if(pf.lengthSq()>0.01) this.lastMoveFwd.copy(pf);
     const right=this._tmp2.copy(this.lastMoveFwd).cross(this.up).normalize();
-    const iz=(INPUT.f?1:0)-(INPUT.b?1:0);
-    const ix=(INPUT.r?1:0)-(INPUT.l?1:0);
+    const iz=(INPUT.f?1:0)-(INPUT.b?1:0)+INPUT.joyY;
+    const ix=(INPUT.r?1:0)-(INPUT.l?1:0)+INPUT.joyX;
     const wish=V().copy(this.lastMoveFwd).multiplyScalar(iz).addScaledVector(right, ix);
     if(wish.lengthSq()>1) wish.normalize();
-    const speed=INPUT.sprint?SPRINT:WALK;
+    const joyMag=Math.hypot(INPUT.joyX, INPUT.joyY);
+    const speed=(INPUT.sprint||joyMag>0.88)?SPRINT:WALK;
     wish.multiplyScalar(speed);
     /* --- accelerate --- */
     const vu=this.vel.dot(this.up);
@@ -1448,8 +1555,9 @@ class Player{
       .addScaledVector(this.lastMoveFwd, Math.sin(this.bobPhase)*0.011*this.bobAmp);
     /* FOV: sprint + transition kick */
     this.fovKick=Math.max(0,this.fovKick-dt*2.2);
-    const moving=(INPUT.f||INPUT.b)&&(INPUT.sprint);
-    const target=75+(moving?5:0)+Math.sin(Math.min(1,this.transition?this.transition.t:0)*Math.PI)*9*this.fovKick;
+    const joyMag=Math.hypot(INPUT.joyX, INPUT.joyY);
+    const moving=(INPUT.f||INPUT.b||INPUT.joyY>0.3)&&(INPUT.sprint||joyMag>0.88);
+    const target=BASE_FOV+(moving?5:0)+Math.sin(Math.min(1,this.transition?this.transition.t:0)*Math.PI)*9*this.fovKick;
     if(Math.abs(camera.fov-target)>0.05){
       camera.fov=damp(camera.fov,target,10,dt);
       camera.updateProjectionMatrix();
@@ -1470,6 +1578,101 @@ function applyShake(dt){
   camera.position.y+=(Math.random()*2-1)*0.05*s;
   camera.position.z+=(Math.random()*2-1)*0.05*s;
   DOM.shake.style.opacity=(s*0.8).toFixed(3);
+}
+
+/* ============================================================
+   4b. TOUCH INPUT — virtual stick, drag-look, action buttons
+   ------------------------------------------------------------
+   Layout: left 45% of the screen grabs a floating virtual stick
+   (analog, rim = sprint). Any other touch becomes a look-drag
+   with the same yaw/pitch math as the mouse. JUMP / USE / II
+   buttons stop propagation so they never grab the stick.
+   ============================================================ */
+const TOUCH={ useBtn:null };
+function bindTouch(){
+  if(!IS_TOUCH) return;
+  const ui=$('touchui'), base=$('joy-base'), stick=$('joy-stick');
+  const JOY_R=54;
+  let joyId=null, lookId=null, joyCX=0, joyCY=0, lastLX=0, lastLY=0;
+  TOUCH.useBtn=$('tb-use');
+  const setStick=(dx,dy)=>{ stick.style.transform=`translate(${dx}px,${dy}px)`; };
+  const killJoy=()=>{
+    joyId=null; INPUT.joyX=0; INPUT.joyY=0;
+    base.classList.remove('live'); setStick(0,0);
+  };
+  ui.addEventListener('touchstart', e=>{
+    if(GAME.state!=='playing') return;
+    const ct=e.changedTouches;
+    for(let i=0;i<ct.length;i++){
+      const t=ct[i];
+      if(joyId===null && t.clientX<innerWidth*0.45 && t.clientY>innerHeight*0.22){
+        /* left thumb: spawn the floating stick where the finger lands */
+        joyId=t.identifier; joyCX=t.clientX; joyCY=t.clientY;
+        base.style.left=joyCX+'px'; base.style.top=joyCY+'px';
+        base.classList.add('live'); setStick(0,0);
+        e.preventDefault();
+      }else if(lookId===null){
+        lookId=t.identifier; lastLX=t.clientX; lastLY=t.clientY;
+        e.preventDefault();
+      }
+    }
+  }, {passive:false});
+  ui.addEventListener('touchmove', e=>{
+    if(GAME.state!=='playing') return;
+    const ct=e.changedTouches;
+    for(let i=0;i<ct.length;i++){
+      const t=ct[i];
+      if(t.identifier===joyId){
+        let dx=t.clientX-joyCX, dy=t.clientY-joyCY;
+        const m=Math.hypot(dx,dy);
+        if(m>JOY_R){ dx=dx*JOY_R/m; dy=dy*JOY_R/m; }
+        setStick(dx,dy);
+        INPUT.joyX=dx/JOY_R; INPUT.joyY=-dy/JOY_R;   // screen-up = forward
+        e.preventDefault();
+      }else if(t.identifier===lookId){
+        const k=0.0042*SAVE.sens;
+        player.yaw   -= (t.clientX-lastLX)*k;
+        player.pitch -= (t.clientY-lastLY)*k*(SAVE.invertY?-1:1);
+        player.pitch = clamp(player.pitch, -1.55, 1.55);
+        lastLX=t.clientX; lastLY=t.clientY;
+        e.preventDefault();
+      }
+    }
+  }, {passive:false});
+  const end=e=>{
+    const ct=e.changedTouches;
+    for(let i=0;i<ct.length;i++){
+      const t=ct[i];
+      if(t.identifier===joyId) killJoy();
+      else if(t.identifier===lookId) lookId=null;
+    }
+  };
+  ui.addEventListener('touchend', end);
+  ui.addEventListener('touchcancel', end);
+  /* action buttons (stopPropagation so they never spawn stick/look) */
+  const wire=(id, down, up)=>{
+    const el=$(id);
+    el.addEventListener('touchstart', e=>{ e.preventDefault(); e.stopPropagation(); down(); }, {passive:false});
+    if(up) el.addEventListener('touchend', e=>{ e.preventDefault(); e.stopPropagation(); up(); }, {passive:false});
+  };
+  wire('tb-jump', ()=>{ INPUT.jump=true; INPUT.jumpBuf=0.14; }, ()=>{ INPUT.jump=false; });
+  wire('tb-use',  ()=>{ INPUT.interactEdge=true; INPUT.interactHold=true; }, ()=>{ INPUT.interactHold=false; });
+  wire('tb-pause',()=>{ pauseGame(); });
+  /* no context menu mid-game (long-press) */
+  addEventListener('contextmenu', e=>{ if(GAME.state==='playing') e.preventDefault(); });
+}
+
+/* touch HUD visibility follows game state (playing = layer visible) */
+let _touchOn=null;
+function updateTouchUI(){
+  if(!IS_TOUCH) return;
+  const on=(GAME.state==='playing');
+  if(on!==_touchOn){
+    _touchOn=on;
+    const ui=$('touchui');
+    if(ui) ui.classList.toggle('on', on);
+    if(!on){ INPUT.joyX=0; INPUT.joyY=0; }
+  }
 }
 
 /* ============================================================
@@ -2810,6 +3013,12 @@ function voidRespawn(){
 
 function showScreen(el){ el.classList.remove('hidden'); el.classList.remove('off'); }
 function hideScreen(el){ el.classList.add('off'); setTimeout(()=>el.classList.add('hidden'),480); }
+function pauseGame(){
+  if(GAME.state!=='playing') return;
+  GAME.state='paused';
+  showScreen(DOM.pause);
+  if(plc && plc.isLocked) plc.unlock();
+}
 
 /* ---------------- HUD ---------------- */
 const HUD={ pips:[], count:null, ring:null, ringTxt:null, timer:null, sub:null,
@@ -2967,6 +3176,11 @@ function updateInteract(dt){
     DOM.prompt.classList.add('on');
     if(INPUT.interactEdge){ target.action(); }
   }else DOM.prompt.classList.remove('on');
+  /* touch: the USE button mirrors the current interactable verb */
+  if(TOUCH.useBtn){
+    TOUCH.useBtn.textContent = target ? (target.label.split(' ')[0]||'USE') : 'USE';
+    TOUCH.useBtn.classList.toggle('hot', !!target);
+  }
 }
 function pickUp(cube){
   if(GAME.carry) return;
@@ -2985,6 +3199,7 @@ function dropCarried(){
 function updateGame(dt){
   GAME.t+=dt;
   updateFade(dt);
+  updateTouchUI();
   updateMotes(GAME.t);
   if(starMat) starMat.uniforms.uTime.value=GAME.t;
   const L=GAME.level;
@@ -4233,6 +4448,17 @@ function setupMenu(){
   sw('set-bloom','bloom');
   sw('set-shadow','shadows',()=>{ dirLight.castShadow=SAVE.shadows; });
   sw('set-fps','fps');
+  /* fullscreen (valuable on phones; wired wherever the API exists) */
+  if(document.documentElement.requestFullscreen){
+    $('row-fs').classList.remove('hidden');
+    const fsEl=$('set-fs');
+    const syncFs=()=>fsEl.classList.toggle('on', !!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', syncFs);
+    fsEl.onclick=()=>{ SND.uiClick();
+      if(document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen().catch(()=>{});
+    };
+  }
   /* pause / victory */
   $('btn-resume').onclick=()=>{ SND.uiClick(); resumeGame(); };
   $('btn-restart').onclick=()=>{ SND.uiClick(); hideScreen(DOM.pause);
@@ -4245,12 +4471,12 @@ function setupMenu(){
   $('btn-replay').onclick=()=>{ SND.uiClick(); enterGame(GAME.levelIndex); };
   $('btn-bonus').onclick=()=>{ SND.uiClick(); enterGame(8); };
   $('btn-vmenu').onclick=()=>{ SND.uiClick(); toMenu(); };
-  /* pointer lock plumbing */
+  /* pointer lock plumbing (desktop only — touch mode never locks) */
   addEventListener('click', ()=>{
-    if(GAME.state==='playing' && plc && !plc.isLocked && !GAME.qa) plc.lock();
+    if(!IS_TOUCH && GAME.state==='playing' && plc && !plc.isLocked && !GAME.qa) plc.lock();
   });
   document.addEventListener('pointerlockchange', ()=>{
-    if(!plc) return;
+    if(!plc || IS_TOUCH) return;
     if(!plc.isLocked && GAME.state==='playing'){
       GAME.state='paused';
       showScreen(DOM.pause);
@@ -4265,13 +4491,17 @@ function setupMenu(){
 function resumeGame(){
   hideScreen(DOM.pause);
   GAME.state='playing';
-  if(plc && !plc.isLocked) plc.lock();
+  if(!IS_TOUCH && plc && !plc.isLocked) plc.lock();
 }
 function enterGame(i){
   DOM.menu.classList.add('hidden');
   GAME.campaignTime = i===0 ? 0 : GAME.campaignTime;
+  /* on touch, ride the ENTER-tap gesture into fullscreen when allowed */
+  if(IS_TOUCH && document.documentElement.requestFullscreen && !document.fullscreenElement){
+    document.documentElement.requestFullscreen().catch(()=>{});
+  }
   startLevel(i);
-  if(plc && !plc.isLocked) plc.lock();
+  if(!IS_TOUCH && plc && !plc.isLocked) plc.lock();
 }
 function toMenu(){
   DOM.menu.classList.remove('hidden');
@@ -4423,6 +4653,102 @@ function qaRun(){
         typeof res==='string'?res:undefined);
   }
 
+  /* 6b — touch controls (synthetic TouchEvents; SKIP when unsupported) */
+  const touchCapable = IS_TOUCH && typeof TouchEvent!=='undefined' && typeof Touch!=='undefined';
+  const tlog=(res, name)=>log(res===true||res==='SKIP', name,
+    res==='SKIP'?'skipped (no touch mode/API)':(typeof res==='string'?res:undefined));
+  tlog(guard(()=>{
+    if(!IS_TOUCH) return 'SKIP';
+    startLevel(0,{silent:true});
+    GAME.state='playing'; player.frozen=false;
+    updateGame(1/30);
+    if(!$('touchui').classList.contains('on')) return 'touch UI not visible while playing';
+    if(!document.body.classList.contains('touch')) return 'body.touch class missing';
+    return true;
+  }), 'touch.ui-visible');
+  tlog(guard(()=>{
+    if(!touchCapable) return 'SKIP';
+    const ui=$('touchui');
+    const mkT=(x,y,id)=>new Touch({identifier:id, target:ui, clientX:x, clientY:y});
+    const fire=(type,t)=>ui.dispatchEvent(new TouchEvent(type,
+      {changedTouches:[t], bubbles:true, cancelable:true}));
+    const y0=innerHeight-170, x0=110;
+    fire('touchstart', mkT(x0, y0, 7));
+    if(INPUT.joyX!==0 || INPUT.joyY!==0) return 'stick should idle at touchstart';
+    fire('touchmove', mkT(x0, y0-40, 7));       // drag up = forward
+    if(Math.abs(INPUT.joyY-40/54)>0.12) return 'joyY wrong: '+INPUT.joyY.toFixed(2);
+    if(Math.abs(INPUT.joyX)>0.05) return 'joyX drifted: '+INPUT.joyX.toFixed(2);
+    fire('touchend', mkT(x0, y0-40, 7));
+    if(INPUT.joyY!==0 || INPUT.joyX!==0) return 'stick not released on touchend';
+    return true;
+  }), 'touch.joystick');
+  tlog(guard(()=>{
+    if(!touchCapable) return 'SKIP';
+    const ui=$('touchui');
+    const mkT=(x,y,id)=>new Touch({identifier:id, target:ui, clientX:x, clientY:y});
+    const fire=(type,t)=>ui.dispatchEvent(new TouchEvent(type,
+      {changedTouches:[t], bubbles:true, cancelable:true}));
+    const yaw0=player.yaw;
+    /* viewport-independent look-zone anchor (right side, mid height) */
+    const lx=Math.max(Math.round(innerWidth*0.7), 200), ly=Math.max(Math.round(innerHeight*0.5), 160);
+    fire('touchstart', mkT(lx, ly, 8));
+    fire('touchmove', mkT(lx+52, ly, 8));    // drag right
+    const d=yaw0-player.yaw;
+    const want=52*0.0042*SAVE.sens;
+    if(Math.abs(d-want)>0.03) return 'look yaw delta '+d.toFixed(3)+' want ~'+want.toFixed(3);
+    fire('touchend', mkT(lx+52, ly, 8));
+    return true;
+  }), 'touch.look-drag');
+  tlog(guard(()=>{
+    if(!IS_TOUCH) return 'SKIP';
+    startLevel(0,{silent:true});
+    GAME.state='playing'; player.frozen=false;
+    player.snapTo(V(0,1.2,3), 0, QG.floor.clone());
+    player.composeCamera(0.016);
+    const z0=player.pos.z;
+    INPUT.joyY=1; INPUT.joyX=0;                  // full forward on the stick
+    ctx.steps(0.5, 1/30);
+    INPUT.joyY=0;
+    if(z0-player.pos.z<0.8) return 'no forward progress via stick (dz='+(z0-player.pos.z).toFixed(2)+')';
+    return true;
+  }), 'touch.stick-move');
+  tlog(guard(()=>{
+    if(!touchCapable) return 'SKIP';
+    startLevel(0,{silent:true});
+    GAME.state='playing'; player.frozen=false;
+    player.snapTo(V(0,1.2,3), 0, QG.floor.clone());
+    ctx.steps(0.3, 1/30);
+    if(!player.grounded) return 'not grounded before jump';
+    $('tb-jump').dispatchEvent(new TouchEvent('touchstart',{bubbles:true,cancelable:true}));
+    if(INPUT.jumpBuf<=0) return 'jump button did not buffer';
+    ctx.step(1/30);
+    if(player.grounded) return 'jump button did not leave the ground';
+    $('tb-jump').dispatchEvent(new TouchEvent('touchend',{bubbles:true,cancelable:true}));
+    INPUT.jumpBuf=0;
+    return true;
+  }), 'touch.jump-button');
+  tlog(guard(()=>{
+    if(!touchCapable) return 'SKIP';
+    INPUT.interactEdge=false;
+    $('tb-use').dispatchEvent(new TouchEvent('touchstart',{bubbles:true,cancelable:true}));
+    if(!INPUT.interactEdge) return 'use button did not set interact edge';
+    if(!INPUT.interactHold) return 'use button did not set hold';
+    $('tb-use').dispatchEvent(new TouchEvent('touchend',{bubbles:true,cancelable:true}));
+    if(INPUT.interactHold) return 'use hold not released';
+    INPUT.interactEdge=false;
+    return true;
+  }), 'touch.use-button');
+  tlog(guard(()=>{
+    if(!touchCapable) return 'SKIP';
+    startLevel(0,{silent:true});
+    GAME.state='playing'; player.frozen=false;
+    $('tb-pause').dispatchEvent(new TouchEvent('touchstart',{bubbles:true,cancelable:true}));
+    if(GAME.state!=='paused') return 'pause button did not pause (state='+GAME.state+')';
+    hideScreen(DOM.pause);
+    GAME.state='playing';
+    return true;
+  }), 'touch.pause-button');
+
   /* 7 — performance sanity: collider and mesh budgets per level */
   log(guard(()=>{
     for(let i=0;i<LEVELS.length;i++){
@@ -4457,6 +4783,12 @@ function boot(){
   }
   buildVoid();
   bindInput();
+  bindTouch();
+  /* mobile audio unlock (iOS/Android require a gesture) + resume on return */
+  document.addEventListener('touchstart', function unlockAudio(){
+    SND.init(); SND.resume();
+  }, {once:true, passive:true});
+  document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) SND.resume(); });
   try{
     plc=new PointerLockControls(camera, document.body);
     plc.pointerSpeed=0;   // look is driven by our quaternion math; PLC manages lock lifecycle
@@ -4482,7 +4814,8 @@ function boot(){
 }
 /* public debug/automation handle (used by the QA harness and curious players) */
 window.__TIR__={ GAME, player, WORLD_COLLIDE, LEVELS, startLevel, updateGame,
-  restartLevel, V, pickUp, dropCarried, PARTS, SND, traceBeams, BEAM_POOL, rayQuad };
+  restartLevel, V, pickUp, dropCarried, PARTS, SND, traceBeams, BEAM_POOL, rayQuad,
+  pauseGame, IS_TOUCH, INPUT, TOUCH };
 boot();
 </script>
 </body>

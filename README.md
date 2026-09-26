@@ -6,7 +6,10 @@
 **single `index.html` file**. It runs on [Three.js](https://threejs.org/) loaded from a CDN and
 synthesizes **every sound at runtime** with the Web Audio API — zero external assets.
 
-> Open `index.html` in any modern desktop browser and click **ENTER THE ROOM**.
+> **Desktop:** open `index.html` and click **ENTER THE ROOM**.
+> **Mobile:** open it on your phone or tablet, tap **ENTER THE ROOM** — full touch controls
+> load automatically (virtual stick, drag-look, JUMP / USE / pause buttons).
+> Landscape is recommended; the game asks for fullscreen on entry (optional).
 
 ---
 
@@ -54,7 +57,13 @@ Every wall and the ceiling are walkable surfaces — the room is the puzzle.
 |---|
 | ![](l8.png) |
 
+| On a phone — virtual stick + touch buttons |
+|---|
+| ![](mobile.png) |
+
 ## Controls
+
+**Desktop**
 
 | Key | Action |
 |-----|--------|
@@ -65,10 +74,28 @@ Every wall and the ceiling are walkable surfaces — the room is the puzzle.
 | `R` | Restart chamber |
 | `ESC` | Pause (releases the mouse) |
 
+**Mobile / touch** (auto-detected; force with `?touch=1` or `?touch=0`)
+
+| Touch | Action |
+|-------|--------|
+| Left thumb | Floating virtual stick — drag to move, push to the rim to sprint |
+| Right thumb | Drag anywhere to look around |
+| **JUMP** button | Leap away from your current surface |
+| **USE** button | Interact — its label mirrors the current target (PICK / DROP / ROTATE / INSERT) |
+| **II** button | Pause |
+
 Fall into the void and you awake at the green arch — nothing is lost but time.
 
 ## Technical Highlights
 
+- **Full mobile support** — touch is auto-detected via pointer-coarseness / max-touch-points
+  (overridable with `?touch=1`/`?touch=0`). The left half of the screen spawns a floating
+  analog joystick (merged into the movement wish vector, rim = sprint); any other finger
+  becomes a look-drag through the same yaw/pitch math as the mouse; JUMP / USE / II buttons
+  stop propagation so they never grab the stick. Touch installs also get lighter defaults
+  (bloom off, 1024 px shadow maps, 1.6 DPR cap, reduced star/mote/particle counts), the FOV
+  widens on portrait viewports, safe-area insets keep HUD and buttons clear of notches, and
+  the game rides the ENTER tap into fullscreen when the API allows it.
 - **Quaternion gravity engine** — gravity lives in a rotated frame (`qUp · qYaw · qPitch`
   camera composition, slerped over 0.5 s across every shift). No Euler gimbal lock, ever.
 - **WASD without inversion** — movement is computed from the camera basis *projected onto the
@@ -84,8 +111,9 @@ Fall into the void and you awake at the green arch — nothing is lost but time.
   gravity, fading to ghosts otherwise.
 - **Deterministic procedural levels** (IX–X) — mulberry32-seeded vaults that are winnable by
   construction.
-- **Built-in QA harness** — open the game with `?qa=1` to run 19 self-tests, including scripted
-  playthroughs of every level. The release build passed **19/19**.
+- **Built-in QA harness** — open the game with `?qa=1` to run 26 self-tests, including scripted
+  playthroughs of every level and synthetic-touch tests of the mobile controls
+  (`?qa=1&touch=1`). The release build passed **26/26** in both modes.
 
 ## Engineering Notes
 
@@ -103,7 +131,7 @@ Fall into the void and you awake at the green arch — nothing is lost but time.
 ## Play
 
 - **Local:** open `index.html` (or serve the folder: `python3 -m http.server`)
-- **Self-test:** `index.html?qa=1`
+- **Self-test:** `index.html?qa=1` (desktop) · `index.html?qa=1&touch=1` (mobile mode)
 - Debug/automation handle: `window.__TIR__` exposes the game state for tinkering.
 
 ---
