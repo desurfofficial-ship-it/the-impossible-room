@@ -1,4 +1,4 @@
-/* The Impossible Room — service worker (v6)
+/* The Impossible Room — service worker (v7)
    Strategy:
    - Navigations (the game itself): network-first so players always get the
      newest build when online; cache fallback keeps it playable offline.
