@@ -4144,117 +4144,143 @@ class PlayerBody{
     this.group = new THREE.Group();
     camera.add(this.group);
 
-    // Pure-black silhouette material (matches the banner avatar)
+    // === Materials ===
     this.silMat = new THREE.MeshStandardMaterial({
       color: 0x000000, roughness: 0.62, metalness: 0.0, emissive: 0x000000
     });
-    // Dark canvas for the bag
     this.bagMat = new THREE.MeshStandardMaterial({
       color: 0x14171f, roughness: 0.88, metalness: 0.0
     });
-    // Slightly lighter strap material
     const strapMat = new THREE.MeshStandardMaterial({
       color: 0x252a36, roughness: 0.85, metalness: 0.0
     });
 
-    // ---- Torso (narrow tapered cylinder — connects hood to legs, gives the
-    //      silhouette a continuous body without blocking legs/arms) ----
-    const torso = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.055, 0.04, 0.14, 12), this.silMat);
-    torso.position.set(0, -0.19, -0.30);
-    this.torso = torso;
-    this.group.add(torso);
+    // === HEAD (smooth featureless sphere — NO FACE, matches game's avatar) ===
+    // Slightly oval, human skull proportion (taller than wide, deeper than wide).
+    // Position below camera (off-screen at default look, enters view on pitch-down).
+    const head = new THREE.Mesh(
+      new THREE.SphereGeometry(0.065, 20, 18), this.silMat);
+    head.scale.set(0.92, 1.08, 1.02);
+    head.position.set(0, -0.06, -0.32);
+    this.head = head;
+    this.group.add(head);
 
-    // Shoulders bar (narrow — arms attach here, doesn't block view)
-    const shoulders = new THREE.Mesh(
-      new THREE.BoxGeometry(0.14, 0.035, 0.06), this.silMat);
-    shoulders.position.set(0, -0.13, -0.30);
-    this.shoulders = shoulders;
-    this.group.add(shoulders);
+    // === NECK (cylinder connecting head to shoulders) ===
+    const neck = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.028, 0.034, 0.045, 12), this.silMat);
+    neck.position.set(0, -0.115, -0.32);
+    this.neck = neck;
+    this.group.add(neck);
 
-    // ---- Hood (more hood-shaped: open front-bottom, slight forward tilt) ----
-    // At default forward look this is off-screen (below). When the player
-    // pitches the camera down ~30°, the hood enters view at screen y≈-0.85.
-    const hoodGeo = new THREE.SphereGeometry(0.12, 16, 12,
-      0, Math.PI * 2,         // full ring
-      0, Math.PI * 0.78);     // top 78% only (open at bottom-front)
-    const hood = new THREE.Mesh(hoodGeo, this.silMat);
-    hood.position.set(0, -0.34, -0.28);
-    hood.scale.set(1.0, 1.1, 1.18);
-    hood.rotation.x = -0.15;  // slight forward tilt
-    this.hood = hood;
-    this.group.add(hood);
+    // === SHOULDERS (rounded capsules, not a flat bar) ===
+    // Each shoulder is a horizontal capsule — reads as a real shoulder joint.
+    const lShoulder = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.040, 0.075, 6, 12), this.silMat);
+    lShoulder.position.set(-0.10, -0.155, -0.30);
+    lShoulder.rotation.z = Math.PI/2;  // horizontal
+    this.group.add(lShoulder);
+    const rShoulder = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.040, 0.075, 6, 12), this.silMat);
+    rShoulder.position.set(0.10, -0.155, -0.30);
+    rShoulder.rotation.z = Math.PI/2;
+    this.group.add(rShoulder);
+    // Shoulder span reference (for breathing scale)
+    this.shoulderL = lShoulder; this.shoulderR = rShoulder;
 
-    // ---- Legs (visible at bottom of view, swing with bobPhase) ----
-    // Two-segment legs: thigh + shin + knee + shoe — looks more like a real
-    // leg than a single cylinder. Positions tuned for FOV 75.
+    // === CHEST (tapered cylinder, wider at top) ===
+    const chest = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.080, 0.062, 0.11, 16), this.silMat);
+    chest.position.set(0, -0.20, -0.30);
+    this.chest = chest;
+    this.group.add(chest);
+
+    // === WAIST (narrower than chest) ===
+    const waist = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.056, 0.054, 0.06, 14), this.silMat);
+    waist.position.set(0, -0.275, -0.30);
+    this.group.add(waist);
+
+    // === HIPS (slightly wider than waist) ===
+    const hips = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.062, 0.056, 0.055, 14), this.silMat);
+    hips.position.set(0, -0.325, -0.30);
+    this.hips = hips;
+    this.group.add(hips);
+
+    // === LEGS (thigh + knee + shin + ankle + foot — humanoid) ===
+    // Two-segment legs (thigh + shin) with proper knee and ankle joints.
     this.legs = [];
     for(let i=0; i<2; i++){
       const lg = new THREE.Group();
-      // Upper leg (thigh) — short, fits in FOV. Thicker for visibility.
+      // Thigh (capsule, tapered)
       const thigh = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.055, 0.050, 0.10, 8), this.silMat);
-      thigh.position.y = -0.05;
+        new THREE.CapsuleGeometry(0.045, 0.055, 4, 12), this.silMat);
+      thigh.position.y = -0.04;
       lg.add(thigh);
-      // Knee (small sphere joint)
+      // Knee (sphere joint)
       const knee = new THREE.Mesh(
-        new THREE.SphereGeometry(0.048, 10, 8), this.silMat);
+        new THREE.SphereGeometry(0.043, 14, 12), this.silMat);
       knee.position.y = -0.10;
       lg.add(knee);
-      // Lower leg (shin)
+      // Shin (capsule, slightly thinner)
       const shin = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.046, 0.038, 0.09, 8), this.silMat);
-      shin.position.y = -0.155;
+        new THREE.CapsuleGeometry(0.036, 0.045, 4, 12), this.silMat);
+      shin.position.y = -0.15;
       lg.add(shin);
-      // Shoe
-      const shoe = new THREE.Mesh(
-        new THREE.SphereGeometry(0.058, 10, 7), this.silMat);
-      shoe.position.set(0, -0.205, 0.045);
-      shoe.scale.set(1.15, 0.55, 1.55);
-      lg.add(shoe);
-      // Sub-shoe sole (flat block under shoe for definition)
-      const sole = new THREE.Mesh(
-        new THREE.BoxGeometry(0.095, 0.020, 0.14), this.silMat);
-      sole.position.set(0, -0.222, 0.05);
-      lg.add(sole);
-      // Position leg group at bottom of view — wider stance so they peek out
-      // beside the narrow torso (x = ±0.085). y=-0.07 to bring thighs into view.
-      lg.position.set(i===0 ? -0.085 : 0.085, -0.07, -0.22);
+      // Ankle (small sphere joint)
+      const ankle = new THREE.Mesh(
+        new THREE.SphereGeometry(0.031, 12, 10), this.silMat);
+      ankle.position.y = -0.195;
+      lg.add(ankle);
+      // Foot (shoe-shaped box with rounded toe)
+      const foot = new THREE.Mesh(
+        new THREE.BoxGeometry(0.075, 0.032, 0.15), this.silMat);
+      foot.position.set(0, -0.215, 0.045);
+      lg.add(foot);
+      // Toe rounded cap
+      const toe = new THREE.Mesh(
+        new THREE.SphereGeometry(0.032, 12, 10), this.silMat);
+      toe.scale.set(1.2, 0.5, 1.0);
+      toe.position.set(0, -0.215, 0.115);
+      lg.add(toe);
+      // Position leg group at bottom of view, slightly wider stance so they
+      // peek out beside the hips
+      lg.position.set(i===0 ? -0.055 : 0.055, -0.07, -0.22);
       this.legs.push(lg);
       this.group.add(lg);
     }
 
-    // ---- Mesh bag (LOWER-LEFT of view, slung on left shoulder) ----
+    // === BAG (LOWER-LEFT — same as before, mesh sack + orbs) ===
     this.bagGroup = new THREE.Group();
-    this.bagGroup.position.set(-0.22, -0.15, -0.35);
+    this.bagGroup.position.set(-0.22, -0.16, -0.36);
     this.bagGroup.rotation.y = 0.35;
-    // Strap from shoulder down to bag (curved via slight rotation)
+    // Strap (curved over shoulder)
     const strap = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.009, 0.009, 0.24, 6), strapMat);
-    strap.position.set(0.10, 0.14, 0.02);
+      new THREE.CylinderGeometry(0.009, 0.009, 0.26, 6), strapMat);
+    strap.position.set(0.10, 0.15, 0.02);
     strap.rotation.z = 0.55;
     this.bagGroup.add(strap);
     // Sack body
     const sack = new THREE.Mesh(
-      new THREE.SphereGeometry(0.10, 14, 12), this.bagMat);
+      new THREE.SphereGeometry(0.10, 16, 14), this.bagMat);
     sack.scale.set(0.82, 1.05, 0.72);
     this.sack = sack;
     this.bagGroup.add(sack);
     // Sack opening (torus rim)
     const rim = new THREE.Mesh(
-      new THREE.TorusGeometry(0.058, 0.012, 6, 14), this.bagMat);
+      new THREE.TorusGeometry(0.058, 0.012, 8, 16), this.bagMat);
     rim.rotation.x = Math.PI/2;
     rim.position.y = 0.09;
     this.bagGroup.add(rim);
-    // Mesh pattern (crosshatch of thin rings — reads as 'mesh' even at distance)
+    // Mesh pattern (crosshatch rings)
     for(let r=0; r<4; r++){
       const ring = new THREE.Mesh(
-        new THREE.TorusGeometry(0.05 + r*0.018, 0.0035, 4, 18), this.bagMat);
+        new THREE.TorusGeometry(0.05 + r*0.018, 0.0035, 4, 20), this.bagMat);
       ring.rotation.x = Math.PI/2;
       ring.position.y = 0.05 - r*0.04;
       this.bagGroup.add(ring);
     }
-    // Collected orbs (hidden, appear as fragments are claimed)
+    // Collected orbs (hidden, appear as claimed)
     this.sackOrbs = [];
     for(let i=0; i<6; i++){
       const orbMat = new THREE.MeshStandardMaterial({
@@ -4274,90 +4300,142 @@ class PlayerBody{
     }
     this.group.add(this.bagGroup);
 
-    // ---- Left arm (holds the bag strap, at lower-left of view) ----
+    // === LEFT ARM (bicep + elbow + forearm + wrist + hand) ===
+    // Holds the bag strap — hand is a simple fist shape.
     this.leftArm = new THREE.Group();
-    const lArm = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.045, 0.040, 0.22, 8), this.silMat);
-    lArm.position.y = -0.11;
-    this.leftArm.add(lArm);
-    // Left hand: small group with palm + closed fingers (always gripping strap)
+    const lBicep = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.036, 0.055, 4, 12), this.silMat);
+    lBicep.position.y = -0.07;
+    this.leftArm.add(lBicep);
+    const lElbow = new THREE.Mesh(
+      new THREE.SphereGeometry(0.035, 12, 10), this.silMat);
+    lElbow.position.y = -0.13;
+    this.leftArm.add(lElbow);
+    const lForearm = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.030, 0.045, 4, 12), this.silMat);
+    lForearm.position.y = -0.175;
+    this.leftArm.add(lForearm);
+    const lWrist = new THREE.Mesh(
+      new THREE.SphereGeometry(0.030, 12, 10), this.silMat);
+    lWrist.position.y = -0.215;
+    this.leftArm.add(lWrist);
+    // Left hand (gripping strap — closed fist)
     const lHand = new THREE.Mesh(
-      new THREE.SphereGeometry(0.050, 12, 10), this.silMat);
-    lHand.position.y = -0.22;
+      new THREE.SphereGeometry(0.044, 14, 12), this.silMat);
+    lHand.scale.set(1.0, 1.1, 1.1);
+    lHand.position.y = -0.235;
     this.leftArm.add(lHand);
-    this.leftArm.position.set(-0.16, -0.10, -0.30);
-    this.leftArm.rotation.z = 0.55;
+    this.leftArm.position.set(-0.14, -0.10, -0.30);
+    this.leftArm.rotation.z = 0.50;
     this.group.add(this.leftArm);
 
-    // ---- Right arm (reaches forward on pickup, lower-right of view) ----
+    // === RIGHT ARM (bicep + elbow + forearm + wrist + articulated hand) ===
+    // Reaches forward on pickup, with palm + 4 fingers (each 2-segment) + thumb.
     this.rightArm = new THREE.Group();
-    const rArm = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.052, 0.044, 0.24, 10), this.silMat);
-    rArm.position.y = -0.12;
-    this.rightArm.add(rArm);
-    // Right hand: GROUP with palm + 4 fingers that can close into a fist
+    const rBicep = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.042, 0.07, 4, 12), this.silMat);
+    rBicep.position.y = -0.075;
+    this.rightArm.add(rBicep);
+    const rElbow = new THREE.Mesh(
+      new THREE.SphereGeometry(0.041, 12, 10), this.silMat);
+    rElbow.position.y = -0.145;
+    this.rightArm.add(rElbow);
+    const rForearm = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.034, 0.06, 4, 12), this.silMat);
+    rForearm.position.y = -0.20;
+    this.rightArm.add(rForearm);
+    const rWrist = new THREE.Mesh(
+      new THREE.SphereGeometry(0.034, 12, 10), this.silMat);
+    rWrist.position.y = -0.245;
+    this.rightArm.add(rWrist);
+
+    // Right hand: GROUP with palm + 4 articulated fingers + thumb
     this.rHand = new THREE.Group();
     const palm = new THREE.Mesh(
-      new THREE.SphereGeometry(0.050, 12, 10), this.silMat);
+      new THREE.SphereGeometry(0.046, 14, 12), this.silMat);
+    palm.scale.set(1.0, 1.15, 0.62);  // palm-shaped (flatter front-to-back)
     this.rHand.add(palm);
-    // 4 fingers (small cylinders extending forward, can curl to close fist)
+    // 4 fingers, each a 2-segment group (proximal + distal with curl joint)
     this.rFingers = [];
     for(let f=0; f<4; f++){
-      const finger = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.009, 0.007, 0.045, 6), this.silMat);
-      // Fingers extend forward (-Z) from the palm
-      finger.position.set((f-1.5)*0.013, 0.005, -0.030);
-      finger.rotation.x = Math.PI/2;  // cylinders point along Z
-      this.rHand.add(finger);
-      this.rFingers.push(finger);
+      const fingerGroup = new THREE.Group();
+      // Proximal segment (closest to palm)
+      const proximal = new THREE.Mesh(
+        new THREE.CapsuleGeometry(0.009, 0.018, 4, 8), this.silMat);
+      proximal.position.y = -0.011;
+      fingerGroup.add(proximal);
+      // Knuckle joint (visible bump)
+      const knuckle = new THREE.Mesh(
+        new THREE.SphereGeometry(0.010, 8, 6), this.silMat);
+      knuckle.position.y = -0.022;
+      fingerGroup.add(knuckle);
+      // Distal segment (fingertip)
+      const distal = new THREE.Mesh(
+        new THREE.CapsuleGeometry(0.008, 0.016, 4, 8), this.silMat);
+      distal.position.y = -0.035;
+      fingerGroup.add(distal);
+      // Place finger on palm — spread slightly across X
+      fingerGroup.position.set((f-1.5)*0.014, 0, -0.032);
+      fingerGroup.rotation.x = Math.PI/2;  // fingers point forward (-Z)
+      this.rHand.add(fingerGroup);
+      this.rFingers.push(fingerGroup);
     }
-    // Thumb (smaller, offset to the side)
-    const thumb = new THREE.Mesh(
-      new THREE.SphereGeometry(0.014, 8, 6), this.silMat);
-    thumb.position.set(0.035, 0, -0.020);
-    this.rHand.add(thumb);
-    this.rHand.position.y = -0.24;
+    // Thumb (2-segment, offset to side, rotated)
+    const thumbGroup = new THREE.Group();
+    const thumbBase = new THREE.Mesh(
+      new THREE.SphereGeometry(0.014, 10, 8), this.silMat);
+    thumbGroup.add(thumbBase);
+    const thumbSeg = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.011, 0.016, 4, 8), this.silMat);
+    thumbSeg.position.y = -0.014;
+    thumbGroup.add(thumbSeg);
+    thumbGroup.position.set(0.045, -0.005, -0.018);
+    thumbGroup.rotation.z = -0.8;
+    thumbGroup.rotation.x = 0.4;
+    this.rHand.add(thumbGroup);
+    this.rThumb = thumbGroup;
+
+    this.rHand.position.y = -0.28;
     this.rightArm.add(this.rHand);
-    this.rightArm.position.set(0.16, -0.10, -0.28);
+    this.rightArm.position.set(0.14, -0.10, -0.30);
     this.rightArm.rotation.z = -0.45;
     this.group.add(this.rightArm);
 
-    // ---- Animation state ----
-    this.reachT = 0;            // 0 = rest, 1 = full reach forward
-    this.reachHold = 0;         // brief pause at peak reach (grab moment)
-    this.bagBump = 0;           // bag scale bump when receiving an orb
+    // === Animation state ===
+    this.reachT = 0;
+    this.reachHold = 0;
+    this.bagBump = 0;
     this.bagCount = 0;
     this.time = 0;
     this.prevGrounded = true;
-    this.landSquash = 0;        // 1 = just landed, ramps down to 0
-    this.idleBreath = 0;        // subtle chest scale when standing still
+    this.landSquash = 0;
+    this.idleBreath = 0;
 
     // Safety: disable frustum culling on every descendant mesh
     this.group.traverse(o => { if(o.isMesh) o.frustumCulled = false; });
   }
 
-  /* Called every frame from updateGame after player.update */
   update(dt, player){
     this.time += dt;
     const moving = (player.vel && player.vel.lengthSq() > 0.04) || player.bobAmp > 0.02;
 
     // ---- Leg animation ----
     if(!player.grounded){
-      // Airborne: legs tuck up (jump pose)
-      this.legs[0].rotation.x = -0.45;
-      this.legs[1].rotation.x = -0.30;
+      // Airborne: tuck up (jump pose), knees bent
+      this.legs[0].rotation.x = -0.55;
+      this.legs[1].rotation.x = -0.40;
     } else if(moving){
-      // Walking: alternate swing
-      const swing = Math.sin(player.bobPhase * 2) * 0.50;
+      // Walking: alternate swing, proper knee flex
+      const swing = Math.sin(player.bobPhase * 2) * 0.55;
       this.legs[0].rotation.x = swing;
       this.legs[1].rotation.x = -swing;
     } else {
-      // Idle: very subtle sway (life, not dead-stiff)
+      // Idle: very subtle sway
       this.legs[0].rotation.x = Math.sin(this.time * 1.5) * 0.03;
       this.legs[1].rotation.x = -Math.sin(this.time * 1.5) * 0.03;
     }
 
-    // ---- Landing squash (fires on grounded false→true transition) ----
+    // ---- Landing squash ----
     if(!this.prevGrounded && player.grounded){
       this.landSquash = 1;
     }
@@ -4370,67 +4448,73 @@ class PlayerBody{
       this.group.scale.set(1, 1, 1);
     }
 
-    // ---- Body bob (player.bobAmp follows walking intensity) ----
+    // ---- Body bob ----
     this.group.position.y = -player.bobAmp * 0.025;
 
-    // ---- Idle breathing (subtle chest scale when standing still) ----
-    const targetBreath = moving ? 0 : Math.sin(this.time * 1.8) * 0.012;
+    // ---- Idle breathing (chest + shoulders + head micro-bob) ----
+    const targetBreath = moving ? 0 : Math.sin(this.time * 1.8) * 0.014;
     this.idleBreath = THREE.MathUtils.lerp(this.idleBreath, targetBreath, dt * 5);
-    this.torso.scale.x = 1 + this.idleBreath;
-    this.torso.scale.z = 1 + this.idleBreath;
-    this.shoulders.scale.x = 1 + this.idleBreath * 0.7;
+    this.chest.scale.x = 1 + this.idleBreath;
+    this.chest.scale.z = 1 + this.idleBreath;
+    this.shoulderL.scale.x = 1 + this.idleBreath * 0.6;
+    this.shoulderR.scale.x = 1 + this.idleBreath * 0.6;
+    // Head micro-bob when idle
+    if(!moving){
+      this.head.position.y = -0.06 + Math.sin(this.time * 1.8) * 0.002;
+    }
 
     // ---- Arm sway + reach ----
     const armSway = moving ? Math.sin(player.bobPhase * 2 + Math.PI) * 0.18 : 0;
     this.leftArm.rotation.x = -armSway;
-    // Right arm: sway minus the reach offset (reach pulls arm forward = -X rotation)
+    // Right arm: sway + reach offset
     this.rightArm.rotation.x = armSway - this.reachT * 1.55;
-    // Slight wrist raise during reach
     this.rightArm.rotation.z = -0.45 + this.reachT * 0.35;
 
-    // ---- Hand fingers: close into fist at peak reach (the "grab") ----
-    // Phase 0 (extending): fingers extended forward (rotation.x = π/2)
-    // Phase 1 (peak/hold): fingers close into fist (rotation.x → π)
-    // Phase 2 (retracting): fingers open back to extended
+    // ---- Hand fingers: curl into fist at peak reach (the "grab") ----
+    // Each finger group rotates around its X axis. 0 = extended, π/2 = closed fist.
     const grabPhase = (this.reachHold > 0) ? 1.0 :
                       (this.reachT > 0.5 ? (this.reachT - 0.5) * 2.0 : 0);
-    const targetFingerX = Math.PI/2 + Math.PI/2 * grabPhase;  // π/2 = open, π = closed
-    for(const finger of this.rFingers){
-      finger.rotation.x = THREE.MathUtils.lerp(finger.rotation.x, targetFingerX, dt * 14);
+    const targetFingerCurl = Math.PI/2 * grabPhase;  // 0 = open, π/2 = closed
+    for(const fg of this.rFingers){
+      // Lerp the distal segment's rotation (curl at the knuckle joint)
+      // The whole finger group rotates to curl
+      const current = fg.rotation.x - Math.PI/2;  // base rotation offset
+      const target = -Math.PI/2 + targetFingerCurl;  // negative because forward = -X
+      // Use a simple lerp toward target
+      fg.rotation.x = THREE.MathUtils.lerp(fg.rotation.x, target, dt * 14);
+    }
+    // Thumb tucks in during grab
+    if(this.rThumb){
+      const thumbTarget = -0.8 + grabPhase * 0.4;
+      this.rThumb.rotation.z = THREE.MathUtils.lerp(this.rThumb.rotation.z, thumbTarget, dt * 14);
     }
 
-    // ---- Reach tween — hold briefly at peak (grab moment), then retract ----
+    // ---- Reach tween (hold at peak = grab, then retract) ----
     if(this.reachHold > 0){
       this.reachHold = Math.max(0, this.reachHold - dt);
     } else if(this.reachT > 0){
       const prev = this.reachT;
       this.reachT = Math.max(0, this.reachT - dt * 2.2);
-      // When reachT just hit 0, fire the bag-bump (orb "drops" into the sack)
       if(prev > 0 && this.reachT === 0 && this.bagBump === 0){
         this.bagBump = 1;
       }
     }
 
-    // ---- Bag bump animation (sack visibly receives the orb) ----
+    // ---- Bag bump (sack visibly receives the orb) ----
     if(this.bagBump > 0){
       this.bagBump = Math.max(0, this.bagBump - dt * 4);
       const k = this.bagBump;
-      this.bagGroup.scale.set(
-        1 + k * 0.18,
-        1 - k * 0.08,
-        1 + k * 0.12
-      );
+      this.bagGroup.scale.set(1 + k * 0.18, 1 - k * 0.08, 1 + k * 0.12);
     } else {
       this.bagGroup.scale.set(1, 1, 1);
     }
 
-    // ---- Bag orb visibility + pulsing + spin ----
+    // ---- Bag orbs (visibility + pulse + spin) ----
     for(let i=0; i<this.sackOrbs.length; i++){
       const orb = this.sackOrbs[i];
       if(i < this.bagCount){
         orb.visible = true;
         orb.material.opacity = 0.92 + 0.08 * Math.sin(this.time*4 + i);
-        // Spin collected orbs
         orb.rotation.y += dt * 1.5;
         orb.rotation.x += dt * 0.7;
       } else {
@@ -4439,20 +4523,18 @@ class PlayerBody{
       }
     }
 
-    // ---- Bag sway (momentum during walk) ----
+    // ---- Bag sway (walk momentum) ----
     this.bagGroup.rotation.z = (moving ? Math.sin(player.bobPhase*2 + 0.5) * 0.10 : 0);
 
-    // ---- Hood: subtle idle sway (life) ----
-    this.hood.rotation.z = Math.sin(this.time * 0.9) * 0.025;
+    // ---- Head subtle sway (looking around, idle) ----
+    this.head.rotation.z = Math.sin(this.time * 0.7) * 0.04;
   }
 
-  /* Trigger the right-hand reach animation (called from Fragment.collect) */
   triggerReach(){
     this.reachT = 1;
-    this.reachHold = 0.10;  // 100ms hold at peak (grab moment)
+    this.reachHold = 0.10;
   }
 
-  /* Add a collected orb to the bag (gold for fragments, purple for cores) */
   addBagOrb(isCore){
     if(this.bagCount >= this.sackOrbs.length) return;
     const orb = this.sackOrbs[this.bagCount];
@@ -4460,10 +4542,8 @@ class PlayerBody{
     orb.material.color.setHex(col);
     orb.material.emissive.setHex(col);
     this.bagCount++;
-    // Note: bagBump fires later when reachT returns to 0 (the "drop" moment)
   }
 
-  /* Reset the bag to empty (called from startLevel) */
   resetBag(){
     this.bagCount = 0;
     for(const orb of this.sackOrbs){ orb.visible = false; orb.material.opacity = 0; }
