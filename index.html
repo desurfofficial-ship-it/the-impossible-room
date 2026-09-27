@@ -884,11 +884,11 @@ body.touch #tb-use{width:64px !important;height:64px !important;font-size:18px !
 
 /* v20: CLEAN INTERFACE — hide all overlays that cover gameplay */
 /* Tutorial checklist hidden — moved into ☰ progress panel */
-#tut{display:none !important}
+#tut{top:calc(12px + env(safe-area-inset-top,0px)) !important;left:12px !important;right:auto !important;transform:none !important;max-width:200px !important;font-size:10px !important;opacity:0.7 !important}
 /* Objective text hidden — moved into ☰ progress panel */
-#hud-obj{display:none !important}
+#hud-obj{font-size:12px !important;opacity:0.6 !important;max-width:200px !important}
 /* Status text hidden — moved into ☰ progress panel */
-#hud-status{display:none !important}
+#hud-status{font-size:10px !important;opacity:0.5 !important}
 
 @keyframes crossPulse{0%,100%{opacity:0.35;box-shadow:0 0 3px #39d5c8}50%{opacity:0.6;box-shadow:0 0 6px #39d5c8}}
 
@@ -2587,7 +2587,7 @@ function applyTheme(i){
   dirLight.intensity=th.dir.int;
   dirLight.position.set(th.dir.pos[0], th.dir.pos[1], th.dir.pos[2]);
   /* fog */
-  scene.fog=new THREE.FogExp2(th.fog.color, th.fog.density * 1.4); // v20: 40% denser fog for stronger depth cues
+  scene.fog=new THREE.FogExp2(th.fog.color, th.fog.density);
   scene.background=new THREE.Color(th.fog.color);
   if(!GAME.logicOnly) renderer.setClearColor(th.fog.color);
   /* motes */
@@ -4182,7 +4182,7 @@ function hudPulse(){
    Every method wrapped in try-catch so errors NEVER freeze the game.
    ============================================================ */
 class SurrealSystem{
-  constructor(){}
+  constructor(){ this._enabled = true; }
 
   decorate(L){
     try{
@@ -4337,7 +4337,7 @@ class SurrealSystem{
    Antichamber — the world feels alive and watching.
    ============================================================ */
 class DreadSystem{
-  constructor(){
+  constructor(){ this._shadowsEnabled = true; this._flickerEnabled = true;
     this.time = 0;
     this.whisperTimer = Infinity; // audio removed
     this.creakTimer = Infinity; // audio removed  // first whisper after 6s
@@ -4500,7 +4500,7 @@ class DreadSystem{
 
     // Audio removed — no creaks
 
-    // === Light flicker (subtle 2% oscillation + rare brief dip) ===
+    if(this._flickerEnabled){ // === Light flicker (subtle 2% oscillation + rare brief dip) ===
     if(dirLight){
       const flicker = Math.sin(this.time * 13) * 0.02 +
                       Math.sin(this.time * 7.3) * 0.015;
@@ -4511,7 +4511,7 @@ class DreadSystem{
       }
     }
 
-    // === Shadow figures (spawn at edge of fog, fade in/out) ===
+    if(this._shadowsEnabled){ // === Shadow figures (spawn at edge of fog, fade in/out) ===
     for(const sf of this.shadowFigures){
       if(sf.active){
         sf.timer -= dt;
@@ -4534,7 +4534,7 @@ class DreadSystem{
         }
       } else {
         // 1.5% chance per second per figure to spawn
-        if(Math.random() < 0.015 * dt * 60){  // *60 to normalize to per-second
+        if(this._shadowsEnabled && Math.random() < 0.015 * dt * 60){  // *60 to normalize to per-second
           // Spawn at edge of fog, behind or beside the player
           const angle = Math.random() * Math.PI * 2;
           const dist = 7 + Math.random() * 5;
@@ -5693,7 +5693,7 @@ function startLevel(i, opts={}){
   hideScreen(DOM.levelcard);           // defensive: never carry a card into the next room
   def.build(L);
   L.finish();
-  if(surrealSystem){ try{ surrealSystem.decorate(L); }catch(e){} }
+  if(surrealSystem && surrealSystem._enabled){ try{ surrealSystem.decorate(L); }catch(e){} }
   /* environment theme — AFTER the build so the nature system can size
      its inside accents to the level bounds (skies/fog are order-free) */
   applyTheme(i);
@@ -10201,6 +10201,38 @@ boot();
     }
   }
   setInterval(updateShardCount, 250);
+})();
+
+/* v20: Settings toggles for atmosphere */
+(function(){
+  function setupToggle(id, onOn, onOff){
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('change', () => {
+      if(el.checked){ onOn(); }
+      else { onOff(); }
+    });
+  }
+  // Surreal system toggle
+  setupToggle('set-surreal',
+    () => { if(window.__TIR__ && surrealSystem !== undefined) surrealSystem._enabled = true; },
+    () => { if(window.__TIR__ && surrealSystem !== undefined) surrealSystem._enabled = false; document.querySelectorAll('.surreal-elem').forEach(e=>e.style.display='none'); }
+  );
+  // Shadow figures toggle
+  setupToggle('set-shadows',
+    () => { if(window.__TIR__ && dreadSystem) dreadSystem._shadowsEnabled = true; },
+    () => { if(window.__TIR__ && dreadSystem){ dreadSystem._shadowsEnabled = false; dreadSystem.shadowFigures.forEach(sf=>{sf.sprite.visible=false;sf.active=false;}); } }
+  );
+  // Light flicker toggle
+  setupToggle('set-flicker',
+    () => { if(window.__TIR__ && dreadSystem) dreadSystem._flickerEnabled = true; },
+    () => { if(window.__TIR__ && dreadSystem) dreadSystem._flickerEnabled = false; }
+  );
+  // Vignette toggle
+  setupToggle('set-vignette',
+    () => { const v=document.getElementById('vignette-overlay'); if(v) v.style.display='block'; },
+    () => { const v=document.getElementById('vignette-overlay'); if(v) v.style.display='none'; }
+  );
 })();
 </script>
 </body>
