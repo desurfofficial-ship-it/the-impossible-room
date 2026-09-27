@@ -6362,6 +6362,85 @@ LEVELS.push({
       coneMat.opacity = 0.03 + Math.sin(t * 0.8) * 0.015 + Math.sin(t * 2.3) * 0.008;
     });
 
+    /* --- Skylight opening (bright rectangle in the ceiling where the
+         god-ray enters — makes the light source visible) --- */
+    const skyMat = new THREE.MeshBasicMaterial({
+      color: 0xbcd2e8,
+      transparent: true,
+      opacity: 0.6,
+      side: THREE.DoubleSide,
+      toneMapped: false
+    });
+    const skylight = new THREE.Mesh(
+      new THREE.PlaneGeometry(4, 4), skyMat);
+    skylight.position.set(2, 11, 0);  // at ceiling, above the god-ray
+    skylight.rotation.x = Math.PI / 2;  // face down
+    WORLD.add(skylight);
+    L.disposables.push(skylight);
+    // Skylight shimmer
+    L.updaters.push((dt, t) => {
+      skyMat.opacity = 0.5 + Math.sin(t * 0.6) * 0.1;
+    });
+
+    /* --- Floor glow (where the god-ray hits — bright impact spot) --- */
+    const floorGlowMat = new THREE.MeshBasicMaterial({
+      color: 0x39d5c8,
+      transparent: true,
+      opacity: 0.12,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      toneMapped: false
+    });
+    const floorGlow = new THREE.Mesh(
+      new THREE.CircleGeometry(3, 24), floorGlowMat);
+    floorGlow.position.set(2, 0.02, 0);  // on the floor, at the god-ray base
+    floorGlow.rotation.x = -Math.PI / 2;  // face up
+    WORLD.add(floorGlow);
+    L.disposables.push(floorGlow);
+    // Floor glow pulse
+    L.updaters.push((dt, t) => {
+      floorGlowMat.opacity = 0.10 + Math.sin(t * 0.8) * 0.04;
+    });
+
+    /* --- Wall-mounted glowing panels (cyan strips on the walls for
+         visual interest — breaks up the blank wall surfaces) --- */
+    const wallPanelMat = new THREE.MeshBasicMaterial({
+      color: 0x39d5c8,
+      transparent: true,
+      opacity: 0.15,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      toneMapped: false
+    });
+    // 6 wall panels: 3 on the left wall, 3 on the right wall
+    const wallPanels = [];
+    for(let i = 0; i < 6; i++){
+      const isLeft = i < 3;
+      const idx = i % 3;
+      const panel = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.4, 2.5), wallPanelMat.clone());
+      // Left wall at x=-12, right wall at x=12
+      panel.position.set(
+        isLeft ? -11.9 : 11.9,   // flush with wall
+        2 + idx * 3,               // stacked vertically
+        -8 + idx * 8               // spread along Z
+      );
+      // Face inward (toward room center)
+      panel.rotation.y = isLeft ? Math.PI / 2 : -Math.PI / 2;
+      panel.userData.phase = i * 0.7;
+      WORLD.add(panel);
+      L.disposables.push(panel);
+      wallPanels.push(panel);
+    }
+    // Animate wall panels (staggered pulse)
+    L.updaters.push((dt, t) => {
+      for(const p of wallPanels){
+        p.material.opacity = 0.10 + Math.sin(t * 0.5 + p.userData.phase) * 0.06;
+      }
+    });
+
     /* --- Dust particles (floating motes that catch the god-ray) --- */
     /* 200 tiny particles drifting through the chamber. Brighter when
        inside the light cone (fake volumetric scattering). */

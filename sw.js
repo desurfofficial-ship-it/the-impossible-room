@@ -6,7 +6,7 @@
    - Icons / manifest / guide: cache-first.
    Bump VERSION on every deploy to retire old caches. */
 const VERSION = 'tir-v21';
-const SHELL = 'tir-shell-v12';  // v20: volumetric
+const SHELL = 'tir-shell-v13';  // v20: skylight
 
 self.addEventListener('install', e => {
   e.waitUntil(
