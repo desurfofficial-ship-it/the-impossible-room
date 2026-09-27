@@ -887,7 +887,7 @@ body.touch #menu .room-frame{display:none}
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V21</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V22</span>
   <div class="menu-plate">
     <div class="kicker">gravity puzzle</div>
     <h1>The Impossible Room</h1>
@@ -6169,7 +6169,7 @@ function updateGame(dt){
   for(const a of L.arches) a.update(dt, GAME.t);
   if(GAME.state!=='menu') player.update(dt);
   if(playerBody && GAME.state!=='menu') playerBody.update(dt, player); // v19 viewmodel
-  if(dreadSystem && GAME.state==='playing') dreadSystem.update(dt, player); // v20 dread
+  if(dreadSystem && GAME.state==='playing' && player) dreadSystem.update(dt, player); // v20 dread
   for(const mv of L.movers) mv.update(dt, GAME.t);
   for(const c of L.cubes) c.update(dt);
   for(const f of L.fragments) f.update(dt, GAME.t);
@@ -6322,13 +6322,17 @@ LEVELS.push({
       L.disposables.push(mesh);
       floatMeshes.push(mesh);
     }
-    /* animate floating shapes */
+    /* animate floating shapes (skip meshes without float metadata — e.g. stairs) */
     L.updaters.push((dt, t) => {
       for(const m of floatMeshes){
-        m.rotation.x += m.userData.rotSpeed.x * dt;
-        m.rotation.y += m.userData.rotSpeed.y * dt;
-        m.rotation.z += m.userData.rotSpeed.z * dt;
-        m.position.y = m.userData.basePos.y + Math.sin(t * 0.5 + m.userData.bobPhase) * m.userData.bobAmp;
+        const rs = m.userData.rotSpeed;
+        if(!rs) continue;
+        m.rotation.x += rs.x * dt;
+        m.rotation.y += rs.y * dt;
+        m.rotation.z += rs.z * dt;
+        if(m.userData.basePos){
+          m.position.y = m.userData.basePos.y + Math.sin(t * 0.5 + (m.userData.bobPhase||0)) * (m.userData.bobAmp||0.1);
+        }
       }
     });
 
@@ -6552,6 +6556,7 @@ LEVELS.push({
     /* trigger: when player walks through the doorway, teleport to spawn */
     const teleportPos = L.spawn.pos.clone();
     L.updaters.push((dt, t) => {
+      if(!player || !doorFrame) return;
       const dx = player.pos.x - doorFrame.position.x;
       const dz = player.pos.z - doorFrame.position.z;
       const d2 = dx * dx + dz * dz;
@@ -6579,10 +6584,14 @@ LEVELS.push({
       step.position.set(-9 + s * 0.3, 1.5 + s * 0.5, 5 - s * 0.8);
       step.rotation.z = -0.1;
       step.userData.floatPhase = s * 0.5;
+      step.userData.basePos = step.position.clone();
+      step.userData.bobPhase = s * 0.5;
+      step.userData.bobAmp = 0.08;
+      step.userData.rotSpeed = { x:0, y:0.15, z:0 }; /* gentle yaw only */
       step.frustumCulled = false;
       WORLD.add(step);
       L.disposables.push(step);
-      floatMeshes.push(step);  /* add to float animation */
+      floatMeshes.push(step);
     }
   },
   qa(ctx){
