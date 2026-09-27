@@ -887,7 +887,7 @@ body.touch #menu .room-frame{display:none}
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V22</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V23</span>
   <div class="menu-plate">
     <div class="kicker">gravity puzzle</div>
     <h1>The Impossible Room</h1>
@@ -4354,22 +4354,17 @@ class DreadSystem{
    ============================================================ */
 class PlayerBody{
   constructor(){
-    // Upgraded 3D arrow indicator — proper arrow shape (cone tip + cylinder
-    // shaft), only visible from Chamber XI onward (levelIndex >= 10) where
-    // the late-game Escape chambers + vaults benefit from navigation aid.
-    // During the Academy (I-V) and early Escape (VI-X), no arrow — player
-    // learns the chambers without hand-holding.
+    /* v23: guide arrow — always on in play, depthTest OFF so walls/floor
+       never eat it (the early-chamber “I can’t see the arrow” bug). */
     this.group = new THREE.Group();
     camera.add(this.group);
-    this.group.visible = false;  // hidden until Chamber XI
+    this.group.visible = false;  // shown in update() while playing
 
-    // Arrow material — MeshBasicMaterial so it renders at full brightness
-    // regardless of chamber lighting. toneMapped: false bypasses ACES.
     this.arrowMat = new THREE.MeshBasicMaterial({
       color: 0x39d5c8,
       transparent: true,
       opacity: 1.0,
-      depthTest: true,
+      depthTest: false,   // always draw on top of world geometry
       depthWrite: false,
       side: THREE.DoubleSide,
       toneMapped: false
@@ -4378,61 +4373,58 @@ class PlayerBody{
     this.flashColor = new THREE.Color(0xffd76a);   // gold (on collect)
     this.warnColor = new THREE.Color(0xff5468);    // red-pink (near void edge?)
 
-    // Arrow group (positioned at bottom-center, in front of camera)
+    // Arrow: lower-center of view, close enough to read on phones
     this.arrowRoot = new THREE.Group();
-    this.arrowRoot.position.set(0, -0.22, -0.42);
-    this.arrowRoot.renderOrder = 999;
+    this.arrowRoot.position.set(0, -0.18, -0.55);
+    this.arrowRoot.scale.setScalar(1.55);  // bigger than before
+    this.arrowRoot.renderOrder = 9999;
     this.group.add(this.arrowRoot);
 
-    // === Arrow shape: cone tip + cylinder shaft (proper 3D arrow) ===
-    // Cone tip — points forward (-Z, into the scene). Cone default tip is
-    // at +Y; rotate around X by -π/2 to make tip point -Z.
     const tip = new THREE.Mesh(
-      new THREE.ConeGeometry(0.045, 0.10, 12), this.arrowMat);
-    tip.position.set(0, 0, -0.08);  // forward of shaft
-    tip.rotation.x = -Math.PI/2;     // tip → -Z (forward)
+      new THREE.ConeGeometry(0.055, 0.12, 12), this.arrowMat);
+    tip.position.set(0, 0, -0.09);
+    tip.rotation.x = -Math.PI/2;
+    tip.renderOrder = 9999;
     this.arrowRoot.add(tip);
     this.arrowTip = tip;
 
-    // Shaft (cylinder, extends backward from tip toward camera)
-    // Default cylinder is along Y; rotate π/2 around X to align with Z.
     const shaft = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.020, 0.020, 0.14, 12), this.arrowMat);
-    shaft.position.set(0, 0, 0.01);  // centered behind tip
-    shaft.rotation.x = Math.PI/2;     // Y axis → Z axis
+      new THREE.CylinderGeometry(0.024, 0.024, 0.16, 12), this.arrowMat);
+    shaft.position.set(0, 0, 0.02);
+    shaft.rotation.x = Math.PI/2;
+    shaft.renderOrder = 9999;
     this.arrowRoot.add(shaft);
     this.arrowShaft = shaft;
 
-    // Fletching (3 small fins at the back of the shaft — completes arrow read)
-    const fletchGeo = new THREE.BoxGeometry(0.040, 0.005, 0.020);
+    const fletchGeo = new THREE.BoxGeometry(0.048, 0.006, 0.024);
     for(let i=0; i<3; i++){
       const fletch = new THREE.Mesh(fletchGeo, this.arrowMat);
-      fletch.position.set(0, 0, 0.10);  // at the back of the shaft
-      fletch.rotation.x = (i - 1) * 0.5;  // fan out slightly
-      fletch.rotation.y = (i * Math.PI * 2 / 3);  // 3 fins around the shaft
+      fletch.position.set(0, 0, 0.11);
+      fletch.rotation.x = (i - 1) * 0.5;
+      fletch.rotation.y = (i * Math.PI * 2 / 3);
+      fletch.renderOrder = 9999;
       this.arrowRoot.add(fletch);
     }
 
-    // Halo glow (transparent sphere around the arrow — fake bloom)
     const halo = new THREE.Mesh(
-      new THREE.SphereGeometry(0.13, 16, 12),
+      new THREE.SphereGeometry(0.16, 16, 12),
       new THREE.MeshBasicMaterial({
         color: 0x39d5c8,
         transparent: true,
-        opacity: 0.10,
+        opacity: 0.18,
+        depthTest: false,
         depthWrite: false,
-        side: THREE.BackSide,  // render inside-out so we see through it
+        side: THREE.BackSide,
         toneMapped: false
       })
     );
     halo.position.set(0, 0, -0.02);
+    halo.renderOrder = 9998;
     this.arrowRoot.add(halo);
     this.halo = halo;
 
-    // PointLight (casts cyan glow on nearby geometry)
-    this.arrowLight = new THREE.PointLight(0x39d5c8, 0.6, 2.0, 2.0);
-    this.arrowLight.position.set(0, 0, 0);
-    this.arrowRoot.add(this.arrowLight);
+    // No PointLight on the arrow — was easy to miss and cost perf on mobile
+    this.arrowLight = null;
 
     // Animation state
     this.time = 0;
@@ -4443,48 +4435,36 @@ class PlayerBody{
 
   update(dt, player){
     this.time += dt;
+    if(!player){ this.group.visible = false; return; }
 
-    // Arrow visible in ALL chambers (per user feedback — early-chamber players
-    // need it most while learning the game). The levelIndex>=10 gate was too
-    // restrictive; players in Chambers I-X reported "didn't see any arrow".
+    // Always show while in a chamber (menu hides via GAME.state check in updateGame)
     this.group.visible = true;
 
-    const moving = (player.vel && player.vel.lengthSq() > 0.04) || player.bobAmp > 0.02;
+    const moving = (player.vel && player.vel.lengthSq() > 0.04) || (player.bobAmp||0) > 0.02;
 
-    // === Dynamic animation ===
-    // 1. Vertical bob (synced to walk cycle when moving, gentle idle when still)
     const bob = moving
-      ? Math.sin(player.bobPhase * 2) * 0.014
+      ? Math.sin((player.bobPhase||0) * 2) * 0.012
       : Math.sin(this.time * 1.5) * 0.006;
-    this.arrowRoot.position.y = -0.22 + bob;
+    this.arrowRoot.position.y = -0.18 + bob;
 
-    // 2. Slight rotation wobble (the arrow gently yaws — feels alive, not static)
-    this.arrowRoot.rotation.y = Math.sin(this.time * 0.8) * 0.10;
-    this.arrowRoot.rotation.z = Math.sin(this.time * 1.1) * 0.04;
+    this.arrowRoot.rotation.y = Math.sin(this.time * 0.8) * 0.08;
+    this.arrowRoot.rotation.z = Math.sin(this.time * 1.1) * 0.03;
 
-    // 3. Forward tilt when moving (leans into the direction of travel)
-    const tiltTarget = moving ? -0.18 : 0;
+    const tiltTarget = moving ? -0.14 : 0;
     this.arrowRoot.rotation.x = THREE.MathUtils.lerp(this.arrowRoot.rotation.x, tiltTarget, dt * 4);
 
-    // 4. Scale pulse (subtle breathing)
-    const pulse = 1.0 + Math.sin(this.time * 2.5) * 0.06;
-    const flashScale = 1.0 + this.flashT * 0.30;
-    const finalScale = pulse * flashScale;
-    this.arrowRoot.scale.set(finalScale, finalScale, finalScale);
+    const pulse = 1.0 + Math.sin(this.time * 2.2) * 0.05;
+    const flashScale = 1.0 + this.flashT * 0.35;
+    const s = 1.55 * pulse * flashScale;
+    this.arrowRoot.scale.set(s, s, s);
 
-    // 5. Opacity pulse (gentle alpha breathing)
-    const baseOpacity = 0.88 + Math.sin(this.time * 2.5) * 0.12;
-    this.arrowMat.opacity = Math.min(1, baseOpacity + this.flashT * 0.5);
-    this.halo.material.opacity = 0.10 + Math.sin(this.time * 2.5) * 0.04 + this.flashT * 0.20;
+    this.arrowMat.opacity = Math.min(1, 0.95 + this.flashT * 0.05);
+    this.halo.material.opacity = 0.16 + Math.sin(this.time * 2.2) * 0.05 + this.flashT * 0.25;
 
-    // 6. Color flash on Fragment.collect (cyan → gold → cyan)
     const flashColor = this.baseColor.clone().lerp(this.flashColor, this.flashT);
     this.arrowMat.color.copy(flashColor);
     this.halo.material.color.copy(flashColor);
-    this.arrowLight.color.copy(flashColor);
-    this.arrowLight.intensity = 0.6 + this.flashT * 1.5;
 
-    // Decay flash
     if(this.flashT > 0){
       this.flashT = Math.max(0, this.flashT - dt * 2.0);
     }
