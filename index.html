@@ -1521,6 +1521,38 @@ body.reduce-motion #chroma{ display:none !important; }
   text-align: center;
 }
 
+
+/* v39 fail clarity + onboarding */
+.fail-hint{
+  margin-top: 14px;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  font-size: 12px;
+  color: rgba(255,255,255,0.45);
+  max-width: 28ch;
+  line-height: 1.4;
+}
+#onboard-tip{
+  position: fixed;
+  left: 50%;
+  bottom: calc(100px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 35;
+  max-width: min(92vw, 320px);
+  padding: 10px 14px;
+  background: rgba(0,0,0,0.78);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  font-size: 13px;
+  color: #e8e6e0;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+#onboard-tip.on{ opacity: 1; }
+body.touch #onboard-tip{ bottom: calc(175px + env(safe-area-inset-bottom, 0px)); }
+
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -1532,7 +1564,7 @@ body.reduce-motion #chroma{ display:none !important; }
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V38</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V39</span>
   <div class="menu-progress" id="menu-progress"></div>
   <div class="menu-plate">
     <div class="kicker">gravity puzzle</div>
@@ -1809,9 +1841,10 @@ body.reduce-motion #chroma{ display:none !important; }
 
 <div id="failed" class="screen hidden">
   <div class="overlay-card panel overlay-card-fail">
-    <div class="modal-kicker">SEVERED</div>
-    <div class="big-title" id="f-title">Detected</div>
-    <div class="overlay-sub" id="f-sub">RETURNING TO THE GREEN ARCH</div>
+    <div class="modal-kicker">DOWN</div>
+    <div class="big-title" id="f-title">You fell</div>
+    <div class="overlay-sub" id="f-sub">Respawning…</div>
+    <div class="fail-hint" id="f-hint">Tap JUMP when you land · arches reorient gravity</div>
   </div>
 </div>
 
@@ -1965,11 +1998,16 @@ const ACH_DEFS = {
   first_shard: { title:'First Light', desc:'Collect a shard' },
   first_clear: { title:'Out', desc:'Clear any chamber' },
   academy_done: { title:'Graduate', desc:'Clear all Academy lessons' },
+  campaign_15: { title:'Fifteen', desc:'Clear the 15 hand-built chambers' },
   s_rank: { title:'Flawless', desc:'Earn an S rank' },
   chain_x5: { title:'Paradox ×5', desc:'Hit a ×5 chain' },
+  chain_x12: { title:'Escher', desc:'Hit a ×12 chain' },
   no_death: { title:'Steady', desc:'Clear a chamber with 0 deaths' },
   gravity_10: { title:'Orient', desc:'Pass through 10 arches in one run' },
+  gravity_50: { title:'Cartographer', desc:'50 arch passages in one session' },
   daily: { title:'Daily', desc:'Finish a Daily Vault' },
+  survivor: { title:'Survivor', desc:'Clear after dying at least once' },
+  speed_par: { title:'Under Par', desc:'Beat a chamber under par time' },
 };
 
 /* v36 SANITY — subtle, restored by shards, drained near dread shadows */
@@ -3937,7 +3975,10 @@ class Player{
     try{
       GAME.gravKick = 1;
       GAME.archFlips = (GAME.archFlips||0)+1;
-      if(GAME.archFlips>=10 && typeof ACH!=='undefined') ACH.grant('gravity_10');
+      if(typeof ACH!=='undefined'){
+        if(GAME.archFlips>=10) ACH.grant('gravity_10');
+        if(GAME.archFlips>=50) ACH.grant('gravity_50');
+      }
       const col = opts.color || ARCH_COLORS[type] || '#39d5c8';
       const colStr = typeof col==='string' ? col : ('#'+((col|0).toString(16).padStart(6,'0')));
       if(typeof flashScreen==='function') flashScreen(colStr, 0.28);
@@ -6188,7 +6229,7 @@ function flowFlip(type){
   FLOW.chain=Math.min(12, FLOW.chain+1);
   FLOW.t=FLOW.WINDOW;
   FLOW.peak=Math.max(FLOW.peak, FLOW.chain);
-  try{ if(FLOW.chain>=5 && typeof ACH!=='undefined') ACH.grant('chain_x5'); }catch(e){}
+  try{ if(typeof ACH!=='undefined'){ if(FLOW.chain>=5) ACH.grant('chain_x5'); if(FLOW.chain>=12) ACH.grant('chain_x12'); } }catch(e){}
   /* v7: the first ×2 gets one gentle explanation, ever — right when the
      player can feel the mechanic working */
   if(FLOW.chain===2 && !SAVE.chainHintSeen && !GAME.qa){
@@ -6418,6 +6459,7 @@ function tutEnd(){
 
 function startLevel(i, opts={}){
   GAME.levelIndex=i;
+  try{ SAVE.lastPlayed=i; persist(); }catch(e){}
   const def=LEVELS[i];
   if(dreadSystem) dreadSystem.stop();
   if(GAME.level){ GAME.level.dispose(); GAME.level=null; }
@@ -6490,6 +6532,27 @@ function startLevel(i, opts={}){
 }
 
 
+
+/* v39 onboarding — short tips, first sessions only */
+function onboardTip(msg, ms){
+  const el=document.getElementById('onboard-tip');
+  if(!el||!msg) return;
+  el.textContent=msg;
+  el.classList.add('on');
+  clearTimeout(onboardTip._t);
+  onboardTip._t=setTimeout(()=>el.classList.remove('on'), ms||4200);
+}
+function maybeOnboard(levelIndex){
+  try{
+    if(GAME.qa||SAVE.onboardDone) return;
+    if(levelIndex===0){
+      setTimeout(()=>onboardTip(IS_TOUCH?'Drag to look · left stick moves · JUMP when you need height':'WASD move · mouse look · Space jump', 4500), 800);
+      setTimeout(()=>onboardTip('Walk through a colored arch to change which way is down', 4500), 5500);
+      SAVE.onboardDone=true; persist();
+    }
+  }catch(e){}
+}
+
 function refreshMenuProgress(){
   const el=document.getElementById('menu-progress');
   if(!el) return;
@@ -6507,6 +6570,7 @@ function dismissLevelCard(){
   GAME.state='playing';
   DOM.hud.classList.add('on');
   if(IS_TOUCH && DOM.touchui) DOM.touchui.classList.add('on');
+  try{ maybeOnboard(GAME.levelIndex|0); }catch(e){}
 }
 
 function restartLevel(){
@@ -6525,14 +6589,20 @@ function levelComplete(){
     if(typeof ACH!=='undefined'){
       ACH.grant('first_clear');
       if((GAME.deaths||0)===0) ACH.grant('no_death');
-      if(GAME.levelIndex>=0 && GAME.levelIndex<=4){
-        const ok=[0,1,2,3,4].every(k=>SAVE.ranks&&SAVE.ranks[k]);
-        /* ranks may use letters — also check best times */
+      if((GAME.deaths||0)>=1) ACH.grant('survivor');
+      {
         let clears=0;
         for(let k=0;k<5;k++) if(SAVE.best&&SAVE.best[k]!=null) clears++;
         if(clears>=5) ACH.grant('academy_done');
+        let c15=0;
+        for(let k=0;k<15;k++) if(SAVE.best&&SAVE.best[k]!=null) c15++;
+        if(c15>=15) ACH.grant('campaign_15');
       }
       if(LEVELS[GAME.levelIndex]&&LEVELS[GAME.levelIndex].daily) ACH.grant('daily');
+      try{
+        const pars=LEVELS[GAME.levelIndex]&&LEVELS[GAME.levelIndex].pars;
+        if(pars&&pars[0]&&GAME.levelTime<pars[0]) ACH.grant('speed_par');
+      }catch(e){}
     }
   }catch(e){}
 
@@ -6754,7 +6824,8 @@ function failLevel(title, sub, opts={}){
   flowBreak();                       /* v5: the chain shatters with you */
   SND.fail();
   buzz([60,50,60]);
-  DOM.fTitle.textContent=title;
+  DOM.fTitle.textContent=title||'You fell';
+  try{ const fh=document.getElementById('f-hint'); if(fh) fh.textContent = (GAME.levelIndex<=1) ? 'Walk into a colored arch to change gravity · JUMP after you land' : 'Respawning at last safe footing'; }catch(e){}
   DOM.fSub.textContent=pick(DEATH_LINES)+' — '+sub;
   showScreen(DOM.failed);
   DOM.vignette.style.opacity=1;
@@ -6787,6 +6858,7 @@ function pauseGame(){
   if(typeof refreshPauseTut==='function') refreshPauseTut();
   showScreen(DOM.pause);
   if(plc && plc.isLocked) plc.unlock();
+  try{ if(SND && SND.setMaster) SND.setMaster((SAVE.vol||0.7)*0.35); }catch(e){}
 }
 
 /* ---------------- HUD ---------------- */
@@ -9921,7 +9993,7 @@ function setupMenu(){
     }catch(e){}
   });
   sw('set-fps','fps');
-  sw('set-motion','reduceMotion');
+  sw('set-motion','reduceMotion',()=>{ document.body.classList.toggle('reduce-motion', !!SAVE.reduceMotion); });
   sw('set-srt','speedrun');
   sw('set-hap','haptics');
   /* fullscreen (valuable on phones; wired wherever the API exists) */
@@ -10030,6 +10102,7 @@ function resumeGame(){
   hideScreen(DOM.pause);
   GAME.state='playing';
   lockPointer();
+  try{ if(SND && SND.setMaster) SND.setMaster(SAVE.vol!=null?SAVE.vol:0.7); }catch(e){}
 }
 function enterGame(i){
   DOM.menu.classList.add('hidden');
@@ -10902,6 +10975,10 @@ function boot(){
   }
   GAME.qa = location.search.includes('qa=1');
   try{ refreshMenuProgress(); }catch(e){}
+  try{ document.body.classList.toggle('reduce-motion', !!SAVE.reduceMotion); }catch(e){}
+  try{
+    if(SAVE.vol!=null && typeof SND!=='undefined' && SND.setMaster) SND.setMaster(SAVE.vol);
+  }catch(e){}
   if(GAME.qa){
     startLevel(0,{silent:true});
     GAME.state='playing';
@@ -11075,5 +11152,6 @@ boot();
 </script>
 <div id="chroma" aria-hidden="true"></div>
 <div id="plane-tint" aria-hidden="true"></div>
+<div id="onboard-tip" aria-live="polite"></div>
 </body>
 </html>
