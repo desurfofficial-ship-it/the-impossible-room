@@ -6,7 +6,7 @@
    - Icons / manifest / guide: cache-first.
    Bump VERSION on every deploy to retire old caches. */
 const VERSION = 'tir-v24';
-const SHELL = 'tir-shell-v24';  // v20: release fixes
+const SHELL = 'tir-shell-v25';  // v20: fix responsive
 
 self.addEventListener('install', e => {
   e.waitUntil(

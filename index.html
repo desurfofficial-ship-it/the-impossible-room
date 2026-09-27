@@ -882,13 +882,9 @@ body.touch .tb-btn{border-radius:50% !important;border:2px solid rgba(57,213,200
 body.touch #tb-jump{width:72px !important;height:72px !important;font-size:22px !important}
 body.touch #tb-use{width:64px !important;height:64px !important;font-size:18px !important}
 
-/* v20: CLEAN INTERFACE — hide all overlays that cover gameplay */
-/* Tutorial checklist hidden — moved into ☰ progress panel */
-#tut{top:calc(12px + env(safe-area-inset-top,0px)) !important;left:12px !important;right:auto !important;transform:none !important;max-width:200px !important;font-size:10px !important;opacity:0.7 !important}
-/* Objective text hidden — moved into ☰ progress panel */
-#hud-obj{font-size:12px !important;opacity:0.6 !important;max-width:200px !important}
-/* Status text hidden — moved into ☰ progress panel */
-#hud-status{font-size:10px !important;opacity:0.5 !important}
+/* v20: Keep original responsive CSS for #tut, #hud-obj, #hud-status
+   — the game's @media and body.touch rules handle positioning correctly.
+   Don't override with !important — it breaks mobile/touch layout. */
 
 @keyframes crossPulse{0%,100%{opacity:0.35;box-shadow:0 0 3px #39d5c8}50%{opacity:0.6;box-shadow:0 0 6px #39d5c8}}
 
