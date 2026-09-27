@@ -4339,8 +4339,8 @@ class SurrealSystem{
 class DreadSystem{
   constructor(){
     this.time = 0;
-    this.whisperTimer = 6;
-    this.creakTimer = 15;  // first whisper after 6s
+    this.whisperTimer = Infinity; // audio removed
+    this.creakTimer = Infinity; // audio removed  // first whisper after 6s
     this.flickerBase = 1.15;
     this.shadowFigures = [];
     this.droneNodes = null;
@@ -4350,13 +4350,13 @@ class DreadSystem{
   start(){
     if(this.active) return;
     this.active = true;
-    this.startDrone();
+    // Audio removed per user request — drone/whispers/creaks disabled
     this.createShadowPool();
   }
 
   stop(){
     this.active = false;
-    this.stopDrone();
+    // this.stopDrone(); // audio removed
     for(const sf of this.shadowFigures){
       sf.sprite.visible = false;
       sf.active = false;
@@ -4494,25 +4494,11 @@ class DreadSystem{
     if(!this.active) return;
     this.time += dt;
 
-    // === Drone volume breathing (slow oscillation) ===
-    if(this.droneGain && SND.ctx){
-      const vol = 0.018 + Math.sin(this.time * 0.3) * 0.010;
-      this.droneGain.gain.setTargetAtTime(vol, SND.ctx.currentTime, 0.5);
-    }
+    // Audio removed — no drone volume breathing
 
-    // === Whisper timer (random intervals 8-20s) ===
-    this.whisperTimer -= dt;
-    if(this.whisperTimer <= 0){
-      this.whisper();
-      this.whisperTimer = 6 + Math.random() * 10;
-    }
+    // Audio removed — no whispers
 
-    // === Creak timer (random intervals 15-35s) ===
-    this.creakTimer -= dt;
-    if(this.creakTimer <= 0){
-      this.creak();
-      this.creakTimer = 15 + Math.random() * 20;
-    }
+    // Audio removed — no creaks
 
     // === Light flicker (subtle 2% oscillation + rare brief dip) ===
     if(dirLight){
