@@ -5,7 +5,7 @@
    - Versioned CDN assets (three.js on unpkg): cache-first, they are immutable.
    - Icons / manifest / guide: cache-first.
    Bump VERSION on every deploy to retire old caches. */
-const VERSION = 'tir-v33';
+const VERSION = 'tir-v34';
 const SHELL = 'tir-shell-v25';  // v20: fix responsive
 
 self.addEventListener('install', e => {
