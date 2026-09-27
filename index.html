@@ -1466,6 +1466,39 @@ body:has(#levelcard:not(.off)) #touchui{
   }
 }
 
+
+/* v37: gravity chroma + pause achievements */
+#chroma{
+  position:fixed; inset:0; pointer-events:none; z-index:52; opacity:0;
+  mix-blend-mode: screen;
+  background:
+    linear-gradient(90deg, rgba(255,60,80,0.25), transparent 40%, transparent 60%, rgba(60,160,255,0.25));
+  transition: opacity 0.08s linear;
+}
+#chroma.on{ opacity: 1; }
+.pause-ach{
+  width:100%; max-width:360px; margin:0 auto 12px;
+  text-align:left; padding:10px 12px;
+  background:rgba(0,0,0,0.35); border-radius:8px;
+  border:1px solid rgba(255,255,255,0.08);
+}
+.pause-ach-h{
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size:10px; letter-spacing:0.12em; color:#8b919a; margin-bottom:6px;
+}
+.pause-ach-list{
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  font-size:12px; color:#c8c6c0; line-height:1.45;
+  max-height: 120px; overflow-y:auto;
+}
+.pause-ach-list .got{ color:#54e08a; }
+.pause-ach-list .locked{ color:#5c574e; }
+.pause-stats{
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size:11px; color:#8b919a; margin:0 auto 10px; max-width:360px; text-align:left;
+}
+body.touch .pause-ach-list{ max-height: 90px; }
+
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -1477,7 +1510,7 @@ body:has(#levelcard:not(.off)) #touchui{
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V36</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V37</span>
   <div class="menu-plate">
     <div class="kicker">gravity puzzle</div>
     <h1>The Impossible Room</h1>
@@ -1720,6 +1753,11 @@ body:has(#levelcard:not(.off)) #touchui{
     <div class="big-title">Paused</div>
     <p class="overlay-sub pl-note">Mouse released — Resume recaptures look.</p>
     <div id="pause-tut" class="pause-tut hidden"></div>
+    <div id="pause-stats" class="pause-stats"></div>
+    <div id="pause-ach" class="pause-ach">
+      <div class="pause-ach-h">ACHIEVEMENTS</div>
+      <div class="pause-ach-list" id="pause-ach-list"></div>
+    </div>
     <div class="overlay-actions">
       <button id="btn-resume" class="primary">RESUME</button>
       <button id="btn-restart">RESTART CHAMBER</button>
@@ -3880,6 +3918,13 @@ class Player{
       const colStr = typeof col==='string' ? col : ('#'+((col|0).toString(16).padStart(6,'0')));
       if(typeof flashScreen==='function') flashScreen(colStr, 0.28);
       if(typeof buzz==='function') buzz(18);
+      try{
+        if(!SAVE.reduceMotion){
+          const ch=document.getElementById('chroma');
+          if(ch){ ch.classList.add('on'); clearTimeout(GAME._chromaT);
+            GAME._chromaT=setTimeout(()=>ch.classList.remove('on'), 180); }
+        }
+      }catch(e){}
     }catch(e){}
     return true;
   }
@@ -4814,6 +4859,7 @@ class SurrealSystem{
   decorate(L){
     try{
       if(!L) return;
+      if(SAVE && SAVE.reduceMotion){ this._budget = Math.min(this._budget||1, 0.25); }
       const bounds = L.bounds;
       const hasBounds = bounds && bounds.max && bounds.min;
       const w = hasBounds ? (bounds.max.x - bounds.min.x) : 26;
@@ -6284,15 +6330,34 @@ function tutStart(steps, title){
 }
 function refreshPauseTut(){
   const el = document.getElementById('pause-tut');
-  if(!el) return;
-  if(!TUT.on || !TUT.steps || !TUT.steps.length){
-    el.classList.add('hidden'); el.innerHTML=''; return;
+  if(el){
+    if(!TUT.on || !TUT.steps || !TUT.steps.length){
+      el.classList.add('hidden'); el.innerHTML='';
+    } else {
+      el.classList.remove('hidden');
+      el.innerHTML = '<div class="pause-tut-h">'+(TUT.title||'OBJECTIVES')+'</div>' +
+        TUT.steps.map((s,i)=>
+          '<div class="tstep'+(TUT.done[i]?' done':'')+'"><span class="tbox">✓</span><span class="tlbl">'+s+'</span></div>'
+        ).join('');
+    }
   }
-  el.classList.remove('hidden');
-  el.innerHTML = '<div class="pause-tut-h">'+(TUT.title||'OBJECTIVES')+'</div>' +
-    TUT.steps.map((s,i)=>
-      '<div class="tstep'+(TUT.done[i]?' done':'')+'"><span class="tbox">✓</span><span class="tlbl">'+s+'</span></div>'
-    ).join('');
+  const st = document.getElementById('pause-stats');
+  if(st){
+    const i = GAME.levelIndex|0;
+    const best = (SAVE.best && SAVE.best[i]!=null) ? fmtRace(SAVE.best[i]) : '—';
+    const rank = (SAVE.ranks && SAVE.ranks[i]) ? SAVE.ranks[i] : '—';
+    const t = (typeof fmtRace==='function' && GAME.levelTime!=null) ? fmtRace(GAME.levelTime) : '—';
+    st.textContent = 'Time '+t+' · Best '+best+' · Rank '+rank+' · Deaths '+(GAME.deaths|0);
+  }
+  const al = document.getElementById('pause-ach-list');
+  if(al && typeof ACH_DEFS!=='undefined'){
+    const got = (SAVE.achievements)||{};
+    al.innerHTML = Object.keys(ACH_DEFS).map(id=>{
+      const d = ACH_DEFS[id];
+      const on = !!got[id];
+      return '<div class="'+(on?'got':'locked')+'">'+(on?'★ ':'○ ')+d.title+' — '+d.desc+'</div>';
+    }).join('');
+  }
 }
 function tutDone(i){
   if(!TUT.on || TUT.done[i]) return;
@@ -10958,5 +11023,6 @@ boot();
   );
 })();
 </script>
+<div id="chroma" aria-hidden="true"></div>
 </body>
 </html>
