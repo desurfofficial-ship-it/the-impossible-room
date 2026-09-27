@@ -1011,6 +1011,62 @@ body.touch #tb-use{width:64px !important;height:64px !important;font-size:18px !
 body.touch #pause{justify-content:flex-start;align-items:center;padding-top:calc(56px + env(safe-area-inset-top,0px))}
 body.touch #pause .pause-card{max-height:calc(100dvh - 72px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));overflow-y:auto;-webkit-overflow-scrolling:touch}
 
+
+/* v29: top-right column — pause, then timer under it. No overlap. */
+body.touch #tb-pause{
+  top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+  right: calc(12px + env(safe-area-inset-right, 0px)) !important;
+  width: 44px !important;
+  height: 44px !important;
+  z-index: 30 !important;
+}
+/* Module card not needed on the right on phones — timer carries the info */
+body.touch .hud-tr{
+  display: none !important;
+}
+/* Timer + shards: fixed column under the pause button */
+body.touch .hud-br{
+  position: fixed !important;
+  top: calc(12px + 44px + 10px + env(safe-area-inset-top, 0px)) !important;
+  right: calc(12px + env(safe-area-inset-right, 0px)) !important;
+  bottom: auto !important;
+  left: auto !important;
+  width: auto !important;
+  max-width: min(46vw, 160px) !important;
+  text-align: right !important;
+  z-index: 20 !important;
+  pointer-events: none !important;
+  padding: 6px 8px !important;
+  background: rgba(6, 8, 14, 0.72) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 10px !important;
+  box-sizing: border-box !important;
+}
+body.touch #hud-time,
+body.touch #hud-time.race{
+  font-size: 15px !important;
+  line-height: 1.2 !important;
+  display: block !important;
+}
+body.touch #hud-shards{
+  display: block !important;
+  font-size: 10px !important;
+  margin-top: 2px !important;
+  max-width: 100% !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+body.touch #hud-best,
+body.touch #hud-fps{
+  display: none !important;
+}
+/* Level title stays left, doesn't reach the pause column */
+body.touch .hud-tl{
+  max-width: calc(100vw - 130px - env(safe-area-inset-right, 0px)) !important;
+  right: auto !important;
+}
+
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -1022,7 +1078,7 @@ body.touch #pause .pause-card{max-height:calc(100dvh - 72px - env(safe-area-inse
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V28</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V29</span>
   <div class="menu-plate">
     <div class="kicker">gravity puzzle</div>
     <h1>The Impossible Room</h1>
