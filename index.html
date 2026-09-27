@@ -887,7 +887,7 @@ body.touch #menu .room-frame{display:none}
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V23</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V24</span>
   <div class="menu-plate">
     <div class="kicker">gravity puzzle</div>
     <h1>The Impossible Room</h1>
@@ -4352,132 +4352,21 @@ class DreadSystem{
    and a mesh bag (lower-left of view) that fills orb-by-orb as fragments
    are collected. No face — pure silhouette, matching the game's avatar.
    ============================================================ */
+/* ============================================================
+   8.5. PLAYER BODY — removed (v24)
+   The cyan "stick" was a forward-facing guide arrow parented to the camera.
+   Players found it confusing and irrelevant to the gravity puzzle, so it is
+   gone. Stub kept so Fragment.collect / startLevel call sites stay safe.
+   ============================================================ */
 class PlayerBody{
   constructor(){
-    /* v23: guide arrow — always on in play, depthTest OFF so walls/floor
-       never eat it (the early-chamber “I can’t see the arrow” bug). */
     this.group = new THREE.Group();
-    camera.add(this.group);
-    this.group.visible = false;  // shown in update() while playing
-
-    this.arrowMat = new THREE.MeshBasicMaterial({
-      color: 0x39d5c8,
-      transparent: true,
-      opacity: 1.0,
-      depthTest: false,   // always draw on top of world geometry
-      depthWrite: false,
-      side: THREE.DoubleSide,
-      toneMapped: false
-    });
-    this.baseColor = new THREE.Color(0x39d5c8);    // cyan
-    this.flashColor = new THREE.Color(0xffd76a);   // gold (on collect)
-    this.warnColor = new THREE.Color(0xff5468);    // red-pink (near void edge?)
-
-    // Arrow: lower-center of view, close enough to read on phones
-    this.arrowRoot = new THREE.Group();
-    this.arrowRoot.position.set(0, -0.18, -0.55);
-    this.arrowRoot.scale.setScalar(1.55);  // bigger than before
-    this.arrowRoot.renderOrder = 9999;
-    this.group.add(this.arrowRoot);
-
-    const tip = new THREE.Mesh(
-      new THREE.ConeGeometry(0.055, 0.12, 12), this.arrowMat);
-    tip.position.set(0, 0, -0.09);
-    tip.rotation.x = -Math.PI/2;
-    tip.renderOrder = 9999;
-    this.arrowRoot.add(tip);
-    this.arrowTip = tip;
-
-    const shaft = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.024, 0.024, 0.16, 12), this.arrowMat);
-    shaft.position.set(0, 0, 0.02);
-    shaft.rotation.x = Math.PI/2;
-    shaft.renderOrder = 9999;
-    this.arrowRoot.add(shaft);
-    this.arrowShaft = shaft;
-
-    const fletchGeo = new THREE.BoxGeometry(0.048, 0.006, 0.024);
-    for(let i=0; i<3; i++){
-      const fletch = new THREE.Mesh(fletchGeo, this.arrowMat);
-      fletch.position.set(0, 0, 0.11);
-      fletch.rotation.x = (i - 1) * 0.5;
-      fletch.rotation.y = (i * Math.PI * 2 / 3);
-      fletch.renderOrder = 9999;
-      this.arrowRoot.add(fletch);
-    }
-
-    const halo = new THREE.Mesh(
-      new THREE.SphereGeometry(0.16, 16, 12),
-      new THREE.MeshBasicMaterial({
-        color: 0x39d5c8,
-        transparent: true,
-        opacity: 0.18,
-        depthTest: false,
-        depthWrite: false,
-        side: THREE.BackSide,
-        toneMapped: false
-      })
-    );
-    halo.position.set(0, 0, -0.02);
-    halo.renderOrder = 9998;
-    this.arrowRoot.add(halo);
-    this.halo = halo;
-
-    // No PointLight on the arrow — was easy to miss and cost perf on mobile
-    this.arrowLight = null;
-
-    // Animation state
-    this.time = 0;
-    this.flashT = 0;
-
-    this.group.traverse(o => { if(o.isMesh) o.frustumCulled = false; });
+    this.group.visible = false;
   }
-
-  update(dt, player){
-    this.time += dt;
-    if(!player){ this.group.visible = false; return; }
-
-    // Always show while in a chamber (menu hides via GAME.state check in updateGame)
-    this.group.visible = true;
-
-    const moving = (player.vel && player.vel.lengthSq() > 0.04) || (player.bobAmp||0) > 0.02;
-
-    const bob = moving
-      ? Math.sin((player.bobPhase||0) * 2) * 0.012
-      : Math.sin(this.time * 1.5) * 0.006;
-    this.arrowRoot.position.y = -0.18 + bob;
-
-    this.arrowRoot.rotation.y = Math.sin(this.time * 0.8) * 0.08;
-    this.arrowRoot.rotation.z = Math.sin(this.time * 1.1) * 0.03;
-
-    const tiltTarget = moving ? -0.14 : 0;
-    this.arrowRoot.rotation.x = THREE.MathUtils.lerp(this.arrowRoot.rotation.x, tiltTarget, dt * 4);
-
-    const pulse = 1.0 + Math.sin(this.time * 2.2) * 0.05;
-    const flashScale = 1.0 + this.flashT * 0.35;
-    const s = 1.55 * pulse * flashScale;
-    this.arrowRoot.scale.set(s, s, s);
-
-    this.arrowMat.opacity = Math.min(1, 0.95 + this.flashT * 0.05);
-    this.halo.material.opacity = 0.16 + Math.sin(this.time * 2.2) * 0.05 + this.flashT * 0.25;
-
-    const flashColor = this.baseColor.clone().lerp(this.flashColor, this.flashT);
-    this.arrowMat.color.copy(flashColor);
-    this.halo.material.color.copy(flashColor);
-
-    if(this.flashT > 0){
-      this.flashT = Math.max(0, this.flashT - dt * 2.0);
-    }
-  }
-
-  // Called from Fragment.collect() — flash the arrow gold
-  triggerReach(){
-    this.flashT = 1;
-  }
-
-  // No-op (kept for API compat — Fragment.collect calls this)
-  addBagOrb(_isCore){ /* no bag */ }
-  resetBag(){ /* no bag */ }
+  update(){ /* no-op */ }
+  triggerReach(){ /* no-op */ }
+  addBagOrb(){ /* no-op */ }
+  resetBag(){ /* no-op */ }
 }
 
 /* ============================================================
