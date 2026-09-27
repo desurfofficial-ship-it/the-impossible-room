@@ -1477,7 +1477,7 @@ body:has(#levelcard:not(.off)) #touchui{
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V35</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V36</span>
   <div class="menu-plate">
     <div class="kicker">gravity puzzle</div>
     <h1>The Impossible Room</h1>
@@ -1896,6 +1896,50 @@ const SAVE = Object.assign({ unlocked:1, best:{}, campaignBest:null,
   score:0, levelScore:{}, ranks:{}, bestDepth:0, flowHintSeen:false,
   daily:null, chainHintSeen:false }, STORE.load());
 /* fresh installs on phones/tablets: bloom + soft shadows off (fill-rate) */
+
+/* ============================================================
+   v36 ACHIEVEMENTS — local, toast on unlock
+   ============================================================ */
+const ACH_DEFS = {
+  first_shard: { title:'First Light', desc:'Collect a shard' },
+  first_clear: { title:'Out', desc:'Clear any chamber' },
+  academy_done: { title:'Graduate', desc:'Clear all Academy lessons' },
+  s_rank: { title:'Flawless', desc:'Earn an S rank' },
+  chain_x5: { title:'Paradox ×5', desc:'Hit a ×5 chain' },
+  no_death: { title:'Steady', desc:'Clear a chamber with 0 deaths' },
+  gravity_10: { title:'Orient', desc:'Pass through 10 arches in one run' },
+  daily: { title:'Daily', desc:'Finish a Daily Vault' },
+};
+
+/* v36 SANITY — subtle, restored by shards, drained near dread shadows */
+const SANITY = {
+  value: 1,
+  reset(){ this.value=1; },
+  hurt(n){
+    if(SAVE.reduceMotion) return;
+    this.value = Math.max(0.15, this.value - n);
+    try{ if(DOM.vignette) DOM.vignette.style.opacity = String(Math.min(0.55, (1-this.value)*0.6)); }catch(e){}
+  },
+  heal(n){
+    this.value = Math.min(1, this.value + n);
+    try{ if(DOM.vignette) DOM.vignette.style.opacity = String(Math.min(0.55, (1-this.value)*0.6)); }catch(e){}
+  }
+};
+const ACH = {
+  unlocked: (SAVE.achievements || {}),
+  toastQ: [],
+  grant(id){
+    if(this.unlocked[id]) return;
+    if(!ACH_DEFS[id]) return;
+    this.unlocked[id]=Date.now();
+    SAVE.achievements=this.unlocked;
+    try{ persist(); }catch(e){}
+    const d=ACH_DEFS[id];
+    toast('★ '+d.title+(d.desc?(' — '+d.desc):''), 3200);
+  }
+};
+if(!SAVE.achievements) SAVE.achievements={};
+
 if(IS_TOUCH){
   try{
     if(!localStorage.getItem('tir_save')){ SAVE.bloom=false; SAVE.shadows=false; }
@@ -3821,12 +3865,22 @@ class Player{
     if(this.archCd>0) return false;
     const qTo=this.computeArchQuaternion(type);
     if(!qTo) return false;
-    this.archCd = opts.cooldown ?? 1.0;      // mandated 1.0s double-trigger guard
-    flowFlip(type);                          // v5: player-driven flips feed the chain
+    this.archCd = opts.cooldown ?? 1.0;
+    flowFlip(type);
     this.startTransition(qTo, {
       dur: opts.dur ?? 0.5, color: opts.color, fling: opts.fling, safeSnap: opts.safeSnap,
       pos: opts.pos, archType: type
     });
+    /* v36: gravity feedback — FOV kick + brief plane-color wash */
+    try{
+      GAME.gravKick = 1;
+      GAME.archFlips = (GAME.archFlips||0)+1;
+      if(GAME.archFlips>=10 && typeof ACH!=='undefined') ACH.grant('gravity_10');
+      const col = opts.color || ARCH_COLORS[type] || '#39d5c8';
+      const colStr = typeof col==='string' ? col : ('#'+((col|0).toString(16).padStart(6,'0')));
+      if(typeof flashScreen==='function') flashScreen(colStr, 0.28);
+      if(typeof buzz==='function') buzz(18);
+    }catch(e){}
     return true;
   }
   forceGravityQuat(qTo, opts={}){
@@ -4772,15 +4826,25 @@ class SurrealSystem{
       const lights = Array.isArray(L.lights) ? L.lights : [];
 
       const floatMeshes = [];
+      const budget = (this._budget!=null?this._budget:1);
+      const shapeN = Math.max(2, Math.round(6*budget));
+      const dustN = Math.max(40, Math.round(120*budget));
 
-      /* 6 floating shapes */
+      /* floating shapes (count scales with performance budget) */
       const shapes = [
         () => new THREE.OctahedronGeometry(0.20 + Math.random()*0.12, 0),
         () => new THREE.TetrahedronGeometry(0.24 + Math.random()*0.08, 0),
         () => new THREE.TorusGeometry(0.14 + Math.random()*0.06, 0.035, 8, 20),
       ];
-      const cols = [0x39d5c8, 0xff9ee0, 0xffd76a, 0x54e08a];
-      for(let i=0; i<6; i++){
+      let cols = [0x39d5c8, 0xff9ee0, 0xffd76a, 0x54e08a];
+      try{
+        const li = (typeof GAME!=='undefined'?GAME.levelIndex:0)||0;
+        /* v36 per-chamber accent bias */
+        if(li<=4) cols = [0x39d5c8, 0x4da3ff, 0x54e08a, 0xe8c15a];
+        else if(li<=9) cols = [0xff5468, 0xff9ee0, 0xe8c15a, 0x39d5c8];
+        else cols = [0xa97bff, 0x39d5c8, 0xffd76a, 0xffffff];
+      }catch(e){}
+      for(let i=0; i<shapeN; i++){
         try{
           const geo = shapes[i % shapes.length]();
           const mat = new THREE.MeshStandardMaterial({
@@ -5093,6 +5157,10 @@ class DreadSystem{
           sf.sprite.position.x += (dx / len) * drift;
           sf.sprite.position.z += (dz / len) * drift;
           sf.sprite.position.y = player.pos.y - 0.5;
+          try{ if(typeof SANITY!=='undefined' && player){
+            const d = Math.hypot(sf.sprite.position.x-player.pos.x, sf.sprite.position.z-player.pos.z);
+            if(d<5) SANITY.hurt(0.002*dt);
+          }}catch(e){}
           if(sf.timer <= 0){
             sf.active = false;
             sf.sprite.visible = false;
@@ -5169,6 +5237,9 @@ class Fragment{
   }
   collect(){
     if(this.collected) return;
+    try{ if(typeof ACH!=='undefined') ACH.grant('first_shard'); }catch(e){}
+    try{ if(typeof SANITY!=='undefined') SANITY.heal(0.12); }catch(e){}
+
     this.collected=true;
     this.mesh.visible=false; this.halo.visible=false; this.light.intensity=0;
     const got=this.L.fragments.filter(f=>f.collected).length;
@@ -6047,6 +6118,7 @@ function flowFlip(type){
   FLOW.chain=Math.min(12, FLOW.chain+1);
   FLOW.t=FLOW.WINDOW;
   FLOW.peak=Math.max(FLOW.peak, FLOW.chain);
+  try{ if(FLOW.chain>=5 && typeof ACH!=='undefined') ACH.grant('chain_x5'); }catch(e){}
   /* v7: the first ×2 gets one gentle explanation, ever — right when the
      player can feel the mechanic working */
   if(FLOW.chain===2 && !SAVE.chainHintSeen && !GAME.qa){
@@ -6290,7 +6362,8 @@ function startLevel(i, opts={}){
   player.snapTo(L.spawn.pos, L.spawn.yaw, new THREE.Quaternion());
   player.archCd=0.3;
   if(playerBody) playerBody.resetBag(); // v19: empty the bag on level load
-  if(dreadSystem) dreadSystem.start(); // v20: start dread on level enter
+  if(dreadSystem) dreadSystem.start();
+  try{ if(typeof SANITY!=='undefined') SANITY.reset(); }catch(e){}
   GAME.carry=null;
   GAME.levelTime=0;
   GAME.levelStartT=GAME.t;
@@ -6347,6 +6420,21 @@ function levelComplete(){
   if(!L || L.complete) return;
   L.complete=true;
   GAME.state='victory';
+  try{
+    if(typeof ACH!=='undefined'){
+      ACH.grant('first_clear');
+      if((GAME.deaths||0)===0) ACH.grant('no_death');
+      if(GAME.levelIndex>=0 && GAME.levelIndex<=4){
+        const ok=[0,1,2,3,4].every(k=>SAVE.ranks&&SAVE.ranks[k]);
+        /* ranks may use letters — also check best times */
+        let clears=0;
+        for(let k=0;k<5;k++) if(SAVE.best&&SAVE.best[k]!=null) clears++;
+        if(clears>=5) ACH.grant('academy_done');
+      }
+      if(LEVELS[GAME.levelIndex]&&LEVELS[GAME.levelIndex].daily) ACH.grant('daily');
+    }
+  }catch(e){}
+
   player.frozen=true;
   /* v8: lessons get their own fanfare, delayed one beat so the final
      checklist tick lands first — the Academy approves, then celebrates */
@@ -6379,7 +6467,7 @@ function levelComplete(){
     commitScore(GAME.levelIndex);
     rank=rankFor(GAME.levelIndex, t, GAME.deaths);
     if(RANK_ORDER.indexOf(rank)>RANK_ORDER.indexOf(SAVE.ranks[GAME.levelIndex]||'')){
-      SAVE.ranks[GAME.levelIndex]=rank; rankUp=true;
+      SAVE.ranks[GAME.levelIndex]=rank; if(rank==='S'&&typeof ACH!=='undefined') ACH.grant('s_rank'); rankUp=true;
     }
     /* v7: the peak tier gets its name on the report — a number alone has no glory */
     const peakTier=tierFor(FLOW.peak);
@@ -6783,6 +6871,15 @@ function dropCarried(){
    ============================================================ */
 function updateGame(dt){
   GAME.t+=dt;
+  if(GAME.gravKick){
+    GAME.gravKick = Math.max(0, GAME.gravKick - dt*2.4);
+    try{
+      const base = (typeof BASE_FOV==='number'?BASE_FOV:75);
+      camera.fov = base + GAME.gravKick*6;
+      camera.updateProjectionMatrix();
+    }catch(e){}
+  }
+
   updateFade(dt);
   updateTouchUI();
   updateMotes(GAME.t);
@@ -9493,6 +9590,12 @@ function applyAdaptStage(){
     SAVE.bloom=false; persist();
     toast('PERFORMANCE — BLOOM OFF', 2200);
   }
+  /* v36: thin surreal density on low-end */
+  try{
+    if(ADAPT.stage>=1 && typeof surrealSystem!=='undefined' && surrealSystem){
+      surrealSystem._budget = ADAPT.stage>=2 ? 0.35 : 0.6;
+    }
+  }catch(e){}
   ADAPT.checked++;
 }
 
@@ -10660,7 +10763,28 @@ function boot(){
      harness always exercises a fresh, uncached build) */
   if('serviceWorker' in navigator && !location.search.includes('qa=1')
      && (location.protocol==='https:' || location.hostname==='localhost')){
-    try{ navigator.serviceWorker.register('sw.js').catch(()=>{}); }catch(e){}
+    try{
+      navigator.serviceWorker.register('sw.js').then(reg=>{
+        /* v36: aggressive update — never leave players on a stale build */
+        try{ reg.update(); }catch(e){}
+        setInterval(()=>{ try{ reg.update(); }catch(e){} }, 60*60*1000);
+        reg.addEventListener('updatefound', ()=>{
+          const nw = reg.installing;
+          if(!nw) return;
+          nw.addEventListener('statechange', ()=>{
+            if(nw.state==='installed' && navigator.serviceWorker.controller){
+              /* new version ready — activate on next navigation */
+              try{ nw.postMessage && nw.postMessage({type:'SKIP_WAITING'}); }catch(e){}
+            }
+          });
+        });
+      }).catch(()=>{});
+      let refreshing=false;
+      navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+        if(refreshing) return; refreshing=true;
+        /* soft note once — avoid loop */
+      });
+    }catch(e){}
   }
   GAME.qa = location.search.includes('qa=1');
   if(GAME.qa){
