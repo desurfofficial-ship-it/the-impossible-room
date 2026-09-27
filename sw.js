@@ -6,7 +6,7 @@
    - Icons / manifest / guide: cache-first.
    Bump VERSION on every deploy to retire old caches. */
 const VERSION = 'tir-v21';
-const SHELL = 'tir-shell-v7';  // v19 player-body arrow deploy — bump to invalidate stale cached hand
+const SHELL = 'tir-shell-v8';  // v19 upgraded arrow + level-gating
 
 self.addEventListener('install', e => {
   e.waitUntil(
