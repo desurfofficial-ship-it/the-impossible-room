@@ -1106,7 +1106,7 @@ body.touch #tb-use{width:64px !important;height:64px !important;font-size:18px !
       <div class="txt"><div class="lbl">GRAVITY</div><div class="plane" id="compass-plane">FLOOR</div></div>
     </div>
   </div>
-  <div class="hud-br"><span id="hud-time">0:00.00</span><br><span id="hud-best" class="hud-best"></span><span id="hud-fps"></span><div id="hud-score"></div></div>
+  <div class="hud-br"><span id="hud-time">0:00.00</span><br><span id="hud-shards" style="font-family:var(--mono);font-size:11px;color:#39d5c8;letter-spacing:0.05em;opacity:0.85;"></span><br><span id="hud-best" class="hud-best"></span><span id="hud-fps"></span><div id="hud-score"></div></div>
   <div id="cheat-tag">⌁ CHEATS ACTIVE</div>
   <div id="reticle"><div class="ring"></div><div class="dot"></div></div>
   <div id="prompt"><b>E</b>&nbsp;<span id="prompt-txt"></span></div>
@@ -10183,6 +10183,27 @@ boot();
   
   // Update every 0.5s when open
   setInterval(updateProgressPanel, 500);
+})();
+
+/* v20: Update shard count in corner (next to timer) */
+(function(){
+  function updateShardCount(){
+    const el = document.getElementById('hud-shards');
+    if(!el) return;
+    const tir = window.__TIR__;
+    if(!tir || !tir.GAME || !tir.GAME.level){ el.textContent = ''; return; }
+    const L = tir.GAME.level;
+    const collected = L.fragments.filter(f => f.collected).length;
+    const total = L.fragmentsTotal || L.fragments.length;
+    if(total > 0){
+      const remaining = total - collected;
+      el.textContent = remaining > 0 ? remaining + '/' + total + ' shards' : '✓ all collected';
+      el.style.color = remaining > 0 ? '#39d5c8' : '#54e08a';
+    } else {
+      el.textContent = '';
+    }
+  }
+  setInterval(updateShardCount, 250);
 })();
 </script>
 </body>
