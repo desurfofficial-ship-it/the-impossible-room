@@ -869,12 +869,10 @@ body.touch #menu .room-frame{display:none}
 }
 
 
-/* v20: Portal-style HUD simplification */
-#hud-fps{display:none !important}  /* hide FPS counter — debug info, not for players */
-#hud-module{display:none !important}  /* hide module badge — top-right clutter */
-#hud-best{font-size:9px !important;opacity:0.5 !important}  /* make best-time more subtle */
-#hud-level{font-size:9px !important;letter-spacing:0.2em !important;opacity:0.6 !important}
-#hud-obj{font-size:14px !important;opacity:0.7 !important}
+/* v20: HUD simplification — only hide debug elements, don't resize text */
+#hud-fps{display:none !important}
+#hud-module{display:none !important}
+
 /* Stronger fog for depth cues */
 
 /* v20: improved touch controls */
@@ -1071,11 +1069,7 @@ body.touch #tb-use{width:64px !important;height:64px !important;font-size:18px !
 </div>
 
 <!-- ===================== HUD ===================== -->
-<div id="crosshair" style="position:fixed;top:50%;left:50%;pointer-events:none;z-index:50;">
-      <div style="position:absolute;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:#39d5c8;box-shadow:0 0 6px #39d5c8,0 0 12px rgba(57,213,200,0.4);"></div>
-      <div style="position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border:1px solid rgba(57,213,200,0.3);border-radius:50%;"></div>
-      <div style="position:absolute;width:28px;height:28px;margin:-14px 0 0 -14px;border:1px solid rgba(57,213,200,0.12);border-radius:50%;"></div>
-    </div>
+<div id="crosshair" style="position:fixed;top:50%;left:50%;width:2px;height:2px;margin:-1px 0 0 -1px;border-radius:50%;background:#39d5c8;opacity:0.4;pointer-events:none;z-index:50;"></div>
     <div id="hud">
   <div class="hud-tl">
     <div id="hud-level">CHAMBER I</div>
@@ -4548,171 +4542,14 @@ class DreadSystem{
 }
 
 /* ============================================================
-   8.5. PLAYER BODY — v19 first-person viewmodel
-   Featureless black silhouette parented to the camera: visible legs that
-   swing with the walk cycle, a right hand that reaches forward on pickup,
-   and a mesh bag (lower-left of view) that fills orb-by-orb as fragments
-   are collected. No face — pure silhouette, matching the game's avatar.
-   ============================================================ */
-/* ============================================================
-   8.5. PLAYER BODY — removed (v24)
-   The cyan "stick" was a forward-facing guide arrow parented to the camera.
-   Players found it confusing and irrelevant to the gravity puzzle, so it is
-   gone. Stub kept so Fragment.collect / startLevel call sites stay safe.
-   ============================================================ */
-/* ============================================================
-   8.5. PLAYER BODY — v19 first-person viewmodel
-   Featureless black silhouette parented to the camera: visible legs that
-   swing with the walk cycle, a right hand that reaches forward on pickup,
-   and a mesh bag (lower-left of view) that fills orb-by-orb as fragments
-   are collected. No face — pure silhouette, matching the game's avatar.
+   8.5. PLAYER BODY — removed per user request (arrow was covering shards)
    ============================================================ */
 class PlayerBody{
-  constructor(){
-    // Upgraded 3D arrow indicator — proper arrow shape (cone tip + cylinder
-    // shaft), only visible from Chamber XI onward (levelIndex >= 10) where
-    // the late-game Escape chambers + vaults benefit from navigation aid.
-    // During the Academy (I-V) and early Escape (VI-X), no arrow — player
-    // learns the chambers without hand-holding.
-    this.group = new THREE.Group();
-    camera.add(this.group);
-    this.group.visible = false;  // hidden until Chamber XI
-
-    // Arrow material — MeshBasicMaterial so it renders at full brightness
-    // regardless of chamber lighting. toneMapped: false bypasses ACES.
-    this.arrowMat = new THREE.MeshBasicMaterial({
-      color: 0x39d5c8,
-      transparent: true,
-      opacity: 1.0,
-      depthTest: true,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-      toneMapped: false
-    });
-    this.baseColor = new THREE.Color(0x39d5c8);    // cyan
-    this.flashColor = new THREE.Color(0xffd76a);   // gold (on collect)
-    this.warnColor = new THREE.Color(0xff5468);    // red-pink (near void edge?)
-
-    // Arrow group (positioned at bottom-center, in front of camera)
-    this.arrowRoot = new THREE.Group();
-    this.arrowRoot.position.set(0, -0.22, -0.42);
-    this.arrowRoot.renderOrder = 999;
-    this.group.add(this.arrowRoot);
-
-    // === Arrow shape: cone tip + cylinder shaft (proper 3D arrow) ===
-    // Cone tip — points forward (-Z, into the scene). Cone default tip is
-    // at +Y; rotate around X by -π/2 to make tip point -Z.
-    const tip = new THREE.Mesh(
-      new THREE.ConeGeometry(0.045, 0.10, 12), this.arrowMat);
-    tip.position.set(0, 0, -0.08);  // forward of shaft
-    tip.rotation.x = -Math.PI/2;     // tip → -Z (forward)
-    this.arrowRoot.add(tip);
-    this.arrowTip = tip;
-
-    // Shaft (cylinder, extends backward from tip toward camera)
-    // Default cylinder is along Y; rotate π/2 around X to align with Z.
-    const shaft = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.020, 0.020, 0.14, 12), this.arrowMat);
-    shaft.position.set(0, 0, 0.01);  // centered behind tip
-    shaft.rotation.x = Math.PI/2;     // Y axis → Z axis
-    this.arrowRoot.add(shaft);
-    this.arrowShaft = shaft;
-
-    // Fletching (3 small fins at the back of the shaft — completes arrow read)
-    const fletchGeo = new THREE.BoxGeometry(0.040, 0.005, 0.020);
-    for(let i=0; i<3; i++){
-      const fletch = new THREE.Mesh(fletchGeo, this.arrowMat);
-      fletch.position.set(0, 0, 0.10);  // at the back of the shaft
-      fletch.rotation.x = (i - 1) * 0.5;  // fan out slightly
-      fletch.rotation.y = (i * Math.PI * 2 / 3);  // 3 fins around the shaft
-      this.arrowRoot.add(fletch);
-    }
-
-    // Halo glow (transparent sphere around the arrow — fake bloom)
-    const halo = new THREE.Mesh(
-      new THREE.SphereGeometry(0.13, 16, 12),
-      new THREE.MeshBasicMaterial({
-        color: 0x39d5c8,
-        transparent: true,
-        opacity: 0.10,
-        depthWrite: false,
-        side: THREE.BackSide,  // render inside-out so we see through it
-        toneMapped: false
-      })
-    );
-    halo.position.set(0, 0, -0.02);
-    this.arrowRoot.add(halo);
-    this.halo = halo;
-
-    // PointLight (casts cyan glow on nearby geometry)
-    this.arrowLight = new THREE.PointLight(0x39d5c8, 0.6, 2.0, 2.0);
-    this.arrowLight.position.set(0, 0, 0);
-    this.arrowRoot.add(this.arrowLight);
-
-    // Animation state
-    this.time = 0;
-    this.flashT = 0;
-
-    this.group.traverse(o => { if(o.isMesh) o.frustumCulled = false; });
-  }
-
-  update(dt, player){
-    this.time += dt;
-
-    // Arrow visible in ALL chambers (per user feedback — early-chamber players
-    // need it most while learning the game). The levelIndex>=10 gate was too
-    // restrictive; players in Chambers I-X reported "didn't see any arrow".
-    this.group.visible = true;
-
-    const moving = (player.vel && player.vel.lengthSq() > 0.04) || player.bobAmp > 0.02;
-
-    // === Dynamic animation ===
-    // 1. Vertical bob (synced to walk cycle when moving, gentle idle when still)
-    const bob = moving
-      ? Math.sin(player.bobPhase * 2) * 0.014
-      : Math.sin(this.time * 1.5) * 0.006;
-    this.arrowRoot.position.y = -0.22 + bob;
-
-    // 2. Slight rotation wobble (the arrow gently yaws — feels alive, not static)
-    this.arrowRoot.rotation.y = Math.sin(this.time * 0.8) * 0.10;
-    this.arrowRoot.rotation.z = Math.sin(this.time * 1.1) * 0.04;
-
-    // 3. Forward tilt when moving (leans into the direction of travel)
-    const tiltTarget = moving ? -0.18 : 0;
-    this.arrowRoot.rotation.x = THREE.MathUtils.lerp(this.arrowRoot.rotation.x, tiltTarget, dt * 4);
-
-    // 4. Scale pulse (subtle breathing)
-    const pulse = 1.0 + Math.sin(this.time * 2.5) * 0.06;
-    const flashScale = 1.0 + this.flashT * 0.30;
-    const finalScale = pulse * flashScale;
-    this.arrowRoot.scale.set(finalScale, finalScale, finalScale);
-
-    // 5. Opacity pulse (gentle alpha breathing)
-    const baseOpacity = 0.88 + Math.sin(this.time * 2.5) * 0.12;
-    this.arrowMat.opacity = Math.min(1, baseOpacity + this.flashT * 0.5);
-    this.halo.material.opacity = 0.10 + Math.sin(this.time * 2.5) * 0.04 + this.flashT * 0.20;
-
-    // 6. Color flash on Fragment.collect (cyan → gold → cyan)
-    const flashColor = this.baseColor.clone().lerp(this.flashColor, this.flashT);
-    this.arrowMat.color.copy(flashColor);
-    this.halo.material.color.copy(flashColor);
-    this.arrowLight.color.copy(flashColor);
-    this.arrowLight.intensity = 0.6 + this.flashT * 1.5;
-
-    // Decay flash
-    if(this.flashT > 0){
-      this.flashT = Math.max(0, this.flashT - dt * 2.0);
-    }
-  }
-
-  // Called from Fragment.collect() — flash the arrow gold
-  triggerReach(){
-    this.flashT = 1;
-  }
-
-  // No-op (kept for API compat — Fragment.collect calls this)
-  addBagOrb(_isCore){ /* no bag */ }
-  resetBag(){ /* no bag */ }
+  constructor(){ this.group = new THREE.Group(); camera.add(this.group); }
+  update(){}
+  triggerReach(){}
+  addBagOrb(){}
+  resetBag(){}
 }
 
 /* ============================================================

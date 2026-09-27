@@ -6,7 +6,7 @@
    - Icons / manifest / guide: cache-first.
    Bump VERSION on every deploy to retire old caches. */
 const VERSION = 'tir-v24';
-const SHELL = 'tir-shell-v17';  // v20: restored arrow + surreal system
+const SHELL = 'tir-shell-v18';  // v20: deleted arrow
 
 self.addEventListener('install', e => {
   e.waitUntil(
