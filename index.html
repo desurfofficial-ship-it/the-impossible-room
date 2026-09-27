@@ -994,6 +994,23 @@ body.touch #tb-use{width:64px !important;height:64px !important;font-size:18px !
   body.touch #hud-obj{ -webkit-line-clamp: 1; }
 }
 
+
+/* v28: pre-level brief + objectives in Pause only */
+#levelcard .lc-steps{list-style:none;margin:14px 0 0;padding:0;max-width:min(420px,92vw);text-align:left;
+  font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--ink);line-height:1.55}
+#levelcard .lc-steps li{padding:6px 0 6px 22px;position:relative;border-bottom:1px solid rgba(255,255,255,.06);color:var(--ink-dim)}
+#levelcard .lc-steps li::before{content:"○";position:absolute;left:0;color:var(--accent)}
+#levelcard .lc-hint{margin-top:16px;font-family:var(--mono);font-size:9px;letter-spacing:.22em;color:var(--ink-faint)}
+.pause-tut{width:100%;max-width:360px;margin:8px auto 14px;text-align:left;padding:12px 14px;
+  background:rgba(8,10,16,.65);border:1px solid var(--line);border-radius:var(--radius)}
+.pause-tut.hidden{display:none}
+.pause-tut-h{font-family:var(--mono);font-size:9px;letter-spacing:.28em;color:var(--gold);margin-bottom:8px}
+.pause-tut .tstep{font-size:11px;padding:4px 0;color:var(--ink-dim)}
+.pause-tut .tstep.done{color:var(--accent);text-decoration:line-through;opacity:.85}
+#tut{display:none !important}
+body.touch #pause{justify-content:flex-start;align-items:center;padding-top:calc(56px + env(safe-area-inset-top,0px))}
+body.touch #pause .pause-card{max-height:calc(100dvh - 72px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));overflow-y:auto;-webkit-overflow-scrolling:touch}
+
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -1005,7 +1022,7 @@ body.touch #tb-use{width:64px !important;height:64px !important;font-size:18px !
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V27</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V28</span>
   <div class="menu-plate">
     <div class="kicker">gravity puzzle</div>
     <h1>The Impossible Room</h1>
@@ -1238,13 +1255,16 @@ body.touch #tb-use{width:64px !important;height:64px !important;font-size:18px !
   <div class="lc-name" id="lc-name">The Initiation</div>
   <div class="lc-rule"></div>
   <div class="lc-obj" id="lc-obj"></div>
+  <ul id="lc-steps" class="lc-steps"></ul>
+  <div class="lc-hint" id="lc-hint">OPEN II ANYTIME FOR OBJECTIVES</div>
 </div>
 
 <div id="pause" class="screen hidden">
-  <div class="overlay-card panel">
+  <div class="overlay-card panel pause-card">
     <div class="modal-kicker">SUSPENDED</div>
     <div class="big-title">Paused</div>
     <p class="overlay-sub pl-note">Mouse released — Resume recaptures look.</p>
+    <div id="pause-tut" class="pause-tut hidden"></div>
     <div class="overlay-actions">
       <button id="btn-resume" class="primary">RESUME</button>
       <button id="btn-restart">RESTART CHAMBER</button>
@@ -5724,22 +5744,28 @@ function medalClass(m){ return m?('medal-'+m.toLowerCase()):''; }
 const TUT={ on:false, steps:[], done:[], tk:0, hideTimer:null };
 function tutStart(steps, title){
   TUT.on=true; TUT.steps=steps; TUT.done=steps.map(()=>false);
-  TUT.tk++;                                        /* cancel any pending complete-flourish / hide */
-  const myTk = TUT.tk;
+  TUT.tk++;
+  TUT.title = title||'LESSON';
+  /* v28: no floating checklist — brief on level card; full list in Pause (II) */
   if(DOM.tut){
-    DOM.tut.classList.remove('complete');
-    DOM.tut.classList.add('on');
-    DOM.tutTitle.textContent=title||'LESSON';
+    DOM.tut.classList.remove('complete','on');
+    DOM.tutTitle.textContent=TUT.title;
     DOM.tutList.innerHTML=steps.map((s,i)=>
       `<div class="tstep" id="tstep-${i}"><span class="tbox">✓</span><span class="tlbl">${s}</span></div>`).join('');
   }
-  /* v27: show checklist only at start, then hide so JUMP/USE stay free.
-     Completions notify via toast — not a permanent panel. */
   clearTimeout(TUT.hideTimer);
-  TUT.hideTimer = setTimeout(()=>{
-    if(TUT.tk !== myTk) return;
-    if(DOM.tut) DOM.tut.classList.remove('on');
-  }, (typeof IS_TOUCH !== 'undefined' && IS_TOUCH) ? 4200 : 5500);
+}
+function refreshPauseTut(){
+  const el = document.getElementById('pause-tut');
+  if(!el) return;
+  if(!TUT.on || !TUT.steps || !TUT.steps.length){
+    el.classList.add('hidden'); el.innerHTML=''; return;
+  }
+  el.classList.remove('hidden');
+  el.innerHTML = '<div class="pause-tut-h">'+(TUT.title||'OBJECTIVES')+'</div>' +
+    TUT.steps.map((s,i)=>
+      '<div class="tstep'+(TUT.done[i]?' done':'')+'"><span class="tbox">✓</span><span class="tlbl">'+s+'</span></div>'
+    ).join('');
 }
 function tutDone(i){
   if(!TUT.on || TUT.done[i]) return;
@@ -5834,9 +5860,22 @@ function startLevel(i, opts={}){
       : 'CHAMBER '+ROMAN[i]+(def.stars?' · <span class="lc-stars">'+'★'.repeat(def.stars)+'</span>':''));
     DOM.lcName.textContent=def.name;
     DOM.lcObj.textContent=def.objective+(def.pars?'  ·  PAR '+fmtRace(def.pars[0]):'');
+    const stepsEl=document.getElementById('lc-steps');
+    const hintEl=document.getElementById('lc-hint');
+    if(stepsEl){
+      if(def.tut && def.tut.steps && def.tut.steps.length){
+        stepsEl.innerHTML=def.tut.steps.map(s=>'<li>'+s+'</li>').join('');
+        stepsEl.style.display='block';
+        if(hintEl) hintEl.style.display='block';
+      }else{
+        stepsEl.innerHTML=''; stepsEl.style.display='none';
+        if(hintEl) hintEl.style.display='none';
+      }
+    }
     showScreen(DOM.levelcard);
     GAME.state='levelcard';
     GAME.cardT=0;
+    GAME.cardDur = (def.tut && def.tut.steps && def.tut.steps.length) ? 5.0 : 2.8;
   }else{
     GAME.state='playing';
     DOM.hud.classList.add('on');
@@ -6099,6 +6138,7 @@ function hideScreen(el){ if(el._hideT) clearTimeout(el._hideT);
 function pauseGame(){
   if(GAME.state!=='playing') return;
   GAME.state='paused';
+  if(typeof refreshPauseTut==='function') refreshPauseTut();
   showScreen(DOM.pause);
   if(plc && plc.isLocked) plc.unlock();
 }
@@ -6316,7 +6356,7 @@ function updateGame(dt){
   /* level card timing */
   if(GAME.state==='levelcard'){
     GAME.cardT+=dt;
-    if(GAME.cardT>2.5){
+    if(GAME.cardT>(GAME.cardDur||2.8)){
       hideScreen(DOM.levelcard);
       GAME.state='playing';
       DOM.hud.classList.add('on');
