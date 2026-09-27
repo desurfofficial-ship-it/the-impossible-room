@@ -1067,6 +1067,27 @@ body.touch .hud-tl{
   right: auto !important;
 }
 
+
+/* v30: ONE top-right control only — kill duplicate ☰ progress toggle */
+#pp-toggle, #pp-panel{
+  display: none !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+/* Single pause control: clean rounded square (not circle + square stacked) */
+body.touch #tb-pause{
+  border-radius: 12px !important;
+  width: 44px !important;
+  height: 44px !important;
+  font-size: 18px !important;
+  letter-spacing: 0 !important;
+  background: rgba(10, 13, 26, 0.88) !important;
+  border: 1.5px solid rgba(57, 213, 200, 0.45) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,.45) !important;
+  color: #39d5c8 !important;
+  z-index: 40 !important;
+}
+
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -1078,7 +1099,7 @@ body.touch .hud-tl{
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V29</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V30</span>
   <div class="menu-plate">
     <div class="kicker">gravity puzzle</div>
     <h1>The Impossible Room</h1>
@@ -1242,7 +1263,7 @@ body.touch .hud-tl{
   <div id="joy-base"><div id="joy-stick"></div></div>
   <div class="tbtn" id="tb-jump">JUMP</div>
   <div class="tbtn" id="tb-use">USE</div>
-  <div class="tbtn" id="tb-pause">II</div>
+  <div class="tbtn" id="tb-pause" aria-label="Pause menu">☰</div>
   <div class="tbtn" id="tb-cheat">⌁</div>
 </div>
 <div id="rotate-tip">Turn sideways</div>
