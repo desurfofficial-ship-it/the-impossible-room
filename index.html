@@ -1793,6 +1793,7 @@ const GAME = {
 };
 let renderer, scene, camera, composer, bloomPass, dirLight, hemiLight, plc;
 let playerBody = null; // v19: first-person viewmodel (legs / hand / bag) parented to camera
+let dreadSystem = null; // v20: subtle dread system (drone audio + whispers + light flicker + shadow figures)
 const WORLD = new THREE.Group();     // per-level content root
 scene = new THREE.Scene();
 scene.add(WORLD);
@@ -1832,6 +1833,7 @@ function initRenderer(){
   window.addEventListener('orientationchange', ()=>setTimeout(onResize, 160));
   /* v19: build the first-person viewmodel now that camera + renderer exist */
   playerBody = new PlayerBody();
+  dreadSystem = new DreadSystem();
 }
 function onResize(){
   camera.aspect = innerWidth/innerHeight;
@@ -4142,6 +4144,204 @@ function hudPulse(){
 }
 
 /* ============================================================
+   8.4. DREAD SYSTEM — subtle psychological tension (v20)
+   Ambient drone audio + whisper bursts + light flicker + shadow
+   figures glimpsed at the edge of fog. Inspired by Silent Hill /
+   Antichamber — the world feels alive and watching.
+   ============================================================ */
+class DreadSystem{
+  constructor(){
+    this.time = 0;
+    this.whisperTimer = 6;  // first whisper after 6s
+    this.flickerBase = 1.15;
+    this.shadowFigures = [];
+    this.droneNodes = null;
+    this.active = false;
+  }
+
+  start(){
+    if(this.active) return;
+    this.active = true;
+    this.startDrone();
+    this.createShadowPool();
+  }
+
+  stop(){
+    this.active = false;
+    this.stopDrone();
+    for(const sf of this.shadowFigures){
+      sf.sprite.visible = false;
+      sf.active = false;
+    }
+  }
+
+  startDrone(){
+    if(!SND.ready || !SND.ctx) return;
+    const ctx = SND.ctx;
+    this.droneGain = ctx.createGain();
+    this.droneGain.gain.value = 0.03;
+
+    this.droneFilter = ctx.createBiquadFilter();
+    this.droneFilter.type = 'lowpass';
+    this.droneFilter.frequency.value = 120;
+    this.droneFilter.Q.value = 2;
+    this.droneGain.connect(this.droneFilter);
+    this.droneFilter.connect(SND.master);
+
+    // Two detuned sawtooth oscillators at ~55Hz for a deep unsettling rumble
+    this.drone1 = ctx.createOscillator();
+    this.drone1.type = 'sawtooth';
+    this.drone1.frequency.value = 55;
+    this.drone1.connect(this.droneGain);
+    this.drone1.start();
+
+    this.drone2 = ctx.createOscillator();
+    this.drone2.type = 'sawtooth';
+    this.drone2.frequency.value = 58.7;  // slightly detuned — creates beating
+    this.drone2.connect(this.droneGain);
+    this.drone2.start();
+  }
+
+  stopDrone(){
+    if(this.drone1){ try{ this.drone1.stop(); }catch(e){} this.drone1 = null; }
+    if(this.drone2){ try{ this.drone2.stop(); }catch(e){} this.drone2 = null; }
+    if(this.droneGain){ try{ this.droneGain.disconnect(); }catch(e){} this.droneGain = null; }
+    if(this.droneFilter){ try{ this.droneFilter.disconnect(); }catch(e){} this.droneFilter = null; }
+  }
+
+  whisper(){
+    if(!SND.ready || !SND.ctx) return;
+    const ctx = SND.ctx;
+    const dur = 0.3 + Math.random() * 0.6;
+    const sr = ctx.sampleRate;
+    const buf = ctx.createBuffer(1, Math.floor(sr * dur), sr);
+    const data = buf.getChannelData(0);
+    for(let i = 0; i < data.length; i++){
+      const t = i / data.length;
+      const env = Math.sin(t * Math.PI) * (1 - t * 0.5);
+      // Layered noise — amplitude modulated for a "speech-like" crackle
+      const mod = 0.5 + 0.5 * Math.sin(t * 80 * Math.PI);
+      data[i] = (Math.random() * 2 - 1) * env * mod * 0.25;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+
+    // Bandpass filter — creates the "whisper" character (mid frequencies only)
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 800 + Math.random() * 2400;
+    filter.Q.value = 4 + Math.random() * 4;
+
+    // Random pan (whispers come from random directions)
+    const panner = ctx.createStereoPanner();
+    panner.pan.value = Math.random() * 2 - 1;
+
+    const gain = ctx.createGain();
+    gain.gain.value = 0.05 + Math.random() * 0.03;
+
+    src.connect(filter);
+    filter.connect(panner);
+    panner.connect(gain);
+    gain.connect(SND.master);
+    src.start();
+  }
+
+  createShadowPool(){
+    // Dark humanoid silhouettes — appear at the edge of fog, briefly visible
+    // then vanish. Only 3 at a time (low overhead).
+    for(let i = 0; i < 3; i++){
+      const mat = new THREE.SpriteMaterial({
+        color: 0x000000,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        depthTest: true,
+        fog: true
+      });
+      const sprite = new THREE.Sprite(mat);
+      sprite.scale.set(0.6, 1.6, 1);  // tall humanoid shape
+      sprite.visible = false;
+      scene.add(sprite);  // scene-level (persists across levels, not in WORLD)
+      this.shadowFigures.push({
+        sprite: sprite,
+        timer: 0,
+        active: false
+      });
+    }
+  }
+
+  update(dt, player){
+    if(!this.active) return;
+    this.time += dt;
+
+    // === Drone volume breathing (slow oscillation) ===
+    if(this.droneGain && SND.ctx){
+      const vol = 0.025 + Math.sin(this.time * 0.3) * 0.012;
+      this.droneGain.gain.setTargetAtTime(vol, SND.ctx.currentTime, 0.5);
+    }
+
+    // === Whisper timer (random intervals 8-20s) ===
+    this.whisperTimer -= dt;
+    if(this.whisperTimer <= 0){
+      this.whisper();
+      this.whisperTimer = 8 + Math.random() * 12;
+    }
+
+    // === Light flicker (subtle 2% oscillation + rare brief dip) ===
+    if(dirLight){
+      const flicker = Math.sin(this.time * 13) * 0.02 +
+                      Math.sin(this.time * 7.3) * 0.015;
+      dirLight.intensity = this.flickerBase + flicker;
+      // 0.3% chance per frame of a brief dim (0.1s flicker)
+      if(Math.random() < 0.003){
+        dirLight.intensity *= 0.6;
+      }
+    }
+
+    // === Shadow figures (spawn at edge of fog, fade in/out) ===
+    for(const sf of this.shadowFigures){
+      if(sf.active){
+        sf.timer -= dt;
+        // Fade based on remaining time (peak at middle of lifetime)
+        const lifeFrac = 1 - sf.timer / sf.lifetime;
+        const fade = Math.sin(lifeFrac * Math.PI) * 0.18;
+        sf.sprite.material.opacity = fade;
+        // Slowly drift away from the player (retreating)
+        const drift = 0.3 * dt;
+        const dx = sf.sprite.position.x - player.pos.x;
+        const dz = sf.sprite.position.z - player.pos.z;
+        const len = Math.hypot(dx, dz) || 1;
+        sf.sprite.position.x += (dx / len) * drift;
+        sf.sprite.position.z += (dz / len) * drift;
+        // Face the camera
+        sf.sprite.position.y = player.pos.y - 0.5;
+        if(sf.timer <= 0){
+          sf.active = false;
+          sf.sprite.visible = false;
+        }
+      } else {
+        // 1.5% chance per second per figure to spawn
+        if(Math.random() < 0.015 * dt * 60){  // *60 to normalize to per-second
+          // Spawn at edge of fog, behind or beside the player
+          const angle = Math.random() * Math.PI * 2;
+          const dist = 7 + Math.random() * 5;
+          sf.sprite.position.set(
+            player.pos.x + Math.cos(angle) * dist,
+            player.pos.y - 0.5,
+            player.pos.z + Math.sin(angle) * dist
+          );
+          sf.sprite.visible = true;
+          sf.active = true;
+          sf.lifetime = 1.5 + Math.random() * 2.0;
+          sf.timer = sf.lifetime;
+          sf.sprite.material.opacity = 0;
+        }
+      }
+    }
+  }
+}
+
+/* ============================================================
    8.5. PLAYER BODY — v19 first-person viewmodel
    Featureless black silhouette parented to the camera: visible legs that
    swing with the walk cycle, a right hand that reaches forward on pickup,
@@ -5411,6 +5611,7 @@ function tutEnd(){
 function startLevel(i, opts={}){
   GAME.levelIndex=i;
   const def=LEVELS[i];
+  if(dreadSystem) dreadSystem.stop();
   if(GAME.level){ GAME.level.dispose(); GAME.level=null; }
   natureDetachInside();               /* inside flora belongs to the old level */
   for(const b of BEAM_POOL) if(b) b.visible=false;
@@ -5441,6 +5642,7 @@ function startLevel(i, opts={}){
   player.snapTo(L.spawn.pos, L.spawn.yaw, new THREE.Quaternion());
   player.archCd=0.3;
   if(playerBody) playerBody.resetBag(); // v19: empty the bag on level load
+  if(dreadSystem) dreadSystem.start(); // v20: start dread on level enter
   GAME.carry=null;
   GAME.levelTime=0;
   GAME.levelStartT=GAME.t;
@@ -5963,6 +6165,7 @@ function updateGame(dt){
   for(const a of L.arches) a.update(dt, GAME.t);
   if(GAME.state!=='menu') player.update(dt);
   if(playerBody && GAME.state!=='menu') playerBody.update(dt, player); // v19 viewmodel
+  if(dreadSystem && GAME.state==='playing') dreadSystem.update(dt, player); // v20 dread
   for(const mv of L.movers) mv.update(dt, GAME.t);
   for(const c of L.cubes) c.update(dt);
   for(const f of L.fragments) f.update(dt, GAME.t);
