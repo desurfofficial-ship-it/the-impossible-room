@@ -903,7 +903,7 @@ body.touch #tb-use{width:64px !important;height:64px !important;font-size:18px !
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V24</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V25</span>
   <div class="menu-plate">
     <div class="kicker">gravity puzzle</div>
     <h1>The Impossible Room</h1>
@@ -4488,50 +4488,39 @@ class DreadSystem{
 
   update(dt, player){
     if(!this.active) return;
+    if(!player || !player.pos) return;
     this.time += dt;
 
-    // Audio removed — no drone volume breathing
-
-    // Audio removed — no whispers
-
-    // Audio removed — no creaks
-
-    if(this._flickerEnabled){ // === Light flicker (subtle 2% oscillation + rare brief dip) ===
-    if(dirLight){
+    // === Light flicker ===
+    if(this._flickerEnabled && dirLight){
       const flicker = Math.sin(this.time * 13) * 0.02 +
                       Math.sin(this.time * 7.3) * 0.015;
       dirLight.intensity = this.flickerBase + flicker;
-      // 0.3% chance per frame of a brief dim (0.1s flicker)
       if(Math.random() < 0.003){
         dirLight.intensity *= 0.6;
       }
     }
 
-    if(this._shadowsEnabled){ // === Shadow figures (spawn at edge of fog, fade in/out) ===
-    for(const sf of this.shadowFigures){
-      if(sf.active){
-        sf.timer -= dt;
-        // Fade based on remaining time (peak at middle of lifetime)
-        const lifeFrac = 1 - sf.timer / sf.lifetime;
-        const fade = Math.sin(lifeFrac * Math.PI) * 0.18;
-        sf.sprite.material.opacity = fade;
-        // Slowly drift away from the player (retreating)
-        const drift = 0.3 * dt;
-        const dx = sf.sprite.position.x - player.pos.x;
-        const dz = sf.sprite.position.z - player.pos.z;
-        const len = Math.hypot(dx, dz) || 1;
-        sf.sprite.position.x += (dx / len) * drift;
-        sf.sprite.position.z += (dz / len) * drift;
-        // Face the camera
-        sf.sprite.position.y = player.pos.y - 0.5;
-        if(sf.timer <= 0){
-          sf.active = false;
-          sf.sprite.visible = false;
-        }
-      } else {
-        // 1.5% chance per second per figure to spawn
-        if(this._shadowsEnabled && Math.random() < 0.015 * dt * 60){  // *60 to normalize to per-second
-          // Spawn at edge of fog, behind or beside the player
+    // === Shadow figures ===
+    if(this._shadowsEnabled){
+      for(const sf of this.shadowFigures){
+        if(sf.active){
+          sf.timer -= dt;
+          const lifeFrac = 1 - sf.timer / sf.lifetime;
+          const fade = Math.sin(lifeFrac * Math.PI) * 0.18;
+          sf.sprite.material.opacity = fade;
+          const drift = 0.3 * dt;
+          const dx = sf.sprite.position.x - player.pos.x;
+          const dz = sf.sprite.position.z - player.pos.z;
+          const len = Math.hypot(dx, dz) || 1;
+          sf.sprite.position.x += (dx / len) * drift;
+          sf.sprite.position.z += (dz / len) * drift;
+          sf.sprite.position.y = player.pos.y - 0.5;
+          if(sf.timer <= 0){
+            sf.active = false;
+            sf.sprite.visible = false;
+          }
+        } else if(Math.random() < 0.015 * dt * 60){
           const angle = Math.random() * Math.PI * 2;
           const dist = 7 + Math.random() * 5;
           sf.sprite.position.set(
