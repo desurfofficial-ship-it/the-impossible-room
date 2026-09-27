@@ -892,6 +892,108 @@ body.touch #tb-use{width:64px !important;height:64px !important;font-size:18px !
 #vignette-overlay{position:fixed;inset:0;pointer-events:none;z-index:40;
   background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,0.35) 100%);
   opacity:0.7;}
+
+/* ============ v26: mobile HUD — stop overlapping ============ */
+@media (orientation: portrait) {
+  /* Top-left: short label only — don't fight the checklist */
+  body.touch .hud-tl{
+    top: calc(10px + env(safe-area-inset-top, 0px));
+    left: 12px;
+    max-width: calc(100vw - 88px);
+    padding: 6px 10px;
+    background: rgba(8,10,16,.72);
+    border-radius: 10px;
+    border-left-width: 2px;
+  }
+  body.touch #hud-level{font-size: 9px; letter-spacing: .18em;}
+  body.touch #hud-obj{
+    font-size: 12px;
+    line-height: 1.25;
+    margin-top: 2px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  body.touch #hud-status{display: none;}
+
+  /* Stats clock: under the pause button, compact */
+  body.touch .hud-tr{
+    top: calc(58px + env(safe-area-inset-top, 0px));
+    right: calc(12px + env(safe-area-inset-right, 0px));
+    max-width: 42vw;
+  }
+  body.touch #hud-module{
+    min-width: 0;
+    width: auto;
+    padding: 6px 8px;
+    font-size: 10px;
+  }
+  body.touch .mod-big{font-size: 16px !important;}
+
+  body.touch .hud-br{
+    top: calc(58px + env(safe-area-inset-top, 0px));
+    right: calc(12px + env(safe-area-inset-right, 0px));
+    bottom: auto;
+    font-size: 10px;
+    text-align: right;
+    /* if both tr and br show, br sits just under module via margin */
+    margin-top: 0;
+    max-width: 42vw;
+  }
+
+  /* Checklist: BOTTOM of screen, above touch controls — never covers center */
+  body.touch #tut{
+    top: auto !important;
+    bottom: calc(168px + env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    right: 12px;
+    transform: none !important;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    max-height: 26vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 12px;
+    z-index: 16;
+  }
+  body.touch #tut.on{
+    transform: none !important;
+  }
+  body.touch #tut-title{font-size: 8px; margin-bottom: 4px;}
+  body.touch .tstep{font-size: 10px; padding: 2px 0;}
+
+  /* Landscape tip: thin bar under status, not over the title */
+  body.touch.playing #rotate-tip{
+    top: calc(8px + env(safe-area-inset-top, 0px));
+    z-index: 15;
+    max-width: 70vw;
+    font-size: 9px;
+    padding: 5px 10px;
+    letter-spacing: .1em;
+  }
+  /* When checklist is open, hide the tip so they don't stack */
+  body.touch.playing:has(#tut.on) #rotate-tip{
+    display: none !important;
+  }
+
+  /* Chain meter sits above checklist */
+  body.touch #chain{
+    bottom: calc(300px + env(safe-area-inset-bottom, 0px));
+  }
+  body.touch #toast{
+    bottom: calc(310px + env(safe-area-inset-bottom, 0px));
+  }
+}
+@media (orientation: portrait) and (max-height: 700px) {
+  body.touch #tut{
+    max-height: 22vh;
+    bottom: calc(150px + env(safe-area-inset-bottom, 0px));
+  }
+  body.touch #hud-obj{ -webkit-line-clamp: 1; }
+}
+
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -903,7 +1005,7 @@ body.touch #tb-use{width:64px !important;height:64px !important;font-size:18px !
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V25</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V26</span>
   <div class="menu-plate">
     <div class="kicker">gravity puzzle</div>
     <h1>The Impossible Room</h1>
