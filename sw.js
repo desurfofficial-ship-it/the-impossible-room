@@ -6,7 +6,7 @@
    - Icons / manifest / guide: cache-first.
    Bump VERSION on every deploy to retire old caches. */
 const VERSION = 'tir-v21';
-const SHELL = 'tir-shell-v8';  // v19 upgraded arrow + level-gating
+const SHELL = 'tir-shell-v9';  // v20: arrow-fix + crosshair + HUD simplify + fog
 
 self.addEventListener('install', e => {
   e.waitUntil(

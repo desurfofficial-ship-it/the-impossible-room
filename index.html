@@ -868,6 +868,14 @@ body.touch #menu .room-frame{display:none}
   body.touch #menu .menu-actions button{min-height:44px;padding:12px}
 }
 
+
+/* v20: Portal-style HUD simplification */
+#hud-fps{display:none !important}  /* hide FPS counter — debug info, not for players */
+#hud-module{display:none !important}  /* hide module badge — top-right clutter */
+#hud-best{font-size:9px !important;opacity:0.5 !important}  /* make best-time more subtle */
+#hud-level{font-size:9px !important;letter-spacing:0.2em !important;opacity:0.6 !important}
+#hud-obj{font-size:14px !important;opacity:0.7 !important}
+/* Stronger fog for depth cues */
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -1056,7 +1064,8 @@ body.touch #menu .room-frame{display:none}
 </div>
 
 <!-- ===================== HUD ===================== -->
-<div id="hud">
+<div id="crosshair" style="position:fixed;top:50%;left:50%;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:#39d5c8;opacity:0.5;pointer-events:none;z-index:50;box-shadow:0 0 4px #39d5c8;"></div>
+    <div id="hud">
   <div class="hud-tl">
     <div id="hud-level">CHAMBER I</div>
     <div id="hud-obj">Collect the fragments</div>
@@ -2542,7 +2551,7 @@ function applyTheme(i){
   dirLight.intensity=th.dir.int;
   dirLight.position.set(th.dir.pos[0], th.dir.pos[1], th.dir.pos[2]);
   /* fog */
-  scene.fog=new THREE.FogExp2(th.fog.color, th.fog.density);
+  scene.fog=new THREE.FogExp2(th.fog.color, th.fog.density * 1.4); // v20: 40% denser fog for stronger depth cues
   scene.background=new THREE.Color(th.fog.color);
   if(!GAME.logicOnly) renderer.setClearColor(th.fog.color);
   /* motes */
@@ -4231,13 +4240,10 @@ class PlayerBody{
   update(dt, player){
     this.time += dt;
 
-    // === Conditional visibility: only show from Chamber XI (levelIndex >= 10) ===
-    // Academy (I-V) and early Escape (VI-X) have no arrow — player learns the
-    // chambers without navigation aids. Late Escape (XI-XV) + endless vaults
-    // (XVI+) get the arrow as a navigation helper.
-    const showArrow = GAME && typeof GAME.levelIndex === 'number' && GAME.levelIndex >= 10;
-    this.group.visible = showArrow;
-    if(!showArrow) return;  // skip animation when hidden
+    // Arrow visible in ALL chambers (per user feedback — early-chamber players
+    // need it most while learning the game). The levelIndex>=10 gate was too
+    // restrictive; players in Chambers I-X reported "didn't see any arrow".
+    this.group.visible = true;
 
     const moving = (player.vel && player.vel.lengthSq() > 0.04) || player.bobAmp > 0.02;
 
