@@ -1227,6 +1227,51 @@ body.touch.playing #tb-pause{
   border: 1px solid rgba(255,255,255,0.12) !important;
 }
 
+
+/* v33: gravity read — tiny edge chip, not a dashboard */
+body.touch.playing .hud-bl{
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+  left: 8px !important;
+  z-index: 11 !important;
+  /* sit above home indicator but clear of big joystick if any */
+  pointer-events: none !important;
+}
+body.touch.playing #compass{
+  gap: 6px !important;
+  padding: 4px 8px 4px 6px !important;
+  background: rgba(0,0,0,0.40) !important;
+  border: none !important;
+  border-radius: 4px !important;
+  backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+body.touch.playing #compass .dial{
+  width: 22px !important;
+  height: 22px !important;
+  border: 1px solid rgba(255,255,255,0.15) !important;
+  background: transparent !important;
+}
+body.touch.playing #compass .dial svg{
+  width: 10px !important;
+  height: 22px !important;
+  transform: scale(0.7);
+  transform-origin: center;
+}
+body.touch.playing #compass .lbl{
+  display: none !important; /* drop "GRAVITY" label */
+}
+body.touch.playing #compass .plane,
+body.touch.playing #compass-plane{
+  font-size: 9px !important;
+  letter-spacing: 0.1em !important;
+  opacity: 0.9 !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8) !important;
+}
+/* Keep joystick clear of the chip — joy is left side, compass stays low-left but small */
+body.touch.playing #joy-base{
+  /* no change required; chip is ~30px tall */
+}
+
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -1238,7 +1283,7 @@ body.touch.playing #tb-pause{
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V32</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V33</span>
   <div class="menu-plate">
     <div class="kicker">gravity puzzle</div>
     <h1>The Impossible Room</h1>
