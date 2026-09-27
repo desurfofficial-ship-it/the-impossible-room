@@ -1499,6 +1499,28 @@ body:has(#levelcard:not(.off)) #touchui{
 }
 body.touch .pause-ach-list{ max-height: 90px; }
 
+
+/* v38: gravity plane edge tint — always know which way is down */
+#plane-tint{
+  position:fixed; inset:0; pointer-events:none; z-index:12;
+  opacity:0.55;
+  box-shadow: inset 0 -28px 48px -28px var(--plane-glow, transparent),
+              inset 0 28px 48px -32px var(--plane-glow, transparent);
+  transition: opacity 0.35s ease;
+}
+body.touch #plane-tint{ opacity:0.4; }
+body.reduce-motion #plane-tint,
+body.reduce-motion #chroma{ display:none !important; }
+/* menu progress strip */
+.menu-progress{
+  margin: 10px 0 0;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.4);
+  text-align: center;
+}
+
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -1510,7 +1532,8 @@ body.touch .pause-ach-list{ max-height: 90px; }
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V37</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V38</span>
+  <div class="menu-progress" id="menu-progress"></div>
   <div class="menu-plate">
     <div class="kicker">gravity puzzle</div>
     <h1>The Impossible Room</h1>
@@ -3906,7 +3929,8 @@ class Player{
     this.archCd = opts.cooldown ?? 1.0;
     flowFlip(type);
     this.startTransition(qTo, {
-      dur: opts.dur ?? 0.5, color: opts.color, fling: opts.fling, safeSnap: opts.safeSnap,
+      dur: opts.dur ?? ((typeof IS_TOUCH!=='undefined'&&IS_TOUCH)?0.62:0.5),
+      color: opts.color, fling: opts.fling, safeSnap: opts.safeSnap,
       pos: opts.pos, archType: type
     });
     /* v36: gravity feedback — FOV kick + brief plane-color wash */
@@ -6465,6 +6489,18 @@ function startLevel(i, opts={}){
   }
 }
 
+
+function refreshMenuProgress(){
+  const el=document.getElementById('menu-progress');
+  if(!el) return;
+  let clears=0;
+  for(let i=0;i<15;i++) if(SAVE.best && SAVE.best[i]!=null) clears++;
+  const ach = SAVE.achievements ? Object.keys(SAVE.achievements).length : 0;
+  const achMax = (typeof ACH_DEFS!=='undefined') ? Object.keys(ACH_DEFS).length : 8;
+  const depth = SAVE.bestDepth||0;
+  el.textContent = clears+'/15 chambers · '+ach+'/'+achMax+' ★ · depth '+depth;
+}
+
 function dismissLevelCard(){
   if(GAME.state!=='levelcard') return;
   hideScreen(DOM.levelcard);
@@ -6510,7 +6546,10 @@ function levelComplete(){
   const tainted=cheatActive();          /* speedrun integrity: cheats void the record */
   const prev=SAVE.best[GAME.levelIndex];
   const isBest=!tainted && (!prev || t<prev);
-  if(isBest) SAVE.best[GAME.levelIndex]=t;
+  if(isBest){
+    SAVE.best[GAME.levelIndex]=t;
+    try{ toast('NEW BEST  '+fmtRace(t), 2800); }catch(e){}
+  }
   SAVE.unlocked=Math.max(SAVE.unlocked, Math.min(GAME.levelIndex+2, LEVELS.length));
   GAME.levelTimes[GAME.levelIndex]=t;
   GAME.totalDeaths=(GAME.totalDeaths||0)+GAME.deaths;
@@ -6831,7 +6870,16 @@ function updateHUD(dt){
   DOM.needle.style.transform=`rotate(${rot}rad)`;
   const pname=PLANE_NAMES[gKey(player.gravityDir)]||'VOID';
   DOM.compassPlane.textContent=pname;
-  DOM.compassPlane.style.color={FLOOR:'#9aa3b5',CEILING:'#e8c15a','WALL A':'#4da3ff','WALL B':'#ff5468'}[pname]||'#fff';
+  const planeCol={FLOOR:'#9aa3b5',CEILING:'#e8c15a','WALL A':'#4da3ff','WALL B':'#ff5468'}[pname]||'#fff';
+  DOM.compassPlane.style.color=planeCol;
+  try{
+    const pt=document.getElementById('plane-tint');
+    if(pt){
+      const glow={FLOOR:'rgba(154,163,181,0.35)',CEILING:'rgba(232,193,90,0.4)',
+        'WALL A':'rgba(77,163,255,0.4)','WALL B':'rgba(255,84,104,0.4)'}[pname]||'transparent';
+      pt.style.setProperty('--plane-glow', glow);
+    }
+  }catch(e){}
   /* module specifics */
   if(L.hudMode==='fragments'||L.hudMode==='cores'){
     const got=L.fragments.filter(f=>f.collected).length;
@@ -10006,6 +10054,7 @@ function toMenu(){
   DOM.menu.classList.remove('hidden');
   document.body.classList.remove('playing');
   document.body.classList.add('on-menu');
+  try{ refreshMenuProgress(); }catch(e){}
   DOM.hud.classList.remove('on');
   hideScreen(DOM.victory);
   hideScreen(DOM.failed);
@@ -10852,6 +10901,7 @@ function boot(){
     }catch(e){}
   }
   GAME.qa = location.search.includes('qa=1');
+  try{ refreshMenuProgress(); }catch(e){}
   if(GAME.qa){
     startLevel(0,{silent:true});
     GAME.state='playing';
@@ -11024,5 +11074,6 @@ boot();
 })();
 </script>
 <div id="chroma" aria-hidden="true"></div>
+<div id="plane-tint" aria-hidden="true"></div>
 </body>
 </html>
