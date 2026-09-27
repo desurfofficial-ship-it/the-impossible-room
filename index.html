@@ -889,6 +889,13 @@ body.touch #tb-use{width:64px !important;height:64px !important;font-size:18px !
 #hud-obj{display:none !important}
 /* Status text hidden — moved into ☰ progress panel */
 #hud-status{display:none !important}
+
+@keyframes crossPulse{0%,100%{opacity:0.35;box-shadow:0 0 3px #39d5c8}50%{opacity:0.6;box-shadow:0 0 6px #39d5c8}}
+
+/* v20: cinematic vignette for depth */
+#vignette-overlay{position:fixed;inset:0;pointer-events:none;z-index:40;
+  background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,0.35) 100%);
+  opacity:0.7;}
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -1077,11 +1084,12 @@ body.touch #tb-use{width:64px !important;height:64px !important;font-size:18px !
 </div>
 
 <!-- ===================== HUD ===================== -->
-<div id="crosshair" style="position:fixed;top:50%;left:50%;width:2px;height:2px;margin:-1px 0 0 -1px;border-radius:50%;background:#39d5c8;opacity:0.4;pointer-events:none;z-index:50;"></div>
+<div id="crosshair" style="position:fixed;top:50%;left:50%;width:3px;height:3px;margin:-1.5px 0 0 -1.5px;border-radius:50%;background:#39d5c8;opacity:0.5;pointer-events:none;z-index:50;animation:crossPulse 3s ease-in-out infinite;"></div>
+    <div id="vignette-overlay"></div>
 
     <!-- v20: Progress checklist panel -->
     <div id="pp-toggle" style="position:fixed;top:12px;right:12px;width:36px;height:36px;border-radius:8px;background:rgba(10,13,26,0.8);border:1px solid rgba(57,213,200,0.4);color:#39d5c8;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:60;backdrop-filter:blur(4px);user-select:none;">☰</div>
-    <div id="pp-panel" style="position:fixed;top:56px;right:12px;width:260px;background:rgba(10,13,26,0.94);border:1px solid rgba(57,213,200,0.25);border-radius:12px;padding:16px;z-index:60;display:none;backdrop-filter:blur(8px);color:#f2eee6;font-family:monospace;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+    <div id="pp-panel" style="position:fixed;top:56px;right:12px;width:260px;background:rgba(10,13,26,0.94);border:1px solid rgba(57,213,200,0.25);border-radius:12px;padding:16px;z-index:60;display:none;backdrop-filter:blur(8px);color:#f2eee6;font-family:monospace;box-shadow:0 8px 32px rgba(0,0,0,0.5),0 0 0 1px rgba(57,213,200,0.08);transition:opacity 0.2s ease,transform 0.2s ease;opacity:0;transform:translateY(-8px);">
       <div style="font-size:9px;color:#39d5c8;letter-spacing:0.25em;margin-bottom:8px;">CHAMBER PROGRESS</div>
       <div id="pp-name" style="font-size:15px;font-weight:600;margin-bottom:2px;color:#f2eee6;"></div>
       <div id="pp-obj" style="font-size:11px;color:#7d8ba0;font-style:italic;margin-bottom:12px;"></div>
@@ -4204,7 +4212,7 @@ class SurrealSystem{
           const geo = shapes[i % shapes.length]();
           const mat = new THREE.MeshStandardMaterial({
             color: 0x050810, emissive: cols[i % cols.length],
-            emissiveIntensity: 0.5+Math.random()*0.3,
+            emissiveIntensity: 0.3+Math.random()*0.5,
             roughness: 0.3, metalness: 0.7
           });
           const m = new THREE.Mesh(geo, mat);
@@ -4359,7 +4367,7 @@ class DreadSystem{
     if(!SND.ready || !SND.ctx) return;
     const ctx = SND.ctx;
     this.droneGain = ctx.createGain();
-    this.droneGain.gain.value = 0.03;
+    this.droneGain.gain.value = 0.022;
 
     this.droneFilter = ctx.createBiquadFilter();
     this.droneFilter.type = 'lowpass';
@@ -4488,7 +4496,7 @@ class DreadSystem{
 
     // === Drone volume breathing (slow oscillation) ===
     if(this.droneGain && SND.ctx){
-      const vol = 0.025 + Math.sin(this.time * 0.3) * 0.012;
+      const vol = 0.018 + Math.sin(this.time * 0.3) * 0.010;
       this.droneGain.gain.setTargetAtTime(vol, SND.ctx.currentTime, 0.5);
     }
 
@@ -4496,7 +4504,7 @@ class DreadSystem{
     this.whisperTimer -= dt;
     if(this.whisperTimer <= 0){
       this.whisper();
-      this.whisperTimer = 8 + Math.random() * 12;
+      this.whisperTimer = 6 + Math.random() * 10;
     }
 
     // === Creak timer (random intervals 15-35s) ===
@@ -10109,6 +10117,8 @@ boot();
   ppToggle.addEventListener('click', () => {
     ppOpen = !ppOpen;
     ppPanel.style.display = ppOpen ? 'block' : 'none';
+    if(ppOpen){ requestAnimationFrame(()=>{ ppPanel.style.opacity='1'; ppPanel.style.transform='translateY(0)'; }); }
+    else { ppPanel.style.opacity='0'; ppPanel.style.transform='translateY(-8px)'; }
     ppToggle.textContent = ppOpen ? '✕' : '☰';
     if(ppOpen) updateProgressPanel();
   });
@@ -10197,8 +10207,9 @@ boot();
     const total = L.fragmentsTotal || L.fragments.length;
     if(total > 0){
       const remaining = total - collected;
-      el.textContent = remaining > 0 ? remaining + '/' + total + ' shards' : '✓ all collected';
+      el.textContent = remaining > 0 ? '◆ ' + remaining + '/' + total + ' to claim' : '◆ all claimed';
       el.style.color = remaining > 0 ? '#39d5c8' : '#54e08a';
+      el.style.opacity = remaining > 0 ? '0.9' : '0.6';
     } else {
       el.textContent = '';
     }
