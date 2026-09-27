@@ -1070,6 +1070,17 @@ body.touch #tb-use{width:64px !important;height:64px !important;font-size:18px !
 
 <!-- ===================== HUD ===================== -->
 <div id="crosshair" style="position:fixed;top:50%;left:50%;width:2px;height:2px;margin:-1px 0 0 -1px;border-radius:50%;background:#39d5c8;opacity:0.4;pointer-events:none;z-index:50;"></div>
+
+    <!-- v20: Progress checklist panel -->
+    <div id="pp-toggle" style="position:fixed;top:12px;right:12px;width:36px;height:36px;border-radius:8px;background:rgba(10,13,26,0.8);border:1px solid rgba(57,213,200,0.4);color:#39d5c8;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:60;backdrop-filter:blur(4px);user-select:none;">☰</div>
+    <div id="pp-panel" style="position:fixed;top:56px;right:12px;width:260px;background:rgba(10,13,26,0.94);border:1px solid rgba(57,213,200,0.25);border-radius:12px;padding:16px;z-index:60;display:none;backdrop-filter:blur(8px);color:#f2eee6;font-family:monospace;box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+      <div style="font-size:9px;color:#39d5c8;letter-spacing:0.25em;margin-bottom:8px;">CHAMBER PROGRESS</div>
+      <div id="pp-name" style="font-size:15px;font-weight:600;margin-bottom:2px;color:#f2eee6;"></div>
+      <div id="pp-obj" style="font-size:11px;color:#7d8ba0;font-style:italic;margin-bottom:12px;"></div>
+      <div id="pp-checklist" style="font-size:12px;line-height:1.9;"></div>
+      <div id="pp-status" style="margin-top:12px;padding:8px 12px;border-radius:6px;text-align:center;font-size:11px;font-weight:600;letter-spacing:0.05em;"></div>
+      <div style="margin-top:8px;text-align:center;font-size:9px;color:#4a4a4a;letter-spacing:0.1em;">CLICK ☰ TO CLOSE</div>
+    </div>
     <div id="hud">
   <div class="hud-tl">
     <div id="hud-level">CHAMBER I</div>
@@ -10076,6 +10087,73 @@ window.__TIR__={ GAME, player, playerBody, WORLD_COLLIDE, LEVELS, startLevel, up
   FLOW, flowFlip, flowBreak, awardScore, medalFor, rankFor, ensureLevelsUpTo,
   get renderer(){ return renderer; } };
 boot();
+
+/* ============================================================
+   v20: PROGRESS CHECKLIST PANEL
+   Click ☰ to open a panel showing shard collection + exit status.
+   Click again to close. Nothing covers gameplay when closed.
+   ============================================================ */
+(function(){
+  const ppToggle = document.getElementById('pp-toggle');
+  const ppPanel = document.getElementById('pp-panel');
+  if(!ppToggle || !ppPanel) return;
+  let ppOpen = false;
+  ppToggle.addEventListener('click', () => {
+    ppOpen = !ppOpen;
+    ppPanel.style.display = ppOpen ? 'block' : 'none';
+    ppToggle.textContent = ppOpen ? '✕' : '☰';
+    if(ppOpen) updateProgressPanel();
+  });
+  
+  function updateProgressPanel(){
+    if(!ppOpen) return;
+    const L = window.__TIR__ && __TIR__.GAME ? __TIR__.GAME.level : null;
+    if(!L){ ppPanel.querySelector('#pp-name').textContent = 'No level loaded'; return; }
+    
+    const idx = __TIR__.GAME.levelIndex;
+    const def = __TIR__.LEVELS[idx];
+    document.getElementById('pp-name').textContent = def ? def.name : 'Chamber ' + (idx+1);
+    document.getElementById('pp-obj').textContent = def ? (def.objective || '') : '';
+    
+    // Fragment checklist
+    const collected = L.fragments.filter(f => f.collected).length;
+    const total = L.fragmentsTotal || L.fragments.length;
+    let checklist = '';
+    for(let i = 0; i < total; i++){
+      const done = i < collected;
+      checklist += '<div style="color:' + (done ? '#54e08a' : '#7d8ba0') + '">' + 
+        (done ? '✓' : '○') + ' Shard ' + (i+1) + '</div>';
+    }
+    // Exit status
+    const exit = L.exits[0];
+    const exitLocked = exit ? exit.locked !== false : true;
+    checklist += '<div style="color:' + (!exitLocked ? '#54e08a' : '#7d8ba0') + ';margin-top:6px;">' +
+      (!exitLocked ? '✓ Exit unlocked' : '○ Exit locked') + '</div>';
+    
+    document.getElementById('pp-checklist').innerHTML = checklist;
+    
+    // Status box
+    const allDone = collected >= total && !exitLocked;
+    const statusEl = document.getElementById('pp-status');
+    if(allDone){
+      statusEl.style.background = 'rgba(84,224,138,0.15)';
+      statusEl.style.color = '#54e08a';
+      statusEl.textContent = '✓ DONE — WALK TO THE EXIT';
+    } else if(collected >= total){
+      statusEl.style.background = 'rgba(57,213,200,0.12)';
+      statusEl.style.color = '#39d5c8';
+      statusEl.textContent = '✓ ALL SHARDS — FIND THE EXIT';
+    } else {
+      const remaining = total - collected;
+      statusEl.style.background = 'rgba(255,84,104,0.10)';
+      statusEl.style.color = '#ff5468';
+      statusEl.textContent = 'COLLECT ' + remaining + ' MORE SHARD' + (remaining > 1 ? 'S' : '');
+    }
+  }
+  
+  // Update every 0.5s when open
+  setInterval(updateProgressPanel, 500);
+})();
 </script>
 </body>
 </html>
