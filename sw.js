@@ -5,7 +5,7 @@
    - Versioned CDN assets (three.js on unpkg): cache-first, they are immutable.
    - Icons / manifest / guide: cache-first.
    Bump VERSION on every deploy to retire old caches. */
-const VERSION = 'tir-v22';
+const VERSION = 'tir-v23';
 const SHELL = 'tir-shell-v13';  // v20: skylight
 
 self.addEventListener('install', e => {
