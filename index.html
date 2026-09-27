@@ -1272,6 +1272,107 @@ body.touch.playing #joy-base{
   /* no change required; chip is ~30px tall */
 }
 
+
+/* v34: level brief — plain, readable, not a trailer title card */
+#levelcard{
+  z-index: 40 !important;
+  background: rgba(0,0,0,0.72) !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px !important;
+  text-align: center;
+}
+#levelcard.off{ display: none !important; }
+#levelcard .lc-chip{
+  display: none !important; /* drop gold "THE ACADEMY" badge */
+}
+#levelcard .lc-num{
+  font-family: system-ui, -apple-system, sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.04em !important;
+  color: rgba(255,255,255,0.55) !important;
+  text-transform: uppercase !important;
+}
+#levelcard .lc-name{
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif !important;
+  font-style: normal !important;
+  font-weight: 600 !important;
+  font-size: clamp(26px, 7vw, 36px) !important;
+  color: #f2f2f0 !important;
+  text-shadow: none !important;
+  margin: 10px 0 14px !important;
+  line-height: 1.15 !important;
+}
+#levelcard .lc-rule{ display: none !important; }
+#levelcard .lc-obj{
+  font-family: system-ui, -apple-system, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.45 !important;
+  color: rgba(255,255,255,0.7) !important;
+  max-width: 28ch !important;
+  margin: 0 auto 18px !important;
+  text-transform: none !important;
+}
+#levelcard .lc-steps{
+  list-style: none !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  max-width: 26ch !important;
+  text-align: left !important;
+}
+#levelcard .lc-steps li{
+  font-family: system-ui, -apple-system, sans-serif !important;
+  font-size: 13px !important;
+  letter-spacing: 0 !important;
+  color: rgba(255,255,255,0.62) !important;
+  padding: 5px 0 5px 0 !important;
+  border-bottom: none !important;
+  line-height: 1.35 !important;
+}
+#levelcard .lc-steps li::before{
+  content: none !important;
+}
+#levelcard .lc-steps li{
+  padding-left: 0 !important;
+}
+#levelcard .lc-steps li::marker{ content: none; }
+/* number steps via counter */
+#levelcard .lc-steps{ counter-reset: step; }
+#levelcard .lc-steps li{
+  counter-increment: step;
+  padding-left: 1.6em !important;
+  position: relative !important;
+}
+#levelcard .lc-steps li::before{
+  content: counter(step) "." !important;
+  position: absolute !important;
+  left: 0 !important;
+  color: rgba(255,255,255,0.35) !important;
+  font-weight: 600 !important;
+}
+#levelcard .lc-hint{
+  margin-top: 20px !important;
+  font-family: system-ui, -apple-system, sans-serif !important;
+  font-size: 11px !important;
+  letter-spacing: 0 !important;
+  color: rgba(255,255,255,0.35) !important;
+  text-transform: none !important;
+}
+/* Nothing from the HUD/touch layer peeks through the brief */
+#levelcard:not(.off) ~ #hud,
+body:has(#levelcard:not(.off)) #hud,
+body:has(#levelcard:not(.off)) #touchui,
+body:has(#levelcard:not(.off)) #compass{
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -1283,7 +1384,7 @@ body.touch.playing #joy-base{
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V33</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V34</span>
   <div class="menu-plate">
     <div class="kicker">gravity puzzle</div>
     <h1>The Impossible Room</h1>
@@ -1517,7 +1618,7 @@ body.touch.playing #joy-base{
   <div class="lc-rule"></div>
   <div class="lc-obj" id="lc-obj"></div>
   <ul id="lc-steps" class="lc-steps"></ul>
-  <div class="lc-hint" id="lc-hint">OPEN II ANYTIME FOR OBJECTIVES</div>
+  <div class="lc-hint" id="lc-hint">Menu (☰) shows objectives anytime</div>
 </div>
 
 <div id="pause" class="screen hidden">
@@ -6117,11 +6218,11 @@ function startLevel(i, opts={}){
     toast('CHAIN ARCH PASSES TO RAISE <b>PARADOX</b> — SCORE PAYS ×CHAIN', 4200);
   }
   if(!opts.silent){
-    DOM.lcNum.innerHTML=(def.tut
-      ? '<span class="lc-chip">THE ACADEMY</span>LESSON '+ROMAN[i]
-      : 'CHAMBER '+ROMAN[i]+(def.stars?' · <span class="lc-stars">'+'★'.repeat(def.stars)+'</span>':''));
-    DOM.lcName.textContent=def.name;
-    DOM.lcObj.textContent=def.objective+(def.pars?'  ·  PAR '+fmtRace(def.pars[0]):'');
+    DOM.lcNum.textContent = def.tut ? ('Lesson '+(i+1)) : ('Chamber '+(i+1));
+    DOM.lcName.textContent = def.name;
+    let objLine = def.objective || '';
+    if(def.pars) objLine += (objLine ? ' · ' : '') + 'Par '+fmtRace(def.pars[0]);
+    DOM.lcObj.textContent = objLine;
     const stepsEl=document.getElementById('lc-steps');
     const hintEl=document.getElementById('lc-hint');
     if(stepsEl){
@@ -6134,10 +6235,12 @@ function startLevel(i, opts={}){
         if(hintEl) hintEl.style.display='none';
       }
     }
+    DOM.hud.classList.remove('on');
+    if(DOM.touchui) DOM.touchui.classList.remove('on');
     showScreen(DOM.levelcard);
     GAME.state='levelcard';
     GAME.cardT=0;
-    GAME.cardDur = (def.tut && def.tut.steps && def.tut.steps.length) ? 5.0 : 2.8;
+    GAME.cardDur = (def.tut && def.tut.steps && def.tut.steps.length) ? 4.5 : 2.5;
   }else{
     GAME.state='playing';
     DOM.hud.classList.add('on');
