@@ -881,6 +881,14 @@ body.touch .tb-btn{border-radius:50% !important;border:2px solid rgba(57,213,200
   box-shadow:0 0 12px rgba(57,213,200,0.2)}
 body.touch #tb-jump{width:72px !important;height:72px !important;font-size:22px !important}
 body.touch #tb-use{width:64px !important;height:64px !important;font-size:18px !important}
+
+/* v20: CLEAN INTERFACE — hide all overlays that cover gameplay */
+/* Tutorial checklist hidden — moved into ☰ progress panel */
+#tut{display:none !important}
+/* Objective text hidden — moved into ☰ progress panel */
+#hud-obj{display:none !important}
+/* Status text hidden — moved into ☰ progress panel */
+#hud-status{display:none !important}
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -10107,18 +10115,40 @@ boot();
   
   function updateProgressPanel(){
     if(!ppOpen) return;
-    const L = window.__TIR__ && __TIR__.GAME ? __TIR__.GAME.level : null;
-    if(!L){ ppPanel.querySelector('#pp-name').textContent = 'No level loaded'; return; }
+    const tir = window.__TIR__;
+    const L = tir && tir.GAME ? tir.GAME.level : null;
+    if(!L){ document.getElementById('pp-name').textContent = 'No level loaded'; return; }
     
-    const idx = __TIR__.GAME.levelIndex;
-    const def = __TIR__.LEVELS[idx];
+    const idx = tir.GAME.levelIndex;
+    const def = tir.LEVELS[idx];
     document.getElementById('pp-name').textContent = def ? def.name : 'Chamber ' + (idx+1);
     document.getElementById('pp-obj').textContent = def ? (def.objective || '') : '';
+    
+    let checklist = '';
+    
+    // Tutorial steps (if active) — read from DOM (the #tut element is hidden
+    // but still has its content)
+    const tutEl = document.getElementById('tut');
+    if(tutEl && tutEl.classList.contains('on')){
+      const tutTitle = document.getElementById('tut-title');
+      const tutSteps = document.querySelectorAll('#tut-list .tstep');
+      if(tutTitle && tutTitle.textContent){
+        checklist += '<div style="font-size:9px;color:#ff9ee0;letter-spacing:0.2em;margin-bottom:4px;">' + 
+          tutTitle.textContent + '</div>';
+      }
+      tutSteps.forEach(step => {
+        const done = step.classList.contains('done');
+        const label = step.querySelector('.tlbl');
+        const text = label ? label.textContent : '';
+        checklist += '<div style="color:' + (done ? '#54e08a' : '#7d8ba0') + ';font-size:11px;">' +
+          (done ? '✓' : '○') + ' ' + text + '</div>';
+      });
+      checklist += '<div style="border-top:1px solid rgba(57,213,200,0.15);margin:8px 0;"></div>';
+    }
     
     // Fragment checklist
     const collected = L.fragments.filter(f => f.collected).length;
     const total = L.fragmentsTotal || L.fragments.length;
-    let checklist = '';
     for(let i = 0; i < total; i++){
       const done = i < collected;
       checklist += '<div style="color:' + (done ? '#54e08a' : '#7d8ba0') + '">' + 
