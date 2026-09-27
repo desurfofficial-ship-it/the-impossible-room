@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1373,6 +1376,96 @@ body:has(#levelcard:not(.off)) #compass{
   pointer-events: none !important;
 }
 
+
+/* v35: level intro = bottom sheet, not a poster */
+#levelcard{
+  z-index: 45 !important;
+  background: rgba(0,0,0,0.55) !important;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  pointer-events: auto !important;
+}
+#levelcard.off{ display: none !important; }
+#levelcard .lc-sheet{
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 20px 20px calc(20px + env(safe-area-inset-bottom, 0px));
+  background: #111318;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  text-align: left;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  box-shadow: 0 -12px 40px rgba(0,0,0,0.45);
+}
+#levelcard .lc-num{
+  font-family: "IBM Plex Mono", ui-monospace, monospace !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.06em !important;
+  color: #8b919a !important;
+  margin: 0 0 6px !important;
+  text-transform: uppercase !important;
+}
+#levelcard .lc-name{
+  font-family: "IBM Plex Sans", system-ui, sans-serif !important;
+  font-style: normal !important;
+  font-weight: 600 !important;
+  font-size: 22px !important;
+  color: #f4f4f2 !important;
+  text-shadow: none !important;
+  margin: 0 0 8px !important;
+  line-height: 1.2 !important;
+}
+#levelcard .lc-obj{
+  font-family: "IBM Plex Sans", system-ui, sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.4 !important;
+  color: #a8adb6 !important;
+  max-width: none !important;
+  margin: 0 0 16px !important;
+  text-transform: none !important;
+}
+#levelcard .lc-go{
+  display: block;
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0b0d10;
+  background: #e8e6e0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+#levelcard .lc-go:active{ opacity: 0.85; }
+#levelcard .lc-rule,
+#levelcard .lc-steps,
+#levelcard .lc-hint,
+#levelcard .lc-chip{ display: none !important; }
+/* hide play HUD under the brief */
+#levelcard:not(.off) ~ #touchui,
+body:has(#levelcard:not(.off)) #hud,
+body:has(#levelcard:not(.off)) #touchui{
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+@media (min-width: 720px){
+  #levelcard{ align-items: center !important; }
+  #levelcard .lc-sheet{
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px;
+    margin-bottom: 0;
+    padding: 24px;
+  }
+}
+
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -1384,7 +1477,7 @@ body:has(#levelcard:not(.off)) #compass{
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V34</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V35</span>
   <div class="menu-plate">
     <div class="kicker">gravity puzzle</div>
     <h1>The Impossible Room</h1>
@@ -1613,12 +1706,12 @@ body:has(#levelcard:not(.off)) #compass{
 
 <!-- ===================== SCREENS ===================== -->
 <div id="levelcard" class="screen off">
-  <div class="lc-num" id="lc-num">CHAMBER I</div>
-  <div class="lc-name" id="lc-name">The Initiation</div>
-  <div class="lc-rule"></div>
-  <div class="lc-obj" id="lc-obj"></div>
-  <ul id="lc-steps" class="lc-steps"></ul>
-  <div class="lc-hint" id="lc-hint">Menu (☰) shows objectives anytime</div>
+  <div class="lc-sheet">
+    <div class="lc-num" id="lc-num">Lesson 1</div>
+    <div class="lc-name" id="lc-name">First Steps</div>
+    <div class="lc-obj" id="lc-obj">Walk, sprint and jump.</div>
+    <button type="button" class="lc-go" id="lc-go">Continue</button>
+  </div>
 </div>
 
 <div id="pause" class="screen hidden">
@@ -6220,32 +6313,28 @@ function startLevel(i, opts={}){
   if(!opts.silent){
     DOM.lcNum.textContent = def.tut ? ('Lesson '+(i+1)) : ('Chamber '+(i+1));
     DOM.lcName.textContent = def.name;
-    let objLine = def.objective || '';
-    if(def.pars) objLine += (objLine ? ' · ' : '') + 'Par '+fmtRace(def.pars[0]);
-    DOM.lcObj.textContent = objLine;
-    const stepsEl=document.getElementById('lc-steps');
-    const hintEl=document.getElementById('lc-hint');
-    if(stepsEl){
-      if(def.tut && def.tut.steps && def.tut.steps.length){
-        stepsEl.innerHTML=def.tut.steps.map(s=>'<li>'+s+'</li>').join('');
-        stepsEl.style.display='block';
-        if(hintEl) hintEl.style.display='block';
-      }else{
-        stepsEl.innerHTML=''; stepsEl.style.display='none';
-        if(hintEl) hintEl.style.display='none';
-      }
-    }
+    DOM.lcObj.textContent = def.objective || '';
     DOM.hud.classList.remove('on');
     if(DOM.touchui) DOM.touchui.classList.remove('on');
     showScreen(DOM.levelcard);
     GAME.state='levelcard';
     GAME.cardT=0;
-    GAME.cardDur = (def.tut && def.tut.steps && def.tut.steps.length) ? 4.5 : 2.5;
+    /* wait for Continue (or auto after 12s as safety) */
+    GAME.cardDur = 12;
   }else{
     GAME.state='playing';
     DOM.hud.classList.add('on');
   }
 }
+
+function dismissLevelCard(){
+  if(GAME.state!=='levelcard') return;
+  hideScreen(DOM.levelcard);
+  GAME.state='playing';
+  DOM.hud.classList.add('on');
+  if(IS_TOUCH && DOM.touchui) DOM.touchui.classList.add('on');
+}
+
 function restartLevel(){
   const def=LEVELS[GAME.levelIndex];
   startLevel(GAME.levelIndex, {silent:true});
@@ -6721,10 +6810,8 @@ function updateGame(dt){
   /* level card timing */
   if(GAME.state==='levelcard'){
     GAME.cardT+=dt;
-    if(GAME.cardT>(GAME.cardDur||2.8)){
-      hideScreen(DOM.levelcard);
-      GAME.state='playing';
-      DOM.hud.classList.add('on');
+    if(GAME.cardT>(GAME.cardDur||12)){
+      dismissLevelCard();
     }
   }
   if(GAME.state==='menu'){
@@ -9651,6 +9738,16 @@ function setupMenu(){
   }
   /* pause / victory — every exit path must dismiss the victory overlay
      (bug found in playtest: it never hid, soft-locking the chain) */
+  
+  const lcGo=document.getElementById('lc-go');
+  if(lcGo) lcGo.onclick=()=>{ SND.uiClick&&SND.uiClick(); dismissLevelCard(); };
+  const lc=document.getElementById('levelcard');
+  if(lc) lc.addEventListener('click', (e)=>{
+    if(e.target && (e.target.id==='lc-go' || e.target.closest && e.target.closest('.lc-sheet'))){
+      /* button handles itself; sheet background doesn't force dismiss */
+    }
+  });
+
   $('btn-resume').onclick=()=>{ SND.uiClick(); resumeGame(); };
   $('btn-restart').onclick=()=>{ SND.uiClick(); hideScreen(DOM.pause);
     hideScreen(DOM.victory); DOM.vignette.style.opacity=0;
