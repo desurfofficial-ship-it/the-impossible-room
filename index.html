@@ -876,6 +876,13 @@ body.touch #menu .room-frame{display:none}
 #hud-level{font-size:9px !important;letter-spacing:0.2em !important;opacity:0.6 !important}
 #hud-obj{font-size:14px !important;opacity:0.7 !important}
 /* Stronger fog for depth cues */
+
+/* v20: improved touch controls */
+body.touch .tb-btn{border-radius:50% !important;border:2px solid rgba(57,213,200,0.5) !important;
+  background:rgba(10,13,26,0.6) !important;backdrop-filter:blur(4px);
+  box-shadow:0 0 12px rgba(57,213,200,0.2)}
+body.touch #tb-jump{width:72px !important;height:72px !important;font-size:22px !important}
+body.touch #tb-use{width:64px !important;height:64px !important;font-size:18px !important}
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -1797,7 +1804,8 @@ const GAME = {
 };
 let renderer, scene, camera, composer, bloomPass, dirLight, hemiLight, plc;
 let playerBody = null; // v19: first-person viewmodel (legs / hand / bag) parented to camera
-let dreadSystem = null; // v20: subtle dread system (drone audio + whispers + light flicker + shadow figures)
+let dreadSystem = null;
+let surrealSystem = null; // v20: subtle dread system (drone audio + whispers + light flicker + shadow figures)
 const WORLD = new THREE.Group();     // per-level content root
 scene = new THREE.Scene();
 scene.add(WORLD);
@@ -1838,6 +1846,7 @@ function initRenderer(){
   /* v19: build the first-person viewmodel now that camera + renderer exist */
   playerBody = new PlayerBody();
   dreadSystem = new DreadSystem();
+  surrealSystem = new SurrealSystem();
 }
 function onResize(){
   camera.aspect = innerWidth/innerHeight;
@@ -4148,6 +4157,159 @@ function hudPulse(){
 }
 
 /* ============================================================
+   8.3. SURREAL SYSTEM — auto-decorates ALL chambers (v20, fixed)
+   Every method wrapped in try-catch so errors NEVER freeze the game.
+   ============================================================ */
+class SurrealSystem{
+  constructor(){}
+
+  decorate(L){
+    try{
+      if(!L) return;
+      const bounds = L.bounds;
+      const hasBounds = bounds && bounds.max && bounds.min;
+      const w = hasBounds ? (bounds.max.x - bounds.min.x) : 26;
+      const h = hasBounds ? (bounds.max.y - bounds.min.y) : 11;
+      const d = hasBounds ? (bounds.max.z - bounds.min.z) : 34;
+      const cx = hasBounds ? (bounds.min.x + bounds.max.x)/2 : 0;
+      const cz = hasBounds ? (bounds.min.z + bounds.max.z)/2 : 0;
+      const disposables = Array.isArray(L.disposables) ? L.disposables : [];
+      const updaters = Array.isArray(L.updaters) ? L.updaters : [];
+      const lights = Array.isArray(L.lights) ? L.lights : [];
+
+      const floatMeshes = [];
+
+      /* 6 floating shapes */
+      const shapes = [
+        () => new THREE.OctahedronGeometry(0.20 + Math.random()*0.12, 0),
+        () => new THREE.TetrahedronGeometry(0.24 + Math.random()*0.08, 0),
+        () => new THREE.TorusGeometry(0.14 + Math.random()*0.06, 0.035, 8, 20),
+      ];
+      const cols = [0x39d5c8, 0xff9ee0, 0xffd76a, 0x54e08a];
+      for(let i=0; i<6; i++){
+        try{
+          const geo = shapes[i % shapes.length]();
+          const mat = new THREE.MeshStandardMaterial({
+            color: 0x050810, emissive: cols[i % cols.length],
+            emissiveIntensity: 0.5+Math.random()*0.3,
+            roughness: 0.3, metalness: 0.7
+          });
+          const m = new THREE.Mesh(geo, mat);
+          m.position.set(cx+(Math.random()-0.5)*w*0.7, h*0.3+Math.random()*h*0.5, cz+(Math.random()-0.5)*d*0.7);
+          m.userData = {
+            rotSpeed: {x:(Math.random()-0.5)*0.6, y:(Math.random()-0.5)*0.6, z:(Math.random()-0.5)*0.4},
+            bobPhase: Math.random()*Math.PI*2,
+            bobAmp: 0.12+Math.random()*0.15,
+            basePos: m.position.clone()
+          };
+          m.frustumCulled = false;
+          WORLD.add(m);
+          disposables.push(m);
+          floatMeshes.push(m);
+        }catch(e){}
+      }
+
+      /* 100 dust particles */
+      try{
+        const dustCount = 100;
+        const dustGeo = new THREE.BufferGeometry();
+        const dustPos = new Float32Array(dustCount*3);
+        const dustVel = new Float32Array(dustCount*3);
+        for(let i=0; i<dustCount; i++){
+          dustPos[i*3]=cx+(Math.random()-0.5)*w;
+          dustPos[i*3+1]=Math.random()*h;
+          dustPos[i*3+2]=cz+(Math.random()-0.5)*d;
+          dustVel[i*3]=(Math.random()-0.5)*0.10;
+          dustVel[i*3+1]=(Math.random()-0.3)*0.05;
+          dustVel[i*3+2]=(Math.random()-0.5)*0.10;
+        }
+        dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+        const dustMat = new THREE.PointsMaterial({
+          color: 0x39d5c8, size: 0.020,
+          transparent: true, opacity: 0.28,
+          depthWrite: false, blending: THREE.AdditiveBlending,
+          toneMapped: false, sizeAttenuation: true
+        });
+        const dust = new THREE.Points(dustGeo, dustMat);
+        WORLD.add(dust);
+        disposables.push(dust);
+
+        /* god-ray cone */
+        const coneMat = new THREE.MeshBasicMaterial({
+          color: 0x39d5c8, transparent: true, opacity: 0.025,
+          side: THREE.DoubleSide, depthWrite: false,
+          blending: THREE.AdditiveBlending, toneMapped: false
+        });
+        const lightCone = new THREE.Mesh(
+          new THREE.ConeGeometry(Math.min(w*0.12, 2.5), h, 16, 1, true), coneMat);
+        lightCone.position.set(cx+1, h/2, cz);
+        WORLD.add(lightCone);
+        disposables.push(lightCone);
+
+        /* skylight */
+        const skyMat = new THREE.MeshBasicMaterial({
+          color: 0xbcd2e8, transparent: true, opacity: 0.45,
+          side: THREE.DoubleSide, toneMapped: false
+        });
+        const skylight = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 2.5), skyMat);
+        skylight.position.set(cx+1, h-0.05, cz);
+        skylight.rotation.x = Math.PI/2;
+        WORLD.add(skylight);
+        disposables.push(skylight);
+
+        /* floor glow */
+        const floorMat = new THREE.MeshBasicMaterial({
+          color: 0x39d5c8, transparent: true, opacity: 0.08,
+          side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+          depthWrite: false, toneMapped: false
+        });
+        const floorGlow = new THREE.Mesh(new THREE.CircleGeometry(2, 16), floorMat);
+        floorGlow.position.set(cx+1, 0.02, cz);
+        floorGlow.rotation.x = -Math.PI/2;
+        WORLD.add(floorGlow);
+        disposables.push(floorGlow);
+
+        /* god-ray light */
+        const godRay = new THREE.DirectionalLight(0x39d5c8, 0.20);
+        godRay.position.set(cx+1, h*1.2, cz);
+        godRay.target.position.set(cx, 0, cz);
+        WORLD.add(godRay);
+        WORLD.add(godRay.target);
+        lights.push(godRay);
+
+        /* animate everything */
+        updaters.push((dt, t) => {
+          try{
+            for(const m of floatMeshes){
+              m.rotation.x += m.userData.rotSpeed.x * dt;
+              m.rotation.y += m.userData.rotSpeed.y * dt;
+              m.rotation.z += m.userData.rotSpeed.z * dt;
+              m.position.y = m.userData.basePos.y + Math.sin(t*0.5 + m.userData.bobPhase) * m.userData.bobAmp;
+            }
+            const pos = dustGeo.attributes.position.array;
+            for(let i=0; i<dustCount; i++){
+              pos[i*3] += dustVel[i*3]*dt;
+              pos[i*3+1] += dustVel[i*3+1]*dt + Math.sin(t*0.5+i)*0.0006;
+              pos[i*3+2] += dustVel[i*3+2]*dt;
+              if(pos[i*3] > cx+w/2) pos[i*3] = cx-w/2;
+              if(pos[i*3] < cx-w/2) pos[i*3] = cx+w/2;
+              if(pos[i*3+1] > h) pos[i*3+1] = 0;
+              if(pos[i*3+1] < 0) pos[i*3+1] = h;
+              if(pos[i*3+2] > cz+d/2) pos[i*3+2] = cz-d/2;
+              if(pos[i*3+2] < cz-d/2) pos[i*3+2] = cz+d/2;
+            }
+            dustGeo.attributes.position.needsUpdate = true;
+            coneMat.opacity = 0.02 + Math.sin(t*0.8)*0.01;
+            skyMat.opacity = 0.4 + Math.sin(t*0.6)*0.07;
+            floorMat.opacity = 0.07 + Math.sin(t*0.8)*0.025;
+          }catch(e){}
+        });
+      }catch(e){ console.log('SurrealSystem dust/godray error:', e.message); }
+    }catch(e){ console.log('SurrealSystem.decorate error:', e.message); }
+  }
+}
+
+/* ============================================================
    8.4. DREAD SYSTEM — subtle psychological tension (v20)
    Ambient drone audio + whisper bursts + light flicker + shadow
    figures glimpsed at the edge of fog. Inspired by Silent Hill /
@@ -4156,7 +4318,8 @@ function hudPulse(){
 class DreadSystem{
   constructor(){
     this.time = 0;
-    this.whisperTimer = 6;  // first whisper after 6s
+    this.whisperTimer = 6;
+    this.creakTimer = 15;  // first whisper after 6s
     this.flickerBase = 1.15;
     this.shadowFigures = [];
     this.droneNodes = null;
@@ -4211,6 +4374,38 @@ class DreadSystem{
     if(this.drone2){ try{ this.drone2.stop(); }catch(e){} this.drone2 = null; }
     if(this.droneGain){ try{ this.droneGain.disconnect(); }catch(e){} this.droneGain = null; }
     if(this.droneFilter){ try{ this.droneFilter.disconnect(); }catch(e){} this.droneFilter = null; }
+  }
+
+  creak(){
+    try{
+      if(!SND.ready || !SND.ctx) return;
+      const ctx = SND.ctx;
+      const dur = 0.8 + Math.random() * 1.5;
+      const sr = ctx.sampleRate;
+      const buf = ctx.createBuffer(1, Math.floor(sr * dur), sr);
+      const data = buf.getChannelData(0);
+      for(let i = 0; i < data.length; i++){
+        const t = i / data.length;
+        const env = Math.sin(t * Math.PI) * (1 - t * 0.3);
+        const mod = 0.6 + 0.4 * Math.sin(t * 30 * Math.PI);
+        data[i] = (Math.random() * 2 - 1) * env * mod * 0.12;
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 200 + Math.random() * 300;
+      filter.Q.value = 3;
+      const panner = ctx.createStereoPanner();
+      panner.pan.value = Math.random() * 2 - 1;
+      const gain = ctx.createGain();
+      gain.gain.value = 0.03 + Math.random() * 0.02;
+      src.connect(filter);
+      filter.connect(panner);
+      panner.connect(gain);
+      gain.connect(SND.master);
+      src.start();
+    }catch(e){}
   }
 
   whisper(){
@@ -4289,6 +4484,13 @@ class DreadSystem{
     if(this.whisperTimer <= 0){
       this.whisper();
       this.whisperTimer = 8 + Math.random() * 12;
+    }
+
+    // === Creak timer (random intervals 15-35s) ===
+    this.creakTimer -= dt;
+    if(this.creakTimer <= 0){
+      this.creak();
+      this.creakTimer = 15 + Math.random() * 20;
     }
 
     // === Light flicker (subtle 2% oscillation + rare brief dip) ===
@@ -5497,6 +5699,7 @@ function startLevel(i, opts={}){
   hideScreen(DOM.levelcard);           // defensive: never carry a card into the next room
   def.build(L);
   L.finish();
+  if(surrealSystem){ try{ surrealSystem.decorate(L); }catch(e){} }
   /* environment theme — AFTER the build so the nature system can size
      its inside accents to the level bounds (skies/fog are order-free) */
   applyTheme(i);
