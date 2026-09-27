@@ -1064,7 +1064,11 @@ body.touch #menu .room-frame{display:none}
 </div>
 
 <!-- ===================== HUD ===================== -->
-<div id="crosshair" style="position:fixed;top:50%;left:50%;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:#39d5c8;opacity:0.5;pointer-events:none;z-index:50;box-shadow:0 0 4px #39d5c8;"></div>
+<div id="crosshair" style="position:fixed;top:50%;left:50%;pointer-events:none;z-index:50;">
+      <div style="position:absolute;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:#39d5c8;box-shadow:0 0 6px #39d5c8,0 0 12px rgba(57,213,200,0.4);"></div>
+      <div style="position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;border:1px solid rgba(57,213,200,0.3);border-radius:50%;"></div>
+      <div style="position:absolute;width:28px;height:28px;margin:-14px 0 0 -14px;border:1px solid rgba(57,213,200,0.12);border-radius:50%;"></div>
+    </div>
     <div id="hud">
   <div class="hud-tl">
     <div id="hud-level">CHAMBER I</div>
@@ -6335,6 +6339,105 @@ LEVELS.push({
     WORLD.add(godRay);
     WORLD.add(godRay.target);
     L.lights.push(godRay);
+
+    /* --- Volumetric light cone (visible shaft of cyan light) --- */
+    /* A transparent cone mesh from the ceiling to the floor, creating
+       a visible 'god-ray' shaft. Dust particles inside it catch the light. */
+    const coneGeo = new THREE.ConeGeometry(3.5, 15, 24, 1, true);
+    const coneMat = new THREE.MeshBasicMaterial({
+      color: 0x39d5c8,
+      transparent: true,
+      opacity: 0.04,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false
+    });
+    const lightCone = new THREE.Mesh(coneGeo, coneMat);
+    lightCone.position.set(2, 7.5, 0);
+    WORLD.add(lightCone);
+    L.disposables.push(lightCone);
+    // Animate the cone opacity (shimmer)
+    L.updaters.push((dt, t) => {
+      coneMat.opacity = 0.03 + Math.sin(t * 0.8) * 0.015 + Math.sin(t * 2.3) * 0.008;
+    });
+
+    /* --- Dust particles (floating motes that catch the god-ray) --- */
+    /* 200 tiny particles drifting through the chamber. Brighter when
+       inside the light cone (fake volumetric scattering). */
+    const dustGeo = new THREE.BufferGeometry();
+    const dustCount = 200;
+    const dustPos = new Float32Array(dustCount * 3);
+    const dustVel = new Float32Array(dustCount * 3);
+    for(let i = 0; i < dustCount; i++){
+      dustPos[i*3]     = (Math.random() - 0.5) * 24;     // x
+      dustPos[i*3 + 1] = Math.random() * 11;              // y (0 to ceiling)
+      dustPos[i*3 + 2] = (Math.random() - 0.5) * 30;     // z
+      dustVel[i*3]     = (Math.random() - 0.5) * 0.15;   // drift x
+      dustVel[i*3 + 1] = (Math.random() - 0.3) * 0.08;   // drift y (slight upward)
+      dustVel[i*3 + 2] = (Math.random() - 0.5) * 0.15;   // drift z
+    }
+    dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+    const dustMat = new THREE.PointsMaterial({
+      color: 0x39d5c8,
+      size: 0.025,
+      transparent: true,
+      opacity: 0.35,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      toneMapped: false,
+      sizeAttenuation: true
+    });
+    const dust = new THREE.Points(dustGeo, dustMat);
+    WORLD.add(dust);
+    L.disposables.push(dust);
+    // Animate dust drifting
+    L.updaters.push((dt, t) => {
+      const pos = dustGeo.attributes.position.array;
+      for(let i = 0; i < dustCount; i++){
+        pos[i*3]     += dustVel[i*3] * dt;
+        pos[i*3 + 1] += dustVel[i*3 + 1] * dt + Math.sin(t * 0.5 + i) * 0.001;
+        pos[i*3 + 2] += dustVel[i*3 + 2] * dt;
+        // Wrap around the chamber
+        if(pos[i*3] > 12) pos[i*3] = -12;
+        if(pos[i*3] < -12) pos[i*3] = 12;
+        if(pos[i*3 + 1] > 11) pos[i*3 + 1] = 0;
+        if(pos[i*3 + 1] < 0) pos[i*3 + 1] = 11;
+        if(pos[i*3 + 2] > 15) pos[i*3 + 2] = -15;
+        if(pos[i*3 + 2] < -15) pos[i*3 + 2] = 15;
+      }
+      dustGeo.attributes.position.needsUpdate = true;
+    });
+
+    /* --- 5 more floating shapes (torus rings + spirals, total 15) --- */
+    for(let i = 0; i < 5; i++){
+      const geo = new THREE.TorusGeometry(0.15 + Math.random() * 0.10, 0.04, 8, 24);
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0x050810,
+        emissive: 0xff9ee0,   // magenta accent (matches game's paradox color)
+        emissiveIntensity: 0.5 + Math.random() * 0.3,
+        roughness: 0.3,
+        metalness: 0.7
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(
+        (Math.random() - 0.5) * 20,
+        4 + Math.random() * 5,
+        (Math.random() - 0.5) * 24
+      );
+      mesh.userData.rotSpeed = {
+        x: (Math.random() - 0.5) * 0.8,
+        y: (Math.random() - 0.5) * 0.8,
+        z: (Math.random() - 0.5) * 0.5
+      };
+      mesh.userData.bobPhase = Math.random() * Math.PI * 2;
+      mesh.userData.bobAmp = 0.15 + Math.random() * 0.20;
+      mesh.userData.basePos = mesh.position.clone();
+      mesh.frustumCulled = false;
+      WORLD.add(mesh);
+      L.disposables.push(mesh);
+      floatMeshes.push(mesh);
+    }
 
     /* --- Recursive doorway (walk through → back to spawn) --- */
     /* A dark archway on the right wall that teleports the player back to
