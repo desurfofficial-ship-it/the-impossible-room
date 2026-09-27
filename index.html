@@ -893,7 +893,7 @@ body.touch #tb-use{width:64px !important;height:64px !important;font-size:18px !
   background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,0.35) 100%);
   opacity:0.7;}
 
-/* ============ v26: mobile HUD — stop overlapping ============ */
+/* ============ v27: mobile HUD — stop overlapping ============ */
 @media (orientation: portrait) {
   /* Top-left: short label only — don't fight the checklist */
   body.touch .hud-tl{
@@ -1005,7 +1005,7 @@ body.touch #tb-use{width:64px !important;height:64px !important;font-size:18px !
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V26</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V27</span>
   <div class="menu-plate">
     <div class="kicker">gravity puzzle</div>
     <h1>The Impossible Room</h1>
@@ -5721,10 +5721,11 @@ function medalClass(m){ return m?('medal-'+m.toLowerCase()):''; }
    each skill is performed. Feels like a quest log, teaches
    like a level design doc.
    ============================================================ */
-const TUT={ on:false, steps:[], done:[], tk:0 };
+const TUT={ on:false, steps:[], done:[], tk:0, hideTimer:null };
 function tutStart(steps, title){
   TUT.on=true; TUT.steps=steps; TUT.done=steps.map(()=>false);
-  TUT.tk++;                                        /* v8: cancel any pending complete-flourish timer */
+  TUT.tk++;                                        /* cancel any pending complete-flourish / hide */
+  const myTk = TUT.tk;
   if(DOM.tut){
     DOM.tut.classList.remove('complete');
     DOM.tut.classList.add('on');
@@ -5732,15 +5733,24 @@ function tutStart(steps, title){
     DOM.tutList.innerHTML=steps.map((s,i)=>
       `<div class="tstep" id="tstep-${i}"><span class="tbox">✓</span><span class="tlbl">${s}</span></div>`).join('');
   }
+  /* v27: show checklist only at start, then hide so JUMP/USE stay free.
+     Completions notify via toast — not a permanent panel. */
+  clearTimeout(TUT.hideTimer);
+  TUT.hideTimer = setTimeout(()=>{
+    if(TUT.tk !== myTk) return;
+    if(DOM.tut) DOM.tut.classList.remove('on');
+  }, (typeof IS_TOUCH !== 'undefined' && IS_TOUCH) ? 4200 : 5500);
 }
 function tutDone(i){
   if(!TUT.on || TUT.done[i]) return;
   TUT.done[i]=true;
   const el=document.getElementById('tstep-'+i);
   if(el) el.classList.add('done');
-  SND.tutTick(i);                                  /* v8: dedicated tick — attack, body, transient */
-  buzz([10,26,12]);                                /* v8: double-pulse haptic */
-  awardScore(200+i*50, null, {});        /* silent bank — the tick IS the reward */
+  const label = (TUT.steps[i] || ('STEP '+(i+1))).replace(/</g,'');
+  toast('✓ '+label, 2400);
+  SND.tutTick(i);
+  buzz([10,26,12]);
+  awardScore(200+i*50, null, {});
   if(TUT.done.every(Boolean)){ tutComplete(); }
 }
 function tutComplete(){
