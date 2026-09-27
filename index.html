@@ -1170,6 +1170,63 @@ body.touch #tb-pause{
   color: #c8c6c0 !important;
 }
 
+
+/* v32: HUD stays out of the way — edge chips, not billboards */
+body.touch.playing .hud-tl{
+  top: calc(8px + env(safe-area-inset-top, 0px)) !important;
+  left: 8px !important;
+  max-width: min(42vw, 150px) !important;
+  padding: 4px 8px !important;
+  background: rgba(0,0,0,0.45) !important;
+  border: none !important;
+  border-radius: 4px !important;
+  border-left: none !important;
+  box-shadow: none !important;
+}
+/* Hide long objective mid-play — already shown on the level card */
+body.touch.playing #hud-obj,
+body.touch.playing #hud-status{
+  display: none !important;
+}
+body.touch.playing #hud-level{
+  font-size: 8px !important;
+  letter-spacing: 0.12em !important;
+  opacity: 0.85 !important;
+  margin: 0 !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8) !important;
+}
+/* Timer: small corner chip under pause */
+body.touch.playing .hud-br{
+  top: calc(8px + 44px + 6px + env(safe-area-inset-top, 0px)) !important;
+  right: calc(8px + env(safe-area-inset-right, 0px)) !important;
+  padding: 3px 6px !important;
+  min-width: 0 !important;
+  max-width: 88px !important;
+  background: rgba(0,0,0,0.45) !important;
+  border: none !important;
+  border-radius: 4px !important;
+}
+body.touch.playing #hud-time,
+body.touch.playing #hud-time.race{
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  opacity: 0.9 !important;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8) !important;
+}
+body.touch.playing #hud-shards{
+  font-size: 8px !important;
+  margin-top: 1px !important;
+  opacity: 0.75 !important;
+}
+body.touch.playing #tb-pause{
+  top: calc(8px + env(safe-area-inset-top, 0px)) !important;
+  right: calc(8px + env(safe-area-inset-right, 0px)) !important;
+  width: 40px !important;
+  height: 40px !important;
+  background: rgba(0,0,0,0.45) !important;
+  border: 1px solid rgba(255,255,255,0.12) !important;
+}
+
 </style>
 </head><body>
 <canvas id="c"></canvas>
@@ -1181,7 +1238,7 @@ body.touch #tb-pause{
     <span class="rf rf-bl"></span><span class="rf rf-br"></span>
     <span class="rf-rail rf-top"></span><span class="rf-rail rf-bot"></span>
   </div>
-  <span class="menu-version">THE IMPOSSIBLE ROOM · V31</span>
+  <span class="menu-version">THE IMPOSSIBLE ROOM · V32</span>
   <div class="menu-plate">
     <div class="kicker">gravity puzzle</div>
     <h1>The Impossible Room</h1>
@@ -6007,7 +6064,8 @@ function startLevel(i, opts={}){
   if(def.tut && !GAME.qa && !opts.silent) tutStart(def.tut.steps, def.tut.title);
   SND.ambient(def.ambient??55);
   /* level card — v6: The Academy lessons get their own kicker + chip */
-  DOM.hudLevel.textContent=(def.tut?('LESSON '+ROMAN[i]):('CHAMBER '+ROMAN[i]))+' — '+def.name.toUpperCase();
+  /* v32: short label in-play — full name/objective are on the level card + pause */
+  DOM.hudLevel.textContent=(def.tut?('LESSON '+ROMAN[i]):('CHAMBER '+ROMAN[i]));
   DOM.hudObj.textContent=def.objective;
   if(!SAVE.flowHintSeen && !GAME.qa && !def.tut && !SAVE.chainHintSeen){
     SAVE.flowHintSeen=true; persist();
